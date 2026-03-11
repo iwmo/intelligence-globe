@@ -16,7 +16,7 @@ Requirements for initial release. Maps to roadmap phases.
 ### Satellite Tracking
 
 - [x] **SAT-01**: User sees 5,000+ real-time satellites rendered on the globe from CelesTrak TLE/GP data
-- [ ] **SAT-02**: User sees orbit path polylines and ground tracks for selected satellites
+- [x] **SAT-02**: User sees orbit path polylines and ground tracks for selected satellites
 - [ ] **SAT-03**: User can search satellites by name or NORAD ID and fly to result
 - [ ] **SAT-04**: User can filter satellites by constellation (Starlink, GPS, ISS, etc.) or altitude band
 
@@ -91,7 +91,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GLOB-02 | Phase 1 | Complete |
 | GLOB-03 | Phase 4 | Pending |
 | SAT-01 | Phase 2 | Complete |
-| SAT-02 | Phase 2 | Pending |
+| SAT-02 | Phase 2 | Complete |
 | SAT-03 | Phase 4 | Pending |
 | SAT-04 | Phase 4 | Pending |
 | AIR-01 | Phase 3 | Pending |

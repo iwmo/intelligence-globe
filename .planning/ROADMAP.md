@@ -95,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-11 |
-| 2. Satellite Layer | 1/4 | In Progress|  |
+| 2. Satellite Layer | 2/4 | In Progress|  |
 | 3. Aircraft Layer | 0/TBD | Not started | - |
 | 4. Controls and Polish | 0/TBD | Not started | - |
 | 5. Performance | 0/TBD | Not started | - |

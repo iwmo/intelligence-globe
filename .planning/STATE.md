@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-satellite-layer/02-01-PLAN.md — satellite data layer with Alembic migration and 3 endpoints
-last_updated: "2026-03-11T13:05:21.127Z"
+stopped_at: Completed 02-satellite-layer/02-03-PLAN.md — SGP4 propagation worker, useSatellites hook, Zustand satellite state
+last_updated: "2026-03-11T13:08:53.488Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 20 | 2 tasks | 3 files |
 | Phase 01-foundation P03 | 45 | 2 tasks | 7 files |
 | Phase 02-satellite-layer P01 | 3 | 2 tasks | 7 files |
+| Phase 02-satellite-layer P03 | 86s | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 02-satellite-layer]: Alembic env.py uses asyncio.run() with async engine and run_sync — avoids needing a separate sync DB URL for migrations
 - [Phase 02-satellite-layer]: Dual GET decorator on list_satellites (@router.get('') + @router.get('/')) handles trailing-slash without disabling redirect_slashes globally
 - [Phase 02-satellite-layer]: include_object filter in alembic/env.py excludes reflected PostGIS/tiger tables from autogenerate
+- [Phase 02-satellite-layer]: satellite.js json2satrec guards satrec.error !== 0 to silently discard malformed OMM records
+- [Phase 02-satellite-layer]: PROPAGATE uses transferable Float64Array (zero-copy IPC) packing [x,y,z,norad]*N in meters
+- [Phase 02-satellite-layer]: 30s AbortController timeout on /api/satellites/ fetch — large (~4 MB) payload exceeds typical 5s window
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:05:21.125Z
-Stopped at: Completed 02-satellite-layer/02-01-PLAN.md — satellite data layer with Alembic migration and 3 endpoints
+Last session: 2026-03-11T13:08:53.486Z
+Stopped at: Completed 02-satellite-layer/02-03-PLAN.md — SGP4 propagation worker, useSatellites hook, Zustand satellite state
 Resume file: None
