@@ -5,6 +5,7 @@ import {
   PolylineCollection,
   Cartesian3,
   ArcType,
+  BlendOption,
   Color,
   Material,
 } from 'cesium';
@@ -99,7 +100,7 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
     if (!viewer || viewer.isDestroyed() || !satellites.data) return;
 
     // Create PointPrimitiveCollection once
-    const collection = viewer.scene.primitives.add(new PointPrimitiveCollection());
+    const collection = viewer.scene.primitives.add(new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE }));
     collectionRef.current = collection;
 
     // Spawn worker
@@ -123,7 +124,7 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
           collection.add({
             position: Cartesian3.ZERO,
             pixelSize: 3,
-            color: Color.fromCssColorString('#00D4FF').withAlpha(0.85),
+            color: Color.fromCssColorString('#00D4FF'),
             id: satData[i].norad_cat_id,  // scene.pick() returns this as picked.id
           });
           map.set(satData[i].norad_cat_id, i);
