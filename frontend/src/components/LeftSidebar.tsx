@@ -54,7 +54,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         <div
           style={{
             position: 'fixed', left: 0, top: 0, bottom: '32px',
-            width: '280px',
+            width: 'min(280px, calc(100vw - 24px))',
             background: 'rgba(0,0,0,0.92)',
             borderRight: '1px solid rgba(0,212,255,0.15)',
             zIndex: 50,

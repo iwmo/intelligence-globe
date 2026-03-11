@@ -8,12 +8,14 @@ export function RightDrawer() {
 
   const isOpen = selectedSatelliteId !== null || selectedAircraftId !== null;
 
+  const drawerWidth = 'min(300px, calc(100vw - 48px))';
+
   return (
     <div style={{
       position: 'absolute',
       top: 0,
-      right: isOpen ? 0 : '-320px',
-      width: '300px',
+      right: isOpen ? '0' : `calc(-1 * ${drawerWidth})`,
+      width: drawerWidth,
       height: '100%',
       background: 'rgba(10, 14, 20, 0.92)',
       borderLeft: '1px solid rgba(0, 212, 255, 0.2)',

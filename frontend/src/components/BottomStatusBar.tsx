@@ -74,14 +74,14 @@ export function BottomStatusBar() {
           API {apiStatus}
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', minWidth: 0 }}>
-        {layers.satellites && (
-          <span style={{ color: tleLastUpdated ? '#00D4FF' : '#666', fontSize: '11px', fontFamily: 'monospace', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0 }}>
+        {layers.satellites && tleLastUpdated && (
+          <span style={{ color: '#00D4FF', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
             {formattedTle}
           </span>
         )}
-        {layers.aircraft && (
-          <span style={{ color: aircraftLastUpdated ? '#00D4FF' : '#666', fontSize: '11px', fontFamily: 'monospace', minWidth: 0 }}>
+        {layers.aircraft && aircraftLastUpdated && (
+          <span style={{ color: '#FF8C00', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
             {formattedAcf}
           </span>
         )}
