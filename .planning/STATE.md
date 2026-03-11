@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: "Completed 02-satellite-layer/02-04-PLAN.md — satellite layer rendering: 5,000+ points, click-to-select, orbit path, ground track, ESRI basemap, human verification approved"
-last_updated: "2026-03-11T13:43:50.225Z"
+stopped_at: Completed 03-aircraft-layer/03-01-PLAN.md — Aircraft model, migration, API routes, ingest helpers, 5 TDD tests green
+last_updated: "2026-03-11T14:25:07.256Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
   percent: 0
 ---
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-satellite-layer P03 | 86s | 2 tasks | 4 files |
 | Phase 02-satellite-layer P02 | 10 | 2 tasks | 6 files |
 | Phase 02-satellite-layer P04 | 60min | 3 tasks | 6 files |
+| Phase 03-aircraft-layer P01 | 525615min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 02-satellite-layer]: Material.fromType('Color', {color}) required for PolylineCollection — inline fabric object literal rejected at runtime by CesiumJS
 - [Phase 02-satellite-layer]: ESRI World Imagery (UrlTemplateImageryProvider) replaces NaturalEarthII — satellite photo basemap, free, no ion token, dramatically better visual quality
 - [Phase 02-satellite-layer]: ArcType.NONE on all orbit polylines — orbital paths are ECEF straight segments, not geodesic arcs
+- [Phase 03-aircraft-layer]: Aircraft uses icao24 (String) as primary key directly — no surrogate integer id needed, ICAO24 is a stable natural identifier
+- [Phase 03-aircraft-layer]: Trail capping (max 20) enforced by ingest helper build_new_trail pure function, not by SQLAlchemy model constraint — keeps model simple, helper unit-testable
+- [Phase 03-aircraft-layer]: ingest_aircraft.py helpers created in Plan 01 (not Plan 02) to satisfy test_ingest_aircraft.py import contracts before ingest worker is wired
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:33:27.601Z
-Stopped at: Completed 02-satellite-layer/02-04-PLAN.md — satellite layer rendering: 5,000+ points, click-to-select, orbit path, ground track, ESRI basemap, human verification approved
+Last session: 2026-03-11T14:25:07.253Z
+Stopped at: Completed 03-aircraft-layer/03-01-PLAN.md — Aircraft model, migration, API routes, ingest helpers, 5 TDD tests green
 Resume file: None

@@ -22,15 +22,15 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Aircraft Tracking
 
-- [ ] **AIR-01**: User sees real-time aircraft positions on the globe from OpenSky Network API
-- [ ] **AIR-02**: User sees trail polylines showing each aircraft's recent movement history
+- [x] **AIR-01**: User sees real-time aircraft positions on the globe from OpenSky Network API
+- [x] **AIR-02**: User sees trail polylines showing each aircraft's recent movement history
 - [ ] **AIR-03**: User can search aircraft by callsign or ICAO24 and fly to result
 - [ ] **AIR-04**: User can filter aircraft by region (bounding box) or altitude range
 
 ### Interaction
 
 - [x] **INT-01**: User can click any satellite to inspect metadata (NORAD ID, altitude, velocity, TLE epoch, constellation)
-- [ ] **INT-02**: User can click any aircraft to inspect metadata (callsign, ICAO24, altitude, speed, heading, country)
+- [x] **INT-02**: User can click any aircraft to inspect metadata (callsign, ICAO24, altitude, speed, heading, country)
 - [ ] **INT-03**: User can toggle each data layer on/off independently (satellites, aircraft)
 - [ ] **INT-04**: UI is responsive and usable on desktop and tablet viewports
 
@@ -94,12 +94,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAT-02 | Phase 2 | Complete |
 | SAT-03 | Phase 4 | Pending |
 | SAT-04 | Phase 4 | Pending |
-| AIR-01 | Phase 3 | Pending |
-| AIR-02 | Phase 3 | Pending |
+| AIR-01 | Phase 3 | Complete |
+| AIR-02 | Phase 3 | Complete |
 | AIR-03 | Phase 4 | Pending |
 | AIR-04 | Phase 4 | Pending |
 | INT-01 | Phase 2 | Complete |
-| INT-02 | Phase 3 | Pending |
+| INT-02 | Phase 3 | Complete |
 | INT-03 | Phase 4 | Pending |
 | INT-04 | Phase 4 | Pending |
 | INFRA-01 | Phase 1 | Complete |
