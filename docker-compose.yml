@@ -38,6 +38,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
       VERSION: ${VERSION:-0.1.0}
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-REDACTED_OPENSKY_CLIENT_ID}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-REDACTED_OPENSKY_SECRET}
     ports:
       - "8000:8000"
 
@@ -54,6 +56,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-opensignal}
       REDIS_URL: redis://redis:6379/0
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-REDACTED_OPENSKY_CLIENT_ID}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-REDACTED_OPENSKY_SECRET}
 
   frontend:
     build:
