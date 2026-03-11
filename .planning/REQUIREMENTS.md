@@ -9,16 +9,16 @@ Requirements for the v2.0 WorldView Parity milestone.
 
 ### Visual Engine
 
-- [ ] **VIS-01**: User can switch between visual style presets (Normal, NVG, CRT, FLIR, Noir) applied to the full globe scene
-- [ ] **VIS-02**: User can adjust post-processing parameters via real-time sliders (Bloom intensity, Sharpen amount, Gain, Scanline spacing, Pixelation level)
-- [ ] **VIS-03**: User sees a cinematic HUD overlay showing classification markings, MGRS coordinates, satellite ORB/PASS telemetry, GSD/ALT/SUN/EL readouts, and REC timestamp
-- [ ] **VIS-04**: User can toggle Clean UI mode to hide all sidebar chrome for content creation and screenshots
+- [x] **VIS-01**: User can switch between visual style presets (Normal, NVG, CRT, FLIR, Noir) applied to the full globe scene
+- [x] **VIS-02**: User can adjust post-processing parameters via real-time sliders (Bloom intensity, Sharpen amount, Gain, Scanline spacing, Pixelation level)
+- [x] **VIS-03**: User sees a cinematic HUD overlay showing classification markings, MGRS coordinates, satellite ORB/PASS telemetry, GSD/ALT/SUN/EL readouts, and REC timestamp
+- [x] **VIS-04**: User can toggle Clean UI mode to hide all sidebar chrome for content creation and screenshots
 
 ### Navigation
 
 - [ ] **NAV-01**: User can jump to a city (including Doha) via a quick-jump bar at the bottom of the globe
-- [ ] **NAV-02**: User can fly to curated landmarks within a city with precise camera centering using OSM bounding box data
-- [ ] **NAV-03**: User can cycle through landmarks via keyboard shortcuts (Q/W/E/R/T)
+- [x] **NAV-02**: User can fly to curated landmarks within a city with precise camera centering using OSM bounding box data
+- [x] **NAV-03**: User can cycle through landmarks via keyboard shortcuts (Q/W/E/R/T)
 
 ### Data Layers
 
@@ -61,13 +61,13 @@ Deferred to future release.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIS-01 | Phase 7 | Pending |
-| VIS-02 | Phase 7 | Pending |
-| VIS-03 | Phase 7 | Pending |
-| VIS-04 | Phase 7 | Pending |
+| VIS-01 | Phase 7 | Complete |
+| VIS-02 | Phase 7 | Complete |
+| VIS-03 | Phase 7 | Complete |
+| VIS-04 | Phase 7 | Complete |
 | NAV-01 | Phase 7 | Pending |
-| NAV-02 | Phase 7 | Pending |
-| NAV-03 | Phase 7 | Pending |
+| NAV-02 | Phase 7 | Complete |
+| NAV-03 | Phase 7 | Complete |
 | LAY-01 | Phase 8 | Pending |
 | LAY-03 | Phase 8 | Pending |
 | LAY-02 | Phase 9 | Pending |
