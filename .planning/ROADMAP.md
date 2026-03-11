@@ -40,7 +40,14 @@
   3. User sees a persistent cinematic HUD displaying a classification banner, live MGRS coordinates that update as the camera moves, satellite telemetry readout, and a REC timestamp
   4. User can toggle Clean UI mode to hide all sidebar chrome, leaving only the globe and HUD visible for screenshots
   5. User can type a city name in the bottom quick-jump bar or press Q/W/E/R/T to fly the camera to a curated landmark with precise centering
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Extend Zustand store with visual/nav slices and create Wave 0 test stubs
+- [ ] 07-02-PLAN.md — PostProcessEngine singleton (5 GLSL presets) and PostProcessPanel UI
+- [ ] 07-03-PLAN.md — CinematicHUD overlay with MGRS readout and Clean UI toggle
+- [ ] 07-04-PLAN.md — Navigation data, viewerRegistry flyToLandmark, keyboard shortcuts, LandmarkNav
+- [ ] 07-05-PLAN.md — App.tsx wiring and human verification of all 7 requirements
 
 ### Phase 8: New Data Pipelines — Military + Maritime
 **Goal**: Users see military aircraft as distinct orange icons and ships as cyan icons, both toggleable independently, with click-to-inspect metadata
