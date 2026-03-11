@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-controls-and-polish/04-01-PLAN.md — store slices, viewerRegistry, and GET_POSITION worker handler in place
-last_updated: "2026-03-11T16:31:00.414Z"
+stopped_at: Completed 04-controls-and-polish/04-02-PLAN.md — awaiting Task 3 visual verification checkpoint
+last_updated: "2026-03-11T16:35:43.479Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-aircraft-layer P02 | 20min | 2 tasks | 2 files |
 | Phase 03-aircraft-layer P03 | 30min | 3 tasks | 8 files |
 | Phase 04-controls-and-polish P01 | 4min | 2 tasks | 7 files |
+| Phase 04-controls-and-polish P02 | 3min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase 04-controls-and-polish]: vitest installed as first test framework in frontend codebase (jsdom environment)
 - [Phase 04-controls-and-polish]: viewerRegistry uses module-level singleton — simple and sufficient for single-viewer app
 - [Phase 04-controls-and-polish]: GET_POSITION re-propagates on demand rather than caching — acceptable for single-object fly-to lookup
+- [Phase 04-controls-and-polish]: onWorkerReady callback prop pattern in SatelliteLayer: worker exposed to parent via callback rather than forwardRef
+- [Phase 04-controls-and-polish]: satWorker state + satWorkerRef in App.tsx: useState triggers re-render to pass worker down, useRef provides stable ref for SearchBar
+- [Phase 04-controls-and-polish]: Per-point show (not collection.show) for layer visibility: avoids conflicts with Plan 03 filter effects
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T16:31:00.411Z
-Stopped at: Completed 04-controls-and-polish/04-01-PLAN.md — store slices, viewerRegistry, and GET_POSITION worker handler in place
+Last session: 2026-03-11T16:35:43.476Z
+Stopped at: Completed 04-controls-and-polish/04-02-PLAN.md — awaiting Task 3 visual verification checkpoint
 Resume file: None
