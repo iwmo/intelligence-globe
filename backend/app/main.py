@@ -5,6 +5,7 @@ from app.config import settings
 from app.db import init_db
 from app.api.routes_health import router as health_router
 from app.api.routes_satellites import router as satellites_router
+from app.api.routes_aircraft import router as aircraft_router
 
 
 @asynccontextmanager
@@ -24,3 +25,4 @@ app.add_middleware(
 
 app.include_router(health_router, prefix="/api")
 app.include_router(satellites_router, prefix="/api/satellites")
+app.include_router(aircraft_router, prefix="/api/aircraft")
