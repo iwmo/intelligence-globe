@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-03-PLAN.md — Phase 1 complete
-last_updated: "2026-03-11T11:40:18.004Z"
+stopped_at: Completed 01-foundation/01-03-PLAN.md — Phase 1 fully verified
+last_updated: "2026-03-11T12:29:51.394Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P01 | 5 | 3 tasks | 18 files |
 | Phase 01-foundation P02 | 10min | 2 tasks | 15 files |
 | Phase 01-foundation P03 | 20 | 2 tasks | 3 files |
+| Phase 01-foundation P03 | 45 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: AbortController timeout (5s) on health fetch prevents indefinite isLoading state in TanStack Query
 - [Phase 01-foundation]: pointer-events: auto !important on .cesium-widget canvas fixes scroll-to-zoom blocked by Cesium widget CSS
 - [Phase 01-foundation]: viewer.resize() on Cesium init aligns canvas dimensions with CSS absolute-positioned container
+- [Phase 01-foundation]: NaturalEarthII via TileMapServiceImageryProvider from bundled Cesium assets — no ion token required for dev
+- [Phase 01-foundation]: VITE_API_BASE_URL hardcoded to http://backend:8000 in docker-compose.yml — localhost resolves incorrectly inside container
+- [Phase 01-foundation]: AbortController timeout (5s) on health fetch enables TanStack Query retry cycle without indefinite isLoading
+- [Phase 01-foundation]: viewerRef.current null-check in requestAnimationFrame prevents React StrictMode double-mount from crashing GPU context
 
 ### Pending Todos
 
@@ -88,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T11:40:18.002Z
-Stopped at: Completed 01-foundation/01-03-PLAN.md — Phase 1 complete
+Last session: 2026-03-11T12:29:51.392Z
+Stopped at: Completed 01-foundation/01-03-PLAN.md — Phase 1 fully verified
 Resume file: None
