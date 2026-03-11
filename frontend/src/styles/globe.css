@@ -1,0 +1,27 @@
+/* Remove all default Cesium background so globe floats on pure black */
+.cesium-viewer,
+.cesium-widget,
+.cesium-widget canvas {
+  background: #000000 !important;
+}
+
+/* Hide credit container (personal/homelab use only) */
+.cesium-viewer-bottom {
+  display: none !important;
+}
+
+/* Fullscreen globe */
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000000;
+}
+
+#cesiumContainer {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
