@@ -8,10 +8,27 @@ interface LeftSidebarProps {
 }
 
 export function LeftSidebar({ workerRef }: LeftSidebarProps) {
-  const { sidebarOpen, layers, setLayerVisible } = useAppStore();
+  const { sidebarOpen, setSidebarOpen, layers, setLayerVisible } = useAppStore();
 
   return (
     <>
+      {/* Hamburger button — always visible top-left */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        title={sidebarOpen ? 'Close panel' : 'Open panel'}
+        style={{
+          position: 'fixed', top: '12px', left: '12px', zIndex: 70,
+          display: 'flex', flexDirection: 'column', gap: '4px',
+          padding: '8px', background: 'rgba(0,0,0,0.75)',
+          border: '1px solid rgba(0,212,255,0.25)', borderRadius: '4px',
+          cursor: 'pointer',
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <span key={i} style={{ display: 'block', width: '16px', height: '2px', background: 'rgba(0,212,255,0.8)' }} />
+        ))}
+      </button>
+
       {/* Persistent layer toggle strip — always visible bottom-left */}
       <div style={{
         position: 'fixed', bottom: '40px', left: '12px',

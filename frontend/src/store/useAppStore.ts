@@ -34,7 +34,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  layers: { satellites: false, aircraft: false },
+  layers: { satellites: true, aircraft: true },
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
