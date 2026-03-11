@@ -16,6 +16,33 @@ import { useAppStore } from '../store/useAppStore';
 
 const POLL_INTERVAL_MS = 90_000;
 
+// ---------------------------------------------------------------------------
+// Pure filter helper — module-level, no React deps
+// ---------------------------------------------------------------------------
+
+function matchesAircraftFilter(
+  ac: { baro_altitude: number | null; latitude: number | null; longitude: number | null },
+  filter: {
+    altitudeRange: [number, number] | null;
+    boundingBox: { minLat: number; maxLat: number; minLon: number; maxLon: number } | null;
+  }
+): boolean {
+  if (filter.altitudeRange) {
+    const alt = ac.baro_altitude ?? 0;
+    if (alt < filter.altitudeRange[0] || alt > filter.altitudeRange[1]) return false;
+  }
+
+  if (filter.boundingBox && ac.latitude != null && ac.longitude != null) {
+    const { minLat, maxLat, minLon, maxLon } = filter.boundingBox;
+    if (
+      ac.latitude < minLat || ac.latitude > maxLat ||
+      ac.longitude < minLon || ac.longitude > maxLon
+    ) return false;
+  }
+
+  return true;
+}
+
 // Module-scope maps — survive re-renders, reset on full unmount
 const prevPositions = new Map<string, Cartesian3>();
 const currPositions = new Map<string, Cartesian3>();
@@ -151,13 +178,17 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     }
   }, [viewer, aircraft.data]);
 
-  // Effect for layer visibility: toggle all aircraft points show/hide
+  // Combined filter + visibility effect (replaces Plan 02 visibility-only effect)
+  // Single effect setting point.show — avoids conflict between two effects both writing show
+  const aircraftFilter = useAppStore(s => s.aircraftFilter);
   const layerVisible = useAppStore(s => s.layers.aircraft);
   useEffect(() => {
-    for (const [, point] of pointsByIcao24) {
-      if (point) point.show = layerVisible;
+    for (const [icao24, point] of pointsByIcao24) {
+      const ac = aircraft.data?.find(a => a.icao24 === icao24);
+      if (!ac) continue;
+      point.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
     }
-  }, [layerVisible]);
+  }, [aircraftFilter, aircraft.data, layerVisible]);
 
   // Effect 3: Trail-on-selection — show trail polyline for selected aircraft
   useEffect(() => {

@@ -12,6 +12,49 @@ import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
 import { flyToCartesian } from '../lib/viewerRegistry';
 
+// ---------------------------------------------------------------------------
+// Pure filter helpers — module-level, no React deps
+// ---------------------------------------------------------------------------
+
+function satelliteAltitudeKm(omm: Record<string, unknown>): number {
+  const mu = 398600.4418;
+  const re = 6371.0;
+  const meanMotion = (omm.MEAN_MOTION as number) ?? 14;
+  const n = meanMotion * 2 * Math.PI / 86400;
+  const a = Math.cbrt(mu / (n * n));
+  return a - re;
+}
+
+function deriveConstellation(objectName: string): string {
+  const upper = (objectName ?? '').toUpperCase();
+  if (upper.startsWith('STARLINK')) return 'Starlink';
+  if (upper.startsWith('GPS')) return 'GPS';
+  if (upper === 'ISS (ZARYA)' || upper === 'ISS') return 'ISS';
+  if (upper.startsWith('IRIDIUM')) return 'Iridium';
+  if (upper.startsWith('ONEWEB')) return 'OneWeb';
+  return 'Other';
+}
+
+function matchesSatelliteFilter(
+  sat: { norad_cat_id: number; omm: Record<string, unknown> },
+  filter: { constellation: string | null; altitudeBand: [number, number] | null }
+): boolean {
+  const omm = sat.omm as Record<string, unknown>;
+
+  if (filter.constellation) {
+    const satConst = (omm.constellation as string | undefined)
+      ?? deriveConstellation((omm.OBJECT_NAME as string) ?? '');
+    if (satConst !== filter.constellation) return false;
+  }
+
+  if (filter.altitudeBand) {
+    const altKm = satelliteAltitudeKm(omm);
+    if (altKm < filter.altitudeBand[0] || altKm > filter.altitudeBand[1]) return false;
+  }
+
+  return true;
+}
+
 interface OrbitResultMessage {
   type: 'ORBIT_RESULT';
   orbitPoints: number[][];
@@ -184,15 +227,22 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
     };
   }, [viewer, satellites.data, onWorkerReady]);
 
-  // Effect 4: Toggle satellite layer visibility
+  // Effect 4: Combined filter + visibility effect (replaces Plan 02 visibility-only effect)
+  const satelliteFilter = useAppStore(s => s.satelliteFilter);
   const layerVisible = useAppStore(s => s.layers.satellites);
   useEffect(() => {
     if (!collectionRef.current || collectionRef.current.isDestroyed()) return;
     const collection = collectionRef.current;
+    if (collection.length === 0) return; // guard — not yet populated
+    const satData = satellites.data ?? [];
+
     for (let i = 0; i < collection.length; i++) {
-      collection.get(i).show = layerVisible;
+      const pt = collection.get(i);
+      const sat = satData[i];
+      if (!sat) { pt.show = false; continue; }
+      pt.show = layerVisible && matchesSatelliteFilter(sat, satelliteFilter);
     }
-  }, [layerVisible]);
+  }, [satelliteFilter, satellites.data, layerVisible]);
 
   // Effect 2: Watch selectedSatelliteId to trigger COMPUTE_ORBIT
   const selectedId = useAppStore(s => s.selectedSatelliteId);

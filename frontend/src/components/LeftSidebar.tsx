@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import { Satellite, Plane } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
+import { FilterPanel } from './FilterPanel';
 
 interface LeftSidebarProps {
   workerRef: RefObject<Worker | null>;
@@ -72,10 +73,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
               FILTERS
             </span>
           </div>
-          {/* Filter panel content inserted by Plan 03 */}
-          <div style={{ padding: '12px', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
-            Filters coming soon...
-          </div>
+          <FilterPanel />
         </div>
       )}
     </>
