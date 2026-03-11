@@ -59,33 +59,31 @@ Deferred to future release.
 
 ## Traceability
 
-Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIS-01 | — | Pending |
-| VIS-02 | — | Pending |
-| VIS-03 | — | Pending |
-| VIS-04 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| LAY-01 | — | Pending |
-| LAY-02 | — | Pending |
-| LAY-03 | — | Pending |
-| LAY-04 | — | Pending |
-| REP-01 | — | Pending |
-| REP-02 | — | Pending |
-| REP-03 | — | Pending |
-| REP-04 | — | Pending |
-| REP-05 | — | Pending |
-| REP-06 | — | Pending |
+| VIS-01 | Phase 7 | Pending |
+| VIS-02 | Phase 7 | Pending |
+| VIS-03 | Phase 7 | Pending |
+| VIS-04 | Phase 7 | Pending |
+| NAV-01 | Phase 7 | Pending |
+| NAV-02 | Phase 7 | Pending |
+| NAV-03 | Phase 7 | Pending |
+| LAY-01 | Phase 8 | Pending |
+| LAY-03 | Phase 8 | Pending |
+| LAY-02 | Phase 9 | Pending |
+| LAY-04 | Phase 9 | Pending |
+| REP-01 | Phase 10 | Pending |
+| REP-02 | Phase 11 | Pending |
+| REP-03 | Phase 11 | Pending |
+| REP-04 | Phase 11 | Pending |
+| REP-05 | Phase 12 | Pending |
+| REP-06 | Phase 12 | Pending |
 
 **Coverage:**
 - v2 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial v2.0 definition*
+*Last updated: 2026-03-11 — traceability filled after v2.0 roadmap creation*
