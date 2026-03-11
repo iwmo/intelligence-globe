@@ -36,8 +36,8 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Infrastructure
 
-- [x] **INFRA-01**: Full stack deployable via Docker Compose on homelab/VPS
-- [x] **INFRA-02**: FastAPI backend with PostgreSQL + PostGIS for spatial data storage
+- [ ] **INFRA-01**: Full stack deployable via Docker Compose on homelab/VPS
+- [ ] **INFRA-02**: FastAPI backend with PostgreSQL + PostGIS for spatial data storage
 - [x] **INFRA-03**: Globe renders smoothly with 5,000+ satellites and hundreds of aircraft simultaneously
 
 ## v2 Requirements
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GLOB-03 | Phase 4 | Complete |
 | SAT-01 | Phase 2 | Complete |
 | SAT-02 | Phase 2 | Complete |
-| SAT-03 | Phase 4 | Complete |
+| SAT-03 | Phase 4, Phase 6 | Pending (fly-to null guard) |
 | SAT-04 | Phase 4 | Complete |
 | AIR-01 | Phase 3 | Complete |
 | AIR-02 | Phase 3 | Complete |
@@ -102,14 +102,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-02 | Phase 3 | Complete |
 | INT-03 | Phase 4 | Complete |
 | INT-04 | Phase 4 | Complete |
-| INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Complete |
+| INFRA-01 | Phase 1, Phase 6 | Pending (auto-migration gap) |
+| INFRA-02 | Phase 1, Phase 6 | Pending (auto-migration gap) |
 | INFRA-03 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 17 total
 - Mapped to phases: 17
 - Unmapped: 0 ✓
+- Pending gap closure (Phase 6): INFRA-01, INFRA-02, SAT-03
 
 ---
 *Requirements defined: 2026-03-11*

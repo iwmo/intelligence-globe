@@ -102,15 +102,31 @@ Plans:
 - [ ] 05-02-PLAN.md — Aircraft latlon index migration + backend latency integration tests
 - [ ] 05-03-PLAN.md — ISS ground track unit test + cleanup test + nine pitfall audit + FPS checkpoint
 
+### Phase 6: Deploy Hardening
+**Goal**: Resolve all gaps found in v1.0 milestone audit — automate Alembic migrations for clean `docker compose up`, guard SearchBar fly-to against null worker, remove dead store state, and document local dev environment setup
+**Depends on**: Phase 5
+**Requirements**: INFRA-01, INFRA-02, SAT-03
+**Gap Closure**: Closes gaps from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. `docker compose up` from a clean checkout brings all services online with tables migrated — no manual `alembic upgrade head` required
+  2. Searching for a satellite before the TLE data loads does not silently drop the fly-to; a null guard prevents the error
+  3. Dead `searchQuery` store slice is removed; no dead state in useAppStore
+  4. `backend/.env` exists for local test runs; tests pass without manual DATABASE_URL export
+**Plans**: 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Entrypoint migration, SearchBar null guard, dead store cleanup, backend .env
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-11 |
-| 2. Satellite Layer | 2/4 | In Progress|  |
+| 2. Satellite Layer | 4/4 | Complete   | 2026-03-11 |
 | 3. Aircraft Layer | 3/3 | Complete   | 2026-03-11 |
-| 4. Controls and Polish | 2/3 | In Progress|  |
+| 4. Controls and Polish | 3/3 | Complete   | 2026-03-11 |
 | 5. Performance | 3/3 | Complete   | 2026-03-11 |
+| 6. Deploy Hardening | 0/1 | Pending    |  |
