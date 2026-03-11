@@ -1,230 +1,199 @@
 # Project Research Summary
 
-**Project:** OpenSignal Globe (OSINT Geospatial Intelligence Platform)
-**Domain:** Browser-based 3D globe with real-time satellite and aircraft tracking
+**Project:** Intelligence Globe v2.0 — WorldView Parity
+**Domain:** Browser-based 3D OSINT geospatial intelligence platform (CesiumJS + FastAPI)
 **Researched:** 2026-03-11
-**Confidence:** HIGH
+**Confidence:** HIGH (CesiumJS architecture, USGS, NOAA, OSM patterns) / MEDIUM (ADSB Exchange auth, AIS availability) / LOW (gpsjam.org data access)
 
 ## Executive Summary
 
-OpenSignal Globe is an OSINT geospatial intelligence visualization platform that fuses satellite tracking, aircraft ADS-B data, and GNSS anomaly inference into a single cinematic 3D globe interface. Experts build this class of product using a client-heavy WebGL rendering layer (CesiumJS) backed by a stateless async API (FastAPI), a geospatial time-series store (PostgreSQL + PostGIS), and background workers for data ingestion and anomaly detection. The defining architectural principle is that satellites use client-side orbit propagation (satellite.js) for smooth real-time motion, while aircraft require periodic server-side snapshots because their paths are not mathematically predictable. This separation drives the entire data flow and phase structure.
+Intelligence Globe v2.0 adds 12 new features onto a validated v1.0 foundation (CesiumJS 1.139, React 19, FastAPI, PostgreSQL + PostGIS, Redis, RQ, Docker Compose). The core architectural insight from research is that these 12 features split cleanly into four integration tiers: pure frontend visual changes, external tile services piped through CesiumJS ImageryLayer, new backend data pipelines, and new snapshot/event storage infrastructure. This tiered view drives both the build order and the risk profile — Tier 1 and 2 features carry zero backend risk and deliver instant visual payoff; Tier 4 (4D replay and OSINT event correlation) is the most architecturally complex and has a time dependency because the snapshot recorder must run for 24-48 hours before replay data is useful. Front-loading the lower-risk visual engine and tile overlay phases is the correct approach.
 
-The recommended stack is fully confirmed: React 19 + Vite 6 + TypeScript + CesiumJS 1.139 on the frontend; Python 3.12 + FastAPI 0.135 + Uvicorn on the backend; PostgreSQL 17 + PostGIS 3.5 + SQLAlchemy 2.0 + GeoAlchemy2 for geospatial storage; Redis 8.6 + RQ for caching and task queuing; Docker Compose v2 for deployment. Research resolved two open questions from the spec: Zustand wins over Redux Toolkit (simpler for a single-user tool) and RQ wins over Celery (sufficient for polling jobs, 10x smaller). TanStack Query should be added as the frontend server-state manager — it is 2026 best practice and was omitted from the original spec.
+The two most dangerous implementation traps are the CesiumJS post-processing scope and the snapshot storage schema. Post-processing stages in CesiumJS apply to the entire scene's framebuffer — there is no per-layer scope — and stages must be created once at init and toggled, never created and destroyed per preset switch. The snapshot table must be range-partitioned by time from day one; retrofitting a live unpartitioned table of billions of rows requires downtime and is the single most likely source of catastrophic failure in the 4D replay phase. Both of these constraints must be treated as hard architectural requirements, not implementation details to address later. Three external data source risks require explicit fallback planning: ADSB Exchange migrated to a paid RapidAPI model in March 2025 with a tight monthly request budget, aisstream.io is beta with no SLA and server-initiated disconnects every 2 minutes, and gpsjam.org has no public API — the GPS jamming heatmap must be independently replicated by aggregating NIC/NACp fields from aircraft ADS-B data.
 
-The primary risks are CesiumJS performance at scale and data source integration. Using the Entity API for 5,000+ satellites will produce single-digit frame rates — the Primitive API must be chosen from the first line of satellite rendering code. OpenSky Network deprecated HTTP Basic Auth on March 18, 2026; all aircraft fetching must use OAuth2 client credentials from day one. The CelesTrak TLE format hits its 5-digit catalog number limit around July 2026 — the OMM/JSON format must be used instead of legacy TLE text to remain usable post-cutover. These are not optional refinements; they are architectural decisions that are expensive to reverse.
+The recommended build order is: visual engine and cinematic HUD (Tier 1, frontend-only), tile overlay layers including weather radar and GPS jamming (Tier 2, no backend), new data pipelines for military flights and maritime AIS (Tier 3, new backend workers and routes), then snapshot infrastructure followed by the replay engine and OSINT event correlation (Tier 4). Street traffic particle simulation is architecturally isolated and can be deferred without blocking any other feature. The total v2.0 effort is approximately 7-8 weeks for a single developer working sequentially, with Tier 3 and Tier 4 parallelizable if a second contributor is available.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is greenfield-ready with all versions verified as of March 2026. The frontend relies on CesiumJS as the only library that handles satellite orbits, terrain, day/night shading, and atmosphere out-of-the-box at the required scale. deck.gl was evaluated and rejected: its globe mode is documented as "very basic" with no rotation/pitch support. satellite.js handles client-side SGP4/SDP4 propagation at 15KB and is browser-optimized. The backend is async-first throughout: FastAPI + Uvicorn handles 20,000+ req/s and is mandatory for non-blocking OpenSky polling. PostgreSQL + PostGIS is the only serious choice for spatial queries ("aircraft within 50km of anomaly cluster") — MongoDB and ClickHouse were evaluated and lack the geospatial query power of PostGIS GIST indexes.
+The v1.0 base stack requires no changes. v2.0 adds exactly three new npm packages: `mgrs` (2.1.0) for MGRS coordinate display in the HUD, `h3-js` (4.1.0) for decoding gpsjam H3 hex cell IDs into polygon boundaries, and `osmtogeojson` (3.0.0-beta.5) for converting Overpass API responses to GeoJSON for the particle simulation. No new Python packages are required for the backend — all new data sources are consumed either directly by the frontend (USGS, NOAA WMS, Overpass), relayed via existing FastAPI endpoints (AIS WebSocket), or fetched by existing RQ worker infrastructure (gpsjam CSV daily ingest). The entire post-processing visual system — NVG, Bloom, Black-and-White, Blur, Depth of Field — is built into CesiumJS 1.139's `PostProcessStageLibrary` and `PostProcessStageCollection`. FLIR and CRT effects require custom GLSL fragment shaders but no additional libraries.
 
-**Core technologies:**
-- **CesiumJS 1.139+**: 3D globe rendering — only library purpose-built for geospatial simulation at satellite scale
-- **satellite.js 5.x**: Client-side SGP4 orbit propagation — eliminates API latency for satellite position updates
-- **React 19 + Vite 6 + TypeScript 5**: UI framework and build — 2026 standard, fastest dev experience
-- **Zustand 5 + TanStack Query 6**: State management — Zustand for UI state, TanStack Query for server state (satellites, aircraft)
-- **Tailwind CSS 4.2 + shadcn/ui**: UI components — accessible, dark-theme-ready, zero lock-in (copy-paste model)
-- **FastAPI 0.135 + Uvicorn 0.41 + Pydantic 2.12**: Async API layer — 5x faster than Flask, auto OpenAPI docs
-- **PostgreSQL 17 + PostGIS 3.5**: Geospatial storage — GIST indexes for spatial queries, ACID compliance
-- **SQLAlchemy 2.0 + GeoAlchemy2 0.18**: ORM + PostGIS bridge — async support, proven spatial type integration
-- **Redis 8.6 + RQ 2.0**: Cache and task queue — single service for both concerns, simpler than Celery
-- **Docker Compose v2.40**: Deployment — one-command homelab/VPS deployment of all services
-
-**Critical version note:** Node.js 22 LTS required (Vite 6 minimum); Node.js 20 reaches EOL April 2026. CelesTrak OMM/JSON format must be used instead of TLE text — legacy TLE hits 5-digit catalog limit around July 2026.
+**Core technologies (v2.0 additions only):**
+- `mgrs@2.1.0` — MGRS coordinate conversion — MIT, zero deps, ships TS types, NGA-origin standard
+- `h3-js@4.1.0` — H3 hex cell decode for GPS jamming heatmap — Uber library, native TS types, browser-compatible
+- `osmtogeojson@3.0.0-beta.5` — Overpass API JSON to GeoJSON — stable 5+ year API despite beta label, ESM-compatible
+- `CesiumJS PostProcessStageLibrary` — NVG, B&W, Bloom built-in — no additional library required
+- `aisstream.io WebSocket API` — free AIS vessel positions — free/beta, bbox subscription, requires API key in backend
+- `airplanes.live /v2/mil` — military aircraft feed — free, no auth, ADSBExchange v2 JSON schema
+- `USGS Earthquake GeoJSON feed` — `all_day.geojson` — CORS-enabled, no auth, stable since 2012
+- `NOAA nowCoast NEXRAD WMS` — weather radar overlay — CORS-enabled, WMS-T time support, CesiumJS-native integration
+- `Overpass API` — OSM road network for particle simulation — free, bbox-scoped, CORS-enabled
 
 ### Expected Features
 
-Research confirms the feature set against five reference platforms: FlightRadar24, N2YO, Track The Sky, LeoLabs, and OpenSky Network. This platform has a genuine differentiated position: no public platform fuses satellites + aircraft + GNSS anomaly inference in one view. That fusion is the core value proposition and must be preserved through scope discipline.
+The 12 v2.0 features divide into three priority tiers. P1 features establish the new visual identity and should ship first. P2 features fill out the intelligence picture. P3 features are high-complexity with limited blocking dependencies and can slip without degrading the platform.
 
-**Must have (table stakes):**
-- 3D interactive globe with terrain, atmosphere, day/night shading — core experience
-- Real-time satellite tracking (5,000+ simultaneously) — primary use case
-- Orbit path visualization — makes satellites comprehensible
-- Real-time aircraft tracking with trails — parallel primary use case
-- Click-to-inspect detail panel — essential interaction
-- Search by NORAD ID / callsign / ICAO24 — users must find specific objects
-- Layer toggle controls — manage visual clutter
-- Filter by region (bounding box) and altitude band
-- Dark cinematic theme — mission control aesthetic, differentiates from Google Earth
-- Performance at scale — 5,000+ satellites, 1,000+ aircraft, 60 FPS
+**Must have — table stakes (P1):**
+- Visual style presets (NVG, CRT, FLIR, Noir) — no other open-source globe has switchable tactical visual modes; defines platform identity
+- Cinematic HUD overlay — classification banner, MGRS readout, telemetry ticker — transforms the product from "web app" to "intelligence terminal"
+- Post-processing parameter controls — Bloom, Sharpen, Gain sliders — high perceived quality, low implementation cost
+- Landmark / city preset navigation — Q/W/E/R/T shortcuts, 5 curated geopolitical POIs — expected in every mapping tool
+- Military flights layer — ADSB Exchange `/v2/mil` — primary reason OSINT researchers use ADSB Exchange over FlightRadar24
+- Earthquake layer — USGS GeoJSON — low complexity, standard in all geo-intelligence tools
 
-**Should have (competitive differentiators):**
-- GNSS anomaly visualization — unique capability, no public platform has this; honest labeling as inference is mandatory
-- Multi-source data fusion — satellites + aircraft + anomalies in one view
-- Historical replay with time slider — requires snapshot storage; FlightRadar24 Gold tier benchmark
-- Alert / notification system for high-severity anomaly escalation
-- Event feed / timeline — narrative layer over raw data
-- Cinematic UI polish — glowing trails, smooth animations, bloom effects
+**Should have — differentiators (P2):**
+- Maritime traffic layer — AIS vessels — ships are the third domain of geospatial intelligence; any situational awareness tool without ships is incomplete
+- Weather radar overlay — NOAA NEXRAD WMS — operational context for aircraft diversions, maritime hazards, crisis response
+- GPS Jamming heatmap — inferred from NIC/NACp fields — unique OSINT layer, no equivalent in any other open tool
+- 4D Historical replay — snapshot-driven playback with timeline scrubber — FlightRadar24 charges premium for this; no open-source globe has it
 
-**Defer (v2+):**
-- Pass predictor (when will satellite be visible from my location)
-- Naked eye visibility calculations
-- Weather layer overlay (external API dependency)
-- Space weather context (niche, NOAA API required)
-- SDR sensor integration (requires anomaly layer to exist first)
-- Coverage footprint visualization (satellite sensing cones)
-- Export / screenshot (user request driven)
-- Public API access (when external integrations are needed)
+**Defer (v2.1+, P3):**
+- OSINT event correlation — satellite overpass lines + event filter tags — depends on replay infrastructure, high complexity, no other feature depends on it
+- Street traffic particle simulation — synthetic aesthetic effect only, fully isolated from all other features, complexity-to-value ratio is unfavorable for v2.0
 
-**Anti-features to enforce:** No real-time collaboration, no mobile native app, no precise jammer geolocation (confidence problem), no proprietary data sources, no automated target tracking.
+**Anti-features (do not build):**
+- Real GPS jammer geolocation — sensor triangulation not possible from ADS-B data; label all cells as inferred degradation anomalies
+- CesiumJS default Timeline widget for replay — not customizable enough for event dots, speed presets, and category coloring; build a custom React timeline component
+- Per-object post-processing — CesiumJS PostProcessStage is screen-space only; selective per-object effects require stencil buffer hacks that are extremely fragile
 
 ### Architecture Approach
 
-The architecture follows a six-layer model verified against production geospatial platforms: frontend rendering (CesiumJS + React), stateless REST API (FastAPI), geospatial time-series storage (PostgreSQL + PostGIS), read cache (Redis), background workers (RQ), and external integrations (CelesTrak, OpenSky). The key architectural insight driving all performance decisions is the split between client-side propagation for satellites (TLE-driven, mathematically predictable) and server-side snapshots for aircraft (real-time external data, not propagatable). The layered API pattern (routes → services → repositories) must be established in Phase 1 and never violated — it is the testability and maintainability foundation.
+The recommended architecture extends the existing v1.0 patterns without structural changes. New frontend layer components follow the established `PointPrimitiveCollection` pattern from `AircraftLayer.tsx`. The unified `ScreenSpaceEventHandler` in `AircraftLayer.tsx` must be extended (not duplicated) to cover military and ship primitive ID namespaces — dual handlers cause race conditions. All new backend work follows the existing FastAPI router + RQ worker + SQLAlchemy model pattern. The AIS WebSocket connection must be maintained in the backend (not the browser) because the API key cannot be exposed in client-side JavaScript. The `useAppStore` Zustand store is extended with new slices for `visualPreset`, `postProcessUniforms`, replay state, and new layer flags; a separate `useReplayStore` Zustand slice is recommended for replay to isolate its state machine from the main store.
 
-**Major components:**
-1. **Frontend rendering layer** (CesiumJS + React + satellite.js + Zustand + TanStack Query) — WebGL globe, entity management, client-side orbit propagation, UI panels
-2. **Backend API layer** (FastAPI + Pydantic + Redis) — stateless REST endpoints, request validation, cache-aside serving, CORS and rate limiting
-3. **Data storage layer** (PostgreSQL + PostGIS + SQLAlchemy + GeoAlchemy2 + Alembic) — satellites, aircraft snapshots, anomaly clusters, sensor events, alerts with full spatial indexing
-4. **Background workers layer** (RQ + Redis) — satellite TLE ingestion (every 4-6h), aircraft state ingestion (every 10-30s), anomaly detection (triggered + periodic), data retention cleanup
-5. **Caching layer** (Redis) — TLE catalog cache (6-12h TTL), aircraft positions (10-30s TTL), anomaly clusters (1-5min TTL), cache-aside pattern throughout
-6. **External integrations** (CelesTrak OMM/JSON, OpenSky OAuth2) — circuit breaker, exponential backoff, rate limit tracking, local mirroring
-
-**Key patterns:**
-- Primitive API (not Entity API) for all bulk satellite rendering
-- Dirty flag pattern for entity updates (only update changed entities)
-- LOD rendering — points at global zoom, orbit arcs only on selection or close zoom
-- Bounding box queries — frontend sends viewport bbox, backend returns only visible aircraft
-- Cache-aside with TTL jitter (±10%) to prevent cache stampede
-- Web Worker for satellite propagation (off main thread)
-- Background workers ingest data asynchronously; API serves cached/stored data only (no synchronous external calls in request path)
+**Major components (new in v2.0):**
+1. `PostProcessEngine.tsx` — singleton managing all CesiumJS PostProcessStage lifecycle; exposes `setPreset(name)` and `setUniform(preset, key, value)`; creates all stages at init and toggles them, never recreates on preset switch
+2. `CinematicHUD.tsx` + `MGRSReadout.tsx` — React overlay with `pointer-events: none`; reads from Zustand store only, never from `viewer` directly; keeps HUD testable without a live viewer
+3. `MilitaryLayer`, `MaritimeLayer`, `EarthquakeLayer`, `WeatherLayer`, `GPSJamLayer`, `TrafficLayer` — new layer components, all follow existing Primitive API pattern; `GPSJamLayer` renders as `GroundPrimitive` (not `ImageryLayer`) to avoid WebGL texture sampler budget pressure
+4. `ReplayEngine.ts` — class (not React component) managing snapshot buffer, interpolation, and `viewer.clock` binding; state machine: IDLE | LOADING | PLAYING | PAUSED | SCRUBBING
+5. `TimelinePanel.tsx` — custom React scrubber, NOT CesiumJS default widget; drives `ReplayEngine` via `useReplayStore`
+6. `traffic.worker.ts` + `gps_jam.worker.ts` — Web Workers for CPU-intensive particle math and H3 polygon decode; zero-copy `Float32Array` transfer matching the existing `propagation.worker.ts` pattern
+7. `layer_snapshots` PostgreSQL table — range-partitioned by day from day one; separate tables per layer type rather than polymorphic schema; daily retention job drops old partitions
+8. `snapshot_recorder.py` RQ task — runs every 60 seconds, archives all layer states; 7-day rolling retention
 
 ### Critical Pitfalls
 
-1. **Entity API for 5,000+ satellites** — use `PointPrimitiveCollection` / `BillboardCollection` / `PolylineCollection` (Primitive API) from the first line of satellite rendering code. Entity API collapses to single-digit FPS at scale. Recovery requires a full rewrite of the satellite layer — there is no incremental path.
+1. **Post-processing stages apply to the entire scene, not individual layers** — Create all preset stages at application init (never per preset switch) and toggle `stage.enabled`. Use a singleton `PostProcessManager`. Test every preset against the live v1.0 scene with 5,000+ satellites active, not on an empty demo. CesiumJS 1.121+ changed the default tonemapper to PBR Neutral — query and store the pre-existing HDR state on init and restore it when switching to Normal preset.
 
-2. **Main-thread orbit propagation** — move all `satellite.propagate()` calls to a Web Worker. Propagating 5,000 satellites in the main thread blocks the event loop and causes severe UI jank. Must be architected before any satellite is added to the render loop.
+2. **Snapshot storage grows unboundedly without time partitioning** — Range-partition the `layer_snapshots` table by day from day one. Retrofitting a live unpartitioned table requires downtime. Use separate tables per layer type. At 60-second snapshot intervals across 5 layers, the table will exceed 100M rows within two weeks without partitioning.
 
-3. **ECI/ECEF coordinate frame confusion** — satellite.js outputs TEME (ECI-variant), CesiumJS renders in ECEF. Skipping `satellite.eciToEcf(positionEci, gmst)` produces catastrophically wrong satellite positions. Validate with ISS ground track cross-check against Heavens-Above on first render.
+3. **gpsjam.org has no public API — the heatmap must be independently replicated** — gpsjam.org derives its hexagonal heatmap from ADSB Exchange NIC/NACp fields. The integration must replicate this: aggregate aircraft with NIC < 7 or NACp < 7 into H3 hex cells, render as `GroundPrimitive` polygons (not `ImageryLayer`), and label every cell "GPS degradation anomaly — inferred from aircraft telemetry, not geolocated."
 
-4. **OpenSky Basic Auth (deprecated March 18, 2026)** — implement OAuth2 client credentials from day one. HTTP Basic Auth returns 401; aircraft layer silently stops working. No incremental migration — this must be correct at first implementation.
+4. **ADSB Exchange is now fully paid via RapidAPI with a 10,000 req/month budget** — The free tier was discontinued March 2025. Auth is `X-RapidAPI-Key` header (not OpenSky-style Bearer token). Cache all responses in Redis with minimum 300-second TTL. Log daily request count and warn at 280/day. Build a `MilitaryFlightSource` abstraction with `adsb.fi` (free, same JSON schema) as a named fallback.
 
-5. **CesiumJS viewer not destroyed on React unmount** — React 18 Strict Mode double-mounts effects. Missing `viewer.destroy()` in `useEffect` cleanup causes GPU memory leaks and duplicate Cesium instances. Must be correct in Phase 1 before anything else is built on top.
+5. **AISstream.io disconnects every 2 minutes and has no SLA** — The subscription filter message must be sent within 3 seconds of WebSocket open. Implement exponential backoff reconnection. Cache last known vessel positions in Redis with a `stale_at` timestamp so the maritime layer degrades gracefully during reconnect rather than freezing silently.
 
-6. **All orbit paths rendered simultaneously** — orbit paths are a detail feature, not a bulk feature. Only render for selected satellites or satellites within current viewport below a zoom threshold. 300,000 position evaluations per render cycle (5,000 sats × 60 points) saturates the GPU.
+6. **React HUD overlay blocks CesiumJS canvas pointer events** — Apply `pointer-events: none` to the HUD root element; selectively re-enable `pointer-events: auto` only on interactive sub-elements. Verify camera pan, scroll-zoom, and click-pick work after every HUD element addition.
 
-7. **Stale TLE data causing silent position drift** — TLE accuracy degrades within hours for LEO objects. Implement a backend TLE refresh scheduler (every 4-6h) with a user-visible TLE age indicator. Silent drift is hard to detect and erodes trust in the platform.
-
-8. **Aircraft positions jumping instead of interpolating** — at 10-second polling intervals, aircraft teleport ~2.5km per update without interpolation. Maintain previous/current position with timestamps; use linear interpolation in the render loop or CesiumJS `SampledPositionProperty`.
-
-9. **Cesium Ion token hardcoded in source or Docker build** — token ends up in git history, bundle, and Docker layers. Use Docker secrets / env files excluded from VCS; restrict token to specific allowed domains in the Cesium Ion dashboard.
+7. **Multiple simultaneous ImageryLayer instances hit WebGL texture sampler limits** — WebGL 1.0 hardware (integrated GPUs, homelab NUCs) limits texture samplers. Limit active `ImageryLayer` instances to 3. Render the GPS jamming heatmap as `GroundPrimitive` to bypass this limit. Test with all layers enabled on integrated GPU hardware before marking any tile overlay phase complete.
 
 ## Implications for Roadmap
 
-Based on combined research, the build order is driven by hard dependencies: the globe must exist before any entity can be placed on it; satellite ingestion patterns establish the worker architecture before aircraft adds real-time complexity; anomaly detection requires aircraft snapshots to exist. The architecture research provides a verified 7-phase build sequence that maps cleanly to the feature landscape.
+Based on research, the dependency graph drives a clear 6-phase structure. The snapshot recorder (Phase 4) must start accumulating data before the replay engine (Phase 5) is useful — this is the critical path constraint that determines the overall schedule.
 
-### Phase 1: Foundation and Globe Shell
-**Rationale:** No feature can be built without a working globe, running services, and proven CesiumJS-React integration. Three critical pitfalls must be solved here before any entity code exists — they cannot be retrofitted: Primitive API architecture decision, viewer cleanup on unmount, Ion token security. Docker Compose establishes the deployment model that all subsequent phases rely on.
-**Delivers:** Running services (PostgreSQL + PostGIS, Redis, FastAPI skeleton, React app), empty 3D globe with terrain/atmosphere/dark theme, health endpoints, confirmed service communication
-**Addresses:** Dark cinematic theme, responsive UI shell, performance architecture foundation
-**Avoids:** Viewer GPU leak (Pitfall 7), Ion token exposure (Pitfall 8), Entity API lock-in (Pitfall 1 — architecture decision made here)
+### Phase 1: Visual Engine
+**Rationale:** Zero backend risk, instant visual payoff, establishes the platform aesthetic before any data layers are added. Building this first forces the `PostProcessEngine` singleton to be established correctly before subsequent layers complicate the scene — catching the stage scope and stale uniform pitfalls here is far cheaper than retrofitting with live data layers present.
+**Delivers:** Visual style presets (NVG, CRT, FLIR, Noir), post-processing parameter sliders (Bloom, Sharpen, Gain, Scanlines, Pixelation), Cinematic HUD overlay (classification banner, MGRS readout, telemetry ticker, REC timestamp), Landmark preset navigation (Q/W/E/R/T shortcuts + bottom quick-jump bar with 5 curated geopolitical POIs).
+**Addresses:** P1 features — visual identity and navigation foundation.
+**Avoids:** PostProcessStage scope bleed (all preset stages created at init, never on switch), stale uniform closures (uniforms as functions reading from store ref, not captured values), HUD pointer-event blocking (`pointer-events: none` on root, per-element opt-in for interactive controls).
 
-### Phase 2: Satellite Tracking Layer
-**Rationale:** Satellites use daily-refresh TLEs and client-side propagation — simpler ingestion cycle than aircraft. Proves the worker architecture, the CelesTrak integration, and the ECI→ECEF rendering pipeline before adding real-time complexity. Establishes the Primitive API patterns and Web Worker propagation that aircraft rendering will reuse.
-**Delivers:** 5,000+ satellites visible in real-time with orbit paths on selection, click-to-inspect panel, search by NORAD ID, TLE age indicator, satellite ingestion worker running on schedule
-**Uses:** CelesTrak OMM/JSON format (not TLE), satellite.js in Web Worker, PointPrimitiveCollection, RQ background worker, Redis TLE cache
-**Implements:** Satellite ingestion pipeline, client-side propagation architecture
-**Avoids:** ECI/ECEF confusion (Pitfall 6 — validate ISS ground track), main-thread propagation (Pitfall 3), orbit path overload (Pitfall 2), stale TLEs (Pitfall 4)
+### Phase 2: Tile Overlay Layers
+**Rationale:** No backend changes required. Leverages CesiumJS `WebMapServiceImageryProvider` and `GroundPrimitive` patterns. Adds three high-value intelligence layers in approximately 3-4 days total. Running this before Phase 3 confirms the WebGL texture sampler budget on target hardware before backend pipeline work begins.
+**Delivers:** Weather radar overlay (NOAA NEXRAD WMS, `WebMapServiceImageryProvider`, opacity slider), GPS Jamming heatmap (NIC/NACp aggregation from ADSB Exchange data, H3 hex polygons via `h3-js` in a Web Worker, rendered as `GroundPrimitive` with green/yellow/red severity coloring), Earthquake layer (USGS GeoJSON `all_day.geojson`, magnitude-scaled `PointPrimitiveCollection`, 5-minute refresh).
+**Uses:** `h3-js`, `WebMapServiceImageryProvider`, USGS GeoJSON feed, NOAA nowCoast WMS endpoint.
+**Avoids:** WebGL texture sampler budget overrun (GPS jam as `GroundPrimitive`, not `ImageryLayer`); NOAA WMS `TIME` parameter must be included in GetMap requests from the start; USGS feed must not be polled faster than 5-minute intervals (60-second cache on the USGS side).
 
-### Phase 3: Aircraft Tracking Layer
-**Rationale:** Builds on worker architecture from Phase 2. Adds real-time complexity (10-30s polling) and the OpenSky OAuth2 integration that is a hard requirement post-March 2026. Aircraft counts (hundreds to low thousands) allow Entity API with `SampledPositionProperty` for smooth interpolation — simpler than satellite Primitive API. Spatial bounding box queries (PostGIS GIST) must be proven here before anomaly engine adds more complex spatial work.
-**Delivers:** Real-time aircraft with smooth trails, bounding box filtering, search by callsign/ICAO24, click-to-inspect panel, OpenSky OAuth2 integration, Redis geospatial aircraft cache
-**Uses:** OpenSky OAuth2 (not Basic Auth), PostgreSQL aircraft_snapshots with GIST + B-tree indexes, Redis geospatial commands, CesiumJS SampledPositionProperty
-**Implements:** Aircraft ingestion pipeline, real-time polling architecture, spatial query patterns
-**Avoids:** OpenSky auth failure (Pitfall 5 — OAuth2 from day one), aircraft position jumping (Pitfall 9 — SampledPositionProperty), unbounded DB growth (rolling 2h window minimum)
+### Phase 3: New Data Pipelines
+**Rationale:** Follows established RQ worker + FastAPI router + SQLAlchemy model pattern from v1.0. Military and ships pipelines are independent of each other and can be parallelized. Street traffic is fully isolated and can be deprioritized within this phase if schedule pressure increases.
+**Delivers:** Military flights layer (ADSB Exchange `/v2/mil` via `airplanes.live`, Redis cache with 300s TTL, amber `PointPrimitiveCollection`), Maritime traffic layer (AIS via `aisstream.io` WebSocket relayed through FastAPI backend, exponential backoff reconnection, cyan `PointPrimitiveCollection`), Street traffic particle simulation (OSM Overpass API, `traffic.worker.ts`, single batched `PointPrimitiveCollection`, viewport-gated below 500 km altitude).
+**Implements:** `models/military.py`, `models/ship.py`, `tasks/ingest_military.py`, `workers/ingest_ships.py`, `api/routes_military.py`, `api/routes_ships.py`, `MilitaryLayer.tsx`, `MaritimeLayer.tsx`, `TrafficLayer.tsx`.
+**Avoids:** ADSB Exchange request budget exhaustion (300s TTL, daily request counter, warn at 280/day); AIS silent freeze (exponential backoff, Redis position cache with `stale_at`, visible connection status indicator); one `ParticleSystem` per road segment (single batched `PointPrimitiveCollection` with Web Worker — `ParticleSystem` is one WebGL draw call per instance and collapses at 200+ segments).
 
-### Phase 4: Layer Controls, Search, and UI Polish
-**Rationale:** With two data layers working, layer management and search become urgent usability needs. This phase converts a functional prototype into a polished intelligence dashboard. Cinematic polish (glowing trails, smooth animations, bloom) is a competitive differentiator and should be applied while both layers are visible so visual design decisions are informed by the full scene.
-**Delivers:** Layer toggle controls (satellites, aircraft), advanced filtering (constellation, altitude, aircraft type), region filter, full search UX, cinematic visual polish, data freshness indicators, responsive layout
-**Uses:** Zustand for layer toggle state, TanStack Query for data fetching, shadcn/ui components, Tailwind CSS dark theme
-**Implements:** UI state management patterns, filter architecture that anomaly layer will extend
-**Avoids:** Label overload (5,000 satellite labels off by default — Pitfall UX section), tiny click targets, premature layer toggles before data loads
+### Phase 4: Snapshot Infrastructure
+**Rationale:** The snapshot recorder must be deployed and running before replay is useful. Building and starting it early — while the replay UI is still being designed — gives data time to accumulate. This is the critical path gate for Phase 5. Starting it during Phase 3 (as a parallel backend task) is recommended over waiting for Phase 3 to complete.
+**Delivers:** `layer_snapshots` range-partitioned PostgreSQL schema (daily partitions per layer type: `snapshots_aircraft`, `snapshots_ships`, `snapshots_military`), `snapshot_recorder.py` RQ task (60-second interval, batch INSERT, 7-day rolling retention via partition drop), `routes_replay.py` read-only endpoints (data starts flowing immediately, UI built in Phase 5).
+**Avoids:** Snapshot table unbounded growth (partitioning must be in the initial schema — retrofitting a live table requires hours of downtime); monolithic polymorphic snapshots table (use per-layer tables for independent retention and simpler queries); 1Hz snapshot rate (60s + frontend interpolation is visually sufficient at 1/3600th the storage cost).
 
-### Phase 5: GNSS Anomaly Detection and Visualization
-**Rationale:** Anomaly detection depends on aircraft snapshots existing (Phase 3 must have run for time to accumulate data). This is the platform's primary differentiator — the capability that no public platform offers. DBSCAN clustering on aircraft position discontinuities, velocity anomalies, and heading instability produces anomaly clusters stored as PostGIS polygons. Honest labeling as inference (not confirmed intelligence) is a hard requirement — every UI element touching anomalies must carry an inference disclaimer.
-**Delivers:** Anomaly detection engine (DBSCAN), anomaly clusters stored as PostGIS polygons, frontend heatmap/polygon visualization with severity color gradient, alert feed for high-severity anomalies, event timeline, explicit inference disclaimers on all anomaly UI
-**Uses:** scikit-learn DBSCAN, NumPy/pandas for metric computation, RQ background worker (triggered by new aircraft data), PostGIS polygon storage, CesiumJS gradient primitives (not hard-boundary polygons)
-**Implements:** Anomaly detection pipeline, severity scoring, alert generation
-**Avoids:** Anomaly mislabeling as confirmed intelligence (Pitfall — ethical/trust risk), hard boundary polygons (implies precision we don't have)
+### Phase 5: Replay Engine
+**Rationale:** Requires snapshot data accumulated from Phase 4 (minimum 24-48 hours of live data for meaningful replay). The most complex frontend work in the entire v2.0 scope. Drives modification of all existing layer components to respect `replayActive` state.
+**Delivers:** `ReplayEngine.ts` class (snapshot buffer, linear interpolation between 60s snapshots, `viewer.clock` binding), `useReplayStore.ts` Zustand slice (state machine: IDLE | LOADING | PLAYING | PAUSED | SCRUBBING), `TimelinePanel.tsx` (custom scrubber, play/pause/speed controls at 0.25x/1x/5x/10x/60x/600x, event dots by category), LIVE/PLAYBACK mode toggle. All layer components modified to read from replay positions when `replayActive === true`.
+**Avoids:** CZML for replay (not flexible enough for multi-layer custom timeline UI); CesiumJS default Timeline widget (not customizable enough — confirmed anti-feature); replay JSON overwhelming the browser (paginate by 10-minute chunks, stream via time-bounded API calls); SGP4 propagation on main thread during scrub (use snapshot table for aircraft/ships, propagate satellites from TLEs using the existing worker).
 
-### Phase 6: Historical Replay
-**Rationale:** Replay requires historical snapshot data that accumulates organically from Phase 3 onwards. This phase adds the time slider UI and the paginated replay API. TimescaleDB hypertable partitioning (optional but recommended) is worth adding here as aircraft_snapshots tables will be substantial. CesiumJS Clock API integration is the key technical pattern.
-**Delivers:** Time slider UI (play/pause/speed controls), replay API with paginated time-bounded queries, CesiumJS Clock API integration, data retention policies (7-day raw, 30-day compressed), optional TimescaleDB hypertable for aircraft_snapshots
-**Implements:** Replay data flow, time-series data management
-**Avoids:** Overwhelming client with full replay data (chunked 10-minute segments), unbounded DB growth (retention policies enforced here)
-
-### Phase 7: Performance Hardening and Production Readiness
-**Rationale:** Performance optimization requires the full scene loaded — optimizing in isolation produces misleading results. This phase validates 60 FPS with full satellite catalog, sub-100ms spatial queries, and confirms all pitfall checklists pass. Monitoring and structured logging are required for a production deployment that runs unattended.
-**Delivers:** Verified 60 FPS with 5,000+ satellites, confirmed sub-100ms PostGIS spatial queries (EXPLAIN ANALYZE), structured JSON logging, error tracking (Sentry), Flower for RQ monitoring, README and deployment guide, complete pitfall verification checklist
-**Implements:** LOD tuning, query optimization, monitoring stack
-**Avoids:** Discovering performance problems only at full load (test at scale throughout, verify in this phase)
+### Phase 6: OSINT Event Correlation
+**Rationale:** Depends on satellite data already in the database (v1.0). Benefits from the platform being visually complete and replay working — it is the capstone "intelligence analyst" feature. Independent from replay but most powerful when used in playback mode to correlate satellite overpasses with historical events.
+**Delivers:** `OSINTEventLayer.tsx` (event markers as `BillboardCollection`, satellite overpass arc lines as `PolylineCollection`), `OSINTEventPanel.tsx` (manual event entry form, event list, tag filter chips: KINETIC / AIRSPACE / MARITIME / SEISMIC / JAMMING), `routes_osint.py` (event CRUD + SGP4-based overpass computation endpoint), `models/osint_event.py` (PostGIS spatial point, tags array, source URL, timestamp).
+**Avoids:** Overpass line computation for all 5,000 satellites on the main thread (backend computes, filters elevation > 5° before returning results, caches by event_id + TLE version); stale TLEs for overpass accuracy (assert TLE age < 7 days before computation, fail visibly if exceeded — SGP4 error grows to kilometers beyond 7 days).
 
 ### Phase Ordering Rationale
 
-- **Phases 1→2→3** are hard sequential dependencies: no globe = no entities; no satellite worker = no ingestion patterns to build aircraft on; no aircraft snapshots = no anomaly data
-- **Phase 4** (UI polish) is inserted before Phase 5 because anomaly visualization UX decisions are easier with both base layers polished and visible
-- **Phase 5** (anomaly detection) requires Phase 3 data accumulation — minimum 24-48h of aircraft snapshots for DBSCAN to find meaningful clusters
-- **Phase 6** (replay) requires Phase 3 to run for days; cannot be built and tested immediately
-- **Phase 7** (hardening) is always last — optimization requires the full system to be observable
+- **Frontend-first ordering (Phases 1-2)** eliminates backend risk from the critical path during the most uncertain early phase. Both phases can be demo'd without touching the backend.
+- **Snapshot recorder starts in Phase 4**, not Phase 5, because time-series data cannot be retroactively generated. Starting it as a parallel task during Phase 3 backend work is the optimal path.
+- **Street traffic (Phase 3) is the lowest-priority item** in any phase — it has no dependencies and no dependents. If Phases 3-5 run long, street traffic slips to v2.1 without affecting any other feature.
+- **AIS backend (Phase 3) must be backend-proxied** — this is a hard security constraint from aisstream.io's key-in-subscription-message design, not an architectural preference.
+- **OSINT event correlation (Phase 6) is last** because it is the highest-complexity feature that depends on stable satellite data, a working event model, and benefits from a complete replay context.
 
 ### Research Flags
 
-Phases needing deeper research during planning:
+Phases likely needing `/gsd:research-phase` deeper research during planning:
+- **Phase 3 (Military flights):** ADSB Exchange RapidAPI current rate limits and the `airplanes.live` community endpoint reliability should be confirmed by live testing before writing the ingestion worker. Also confirm the `adsb.fi` fallback endpoint serves identical JSON schema.
+- **Phase 3 (Maritime AIS):** Register for aisstream.io API key and run a test connection before designing reconnection logic. Observe the actual disconnect timing and subscription window behavior rather than relying on documentation alone.
+- **Phase 4 (Snapshot schema):** PostgreSQL daily range partition DDL, automatic partition creation (pg_partman or manual), and the drop schedule should be prototyped before the Alembic migration is written.
+- **Phase 5 (Replay interpolation):** The linear lerp strategy between 60-second snapshots should be validated for visual acceptability at 10x and 60x playback speeds before committing to 60s granularity.
 
-- **Phase 2 (Satellite Layer):** CelesTrak OMM/JSON parsing with satellite.js `json2satrec()` needs implementation validation — medium confidence that the function handles all CelesTrak OMM fields correctly. Recommend a spike before committing to the full ingestion design.
-- **Phase 5 (Anomaly Detection):** DBSCAN parameter selection (epsilon, minPoints) for aircraft position anomalies requires domain-specific tuning. No authoritative source gives ADS-B-specific values. Requires empirical testing with real OpenSky data. Plan a research sub-task when this phase is planned.
-- **Phase 6 (Replay):** CZML format vs custom JSON for CesiumJS time-series animation needs evaluation at the point of implementation. CZML is more efficient for large time-series but adds complexity. Custom JSON is sufficient for MVP replay.
-
-Phases with standard patterns (skip research-phase):
-
-- **Phase 1 (Foundation):** Docker Compose v2 + FastAPI skeleton + CesiumJS init are extremely well-documented. No research needed.
-- **Phase 3 (Aircraft):** OpenSky REST API + PostGIS spatial queries are standard patterns with official documentation. OAuth2 flow is documented. No research needed.
-- **Phase 4 (UI Polish):** shadcn/ui + Tailwind CSS + Zustand patterns are well-established. No research needed.
-- **Phase 7 (Hardening):** CesiumJS performance optimization (Primitive API, LOD) patterns are documented in official Cesium community. Standard monitoring setup. No research needed.
+Phases with well-documented patterns (skip research-phase):
+- **Phase 1 (Visual Engine):** CesiumJS `PostProcessStageLibrary` built-in stages are verified in official docs. React CSS overlay with `pointer-events: none` is a standard pattern.
+- **Phase 2 (Tile Overlays):** `WebMapServiceImageryProvider` and `GroundPrimitive` are established CesiumJS patterns. USGS and NOAA endpoints are verified federal services with stable APIs.
+- **Phase 6 (OSINT Events):** SGP4 propagation already runs in v1.0 via the satellite worker. FastAPI CRUD router pattern is established. No new patterns required.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All versions verified against official releases and PyPI/npm as of March 2026. Key choices (Zustand over Redux, RQ over Celery, SQLAlchemy over SQLModel) backed by clear rationale and benchmark data. |
-| Features | HIGH | Competitive landscape verified across 6 reference platforms. Table stakes confirmed. Differentiators (GNSS anomaly fusion) validated as genuinely unique. |
-| Architecture | HIGH | System component model matches production geospatial platforms. Data flows verified against official API docs (OpenSky, CelesTrak). Build order based on logical dependency analysis. |
-| Pitfalls | HIGH | All 9 critical pitfalls sourced from official CesiumJS community forums, official OpenSky API docs, and satellite.js GitHub. Phase-to-pitfall mapping is specific and actionable. |
+| Stack | HIGH | CesiumJS, USGS, NOAA, Overpass all verified via official docs. `mgrs`, `h3-js`, `osmtogeojson` verified on npm with TS types confirmed. AIS and military flight sources are MEDIUM — community-run services with no SLA. |
+| Features | HIGH | Feature set is grounded in verified APIs and established CesiumJS patterns. Complexity estimates (LOW/MEDIUM/HIGH) are internally consistent. Anti-features are clearly sourced (gpsjam.org no-API confirmed from GitHub source; CesiumJS PostProcessStage screen-scope limitation confirmed from official community tracker). |
+| Architecture | HIGH | Integration tiers, component boundaries, and data flow diagrams are derived from CesiumJS official docs and confirmed v1.0 patterns. AIS proxy requirement is a hard security constraint. Snapshot partitioning strategy is sourced from PostgreSQL community and production case studies. |
+| Pitfalls | HIGH | Post-processing scope (CesiumJS official community), snapshot growth (PostgreSQL partitioning case study), ADSB Exchange paid API (official ADSB Exchange API page, confirmed March 2025 change), gpsjam.org no-API (confirmed from project GitHub repo), AISstream.io disconnect behavior (confirmed from aisstream.io GitHub). |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **satellite.js `json2satrec()` with CelesTrak OMM format:** Core function exists but production validation with CelesTrak's specific OMM JSON field structure is medium-confidence. Spike this in Phase 2 before committing ingestion design.
-- **DBSCAN parameters for ADS-B anomaly detection:** No authoritative source provides epsilon/minPoints values for aircraft position discontinuity detection. Requires empirical tuning with real OpenSky data. Budget time for iteration in Phase 5.
-- **GeoAlchemy2 + SQLAlchemy 2.0 async compatibility:** Some users report PostGIS schema detection issues with async SQLAlchemy. Workaround (`search_path` in connection string) is known, but should be validated during Phase 1 database setup.
-- **CelesTrak TLE format cutover timing:** "Around July 2026" is an estimate, not an announced exact date. OMM/JSON format is the correct choice regardless — use it from Phase 2 and the cutover date is irrelevant.
-- **OpenSky credit exhaustion in development:** Anonymous tier (400 credits/day) may be insufficient for development testing with frequent API calls. Register for authenticated access (4,000-8,000 credits/day) before Phase 3 begins.
+- **gpsjam.org CSV URL format** — The URL pattern `https://gpsjam.org/data/YYYY-MM-DD.csv` is inferred from community references and source code analysis, not officially documented. Before writing the RQ ingest worker, verify by fetching the URL directly. If inaccessible, the NIC/NACp aggregation path from ADSB Exchange data is the implementation route — no fallback research needed, the approach is already designed.
+- **ADSB Exchange RapidAPI current pricing and rate limits** — Confirmed as paid; the 10,000 req/month figure is from the Basic plan. Confirm current plan options before committing to a polling interval design. `airplanes.live` and `adsb.fi` are free fallbacks with identical JSON schema that eliminate this dependency entirely if the budget is prohibitive.
+- **aisstream.io API key registration and live behavior** — Must register via GitHub OAuth before writing any AIS code. The 3-second subscription window and 2-minute disconnect cadence should be observed in a test connection before the reconnection logic is designed.
+- **NOAA nowCoast WMS rate limits** — No published SLA or rate limit documentation found. If multiple browser sessions hammer the WMS endpoint, the homelab VPS IP may be rate-limited silently. Implement backend tile caching in Redis as a contingency plan — the architecture supports this without structural changes.
+- **WebGL texture sampler headroom on target hardware** — Test with all Phase 2 layers active simultaneously on the intended deployment hardware (especially integrated GPU machines) before Phase 3 begins to confirm the 3-layer `ImageryLayer` budget is not already exceeded by v1.0 layers.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [CesiumJS Official](https://cesium.com/platform/cesiumjs/) — rendering engine, Entity vs Primitive API, March 2026 release notes
-- [OpenSky Network REST API](https://openskynetwork.github.io/opensky-api/rest.html) — OAuth2 migration (March 2026), rate limits, state vector format
-- [CelesTrak documentation](http://www.celestrak.com/) — TLE format limits, OMM/JSON format, GP catalog update frequency
-- [satellite.js GitHub](https://github.com/shashwatak/satellite-js) — SGP4 implementation, `eciToEcf`, `json2satrec`
-- [PostGIS Official](https://postgis.net/) — spatial types, GIST indexing, ST_DWithin
-- [FastAPI Official](https://fastapi.tiangolo.com/) — async endpoints, Pydantic v2 integration
-- [Redis Official](https://redis.io/docs/latest/develop/data-types/geospatial/) — geospatial commands, TTL patterns
-- [CesiumJS Community Forums](https://community.cesium.com/) — Entity API performance ceiling, viewer cleanup, coordinate systems, ECI/ECEF confusion
-- [GeoAlchemy2 0.18.4 release](https://geoalchemy-2.readthedocs.io/) — SQLAlchemy 2.0 compatibility, geometry types
+- [CesiumJS PostProcessStageLibrary docs](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageLibrary.html) — built-in stage functions verified
+- [CesiumJS PostProcessStageCollection docs](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageCollection.html) — bloom property, stage management, FXAA
+- [CesiumJS Clock docs](https://cesium.com/learn/cesiumjs/ref-doc/Clock.html) — multiplier, clockRange, onTick
+- [CesiumJS WebMapServiceImageryProvider docs](https://cesium.com/learn/ion-sdk/ref-doc/WebMapServiceImageryProvider.html) — WMS-T clock integration
+- [CesiumJS 1.121 release notes](https://cesium.com/blog/2024/09/04/cesium-releases-in-september-2024/) — PBR Neutral tonemapper, 4x MSAA defaults
+- [USGS Earthquake GeoJSON feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) — official feed format, 60-second cache policy
+- [NOAA nowCoast NEXRAD WMS GetCapabilities](https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer?request=GetCapabilities&service=WMS) — endpoint and layer structure verified
+- [ADSB Exchange API Lite — RapidAPI](https://www.adsbexchange.com/api-lite/) — paid model confirmed, March 2025 migration confirmed
+- [airplanes.live API guide](https://airplanes.live/api-guide/) — `/v2/mil` endpoint, free/no-auth confirmed
+- [aisstream.io documentation](https://aisstream.io/documentation) — WebSocket endpoint, auth, subscription format, beta status
+- [aisstream.io GitHub](https://github.com/aisstream/aisstream) — 3-second subscription window, disconnect behavior confirmed
+- [gpsjam.org FAQ](https://gpsjam.org/faq) — NIC/NACp derivation confirmed, no public API confirmed
+- [gpsjam.org GitHub (guofengji)](https://github.com/guofengji/gpsjam.org) — "each day of data is in one CSV file" confirmed
+- [Overpass API OSM wiki](https://wiki.openstreetmap.org/wiki/Overpass_API) — query language, bbox constraints, per-query limits
+- [h3-js GitHub](https://github.com/uber/h3-js) — v4.1.0, native TS types, browser-compatible
+- [CesiumJS issue: ImageryLayer texture sampler limits](https://github.com/CesiumGS/cesium/issues/3857) — sampler budget constraint confirmed
+- [CesiumJS community: PostProcessStage scope limitation](https://community.cesium.com/t/shaders-and-selected-primitives-in-postprocessstage/8904) — scene-wide scope confirmed, selected array limitations documented
+- [CesiumJS community: HTML overlay pointer events](https://community.cesium.com/t/html-overlay-touch-gestures-problem/9987) — pointer-events: none requirement confirmed
 
 ### Secondary (MEDIUM confidence)
-- [Cesium Architecture: Janea Systems](https://www.janeasystems.com/blog/cesium-architecture-3d-geospatial-platform) — component architecture patterns
-- [TimescaleDB + PostGIS Optimization](https://medium.com/@marcoscedenillabonet/optimizing-geospatial-and-time-series-queries-with-timescaledb-and-postgis-4978ea2ef8af) — compression and partitioning strategies
-- [Redis Caching Strategies 2026](https://www.youngju.dev/blog/database/2026-03-03-redis-caching-strategies.en) — TTL patterns, cache stampede prevention
-- [FastAPI + Background Processing Guide](https://blog.greeden.me/en/2026/01/27/the-complete-guide-to-background-processing-with-fastapi-x-celery-redishow-to-separate-heavy-work-from-your-api-to-keep-services-stable/) — worker architecture patterns
-- FlightRadar24, N2YO, Track The Sky, LeoLabs — feature landscape competitive analysis
+- [adsb.fi opendata GitHub](https://github.com/adsbfi/opendata) — free fallback for military data, same ADSBExchange v2 JSON schema confirmed
+- [osmtogeojson npm](https://www.npmjs.com/package/osmtogeojson) — beta label stable in practice, 5+ year unchanged API
+- [PostgreSQL partitioning case study](https://medium.com/@mbhatt2018/how-we-supercharged-our-snapshot-table-with-postgresql-partitioning-saved-big-on-infrastructure-2d9c10d23254) — range partition strategy for time-series tables validated
+- [SGP4 accuracy with TLE age](https://github.com/skyfielders/python-skyfield/discussions/929) — 7-day TLE freshness requirement for acceptable position accuracy
 
 ### Tertiary (LOW confidence)
-- CelesTrak TLE 5-digit limit timing ("around July 2026") — estimate, exact date not published
-- DBSCAN parameters for ADS-B anomaly detection — no authoritative aviation-specific values found; requires empirical tuning
+- gpsjam.org CSV URL pattern `https://gpsjam.org/data/YYYY-MM-DD.csv` — inferred from community references and Express app source structure; not officially documented; must be verified by direct URL fetch before building the ingest worker
 
 ---
 *Research completed: 2026-03-11*
