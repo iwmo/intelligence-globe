@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-satellite-layer/02-03-PLAN.md — SGP4 propagation worker, useSatellites hook, Zustand satellite state
-last_updated: "2026-03-11T13:08:53.488Z"
+stopped_at: Completed 02-satellite-layer/02-02-PLAN.md — CelesTrak satellite ingest pipeline with RQ worker, 14,683 records populated
+last_updated: "2026-03-11T13:10:54.609Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 45 | 2 tasks | 7 files |
 | Phase 02-satellite-layer P01 | 3 | 2 tasks | 7 files |
 | Phase 02-satellite-layer P03 | 86s | 2 tasks | 4 files |
+| Phase 02-satellite-layer P02 | 10 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Recent decisions affecting current work:
 - [Phase 02-satellite-layer]: satellite.js json2satrec guards satrec.error !== 0 to silently discard malformed OMM records
 - [Phase 02-satellite-layer]: PROPAGATE uses transferable Float64Array (zero-copy IPC) packing [x,y,z,norad]*N in meters
 - [Phase 02-satellite-layer]: 30s AbortController timeout on /api/satellites/ fetch — large (~4 MB) payload exceeds typical 5s window
+- [Phase 02-satellite-layer]: httpx moved to production requirements — needed at runtime by ingest task in worker container
+- [Phase 02-satellite-layer]: Self-re-enqueue pattern over RQ Repeat(times=-1) — Repeat API is version-unstable; self-re-enqueue works reliably across RQ versions
+- [Phase 02-satellite-layer]: RQ sync wrapper pattern: def sync_task() wraps asyncio.run(async_task()) — RQ cannot pickle async coroutines directly
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:08:53.486Z
-Stopped at: Completed 02-satellite-layer/02-03-PLAN.md — SGP4 propagation worker, useSatellites hook, Zustand satellite state
+Last session: 2026-03-11T13:10:54.607Z
+Stopped at: Completed 02-satellite-layer/02-02-PLAN.md — CelesTrak satellite ingest pipeline with RQ worker, 14,683 records populated
 Resume file: None
