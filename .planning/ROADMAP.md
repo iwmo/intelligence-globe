@@ -45,7 +45,13 @@ Plans:
   2. Clicking a satellite opens a metadata panel showing NORAD ID, altitude, velocity, TLE epoch, and constellation
   3. A selected satellite shows its orbit path polyline and ground track rendered on the globe
   4. A data freshness indicator for the satellite layer shows TLE age (validating TLE scheduler is running)
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Test scaffold + Satellite model + Alembic migration + API endpoints (list, detail, freshness)
+- [ ] 02-02-PLAN.md — CelesTrak ingestion task + RQ worker + docker-compose worker service
+- [ ] 02-03-PLAN.md — satellite.js Web Worker + TanStack Query hook + Zustand store extension
+- [ ] 02-04-PLAN.md — SatelliteLayer globe rendering + click-to-inspect + orbit path + visual verification
 
 ### Phase 3: Aircraft Layer
 **Goal**: Users can see live aircraft positions with smooth movement trails and inspect any aircraft for details
@@ -89,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-11 |
-| 2. Satellite Layer | 0/TBD | Not started | - |
+| 2. Satellite Layer | 0/4 | Planning | - |
 | 3. Aircraft Layer | 0/TBD | Not started | - |
 | 4. Controls and Polish | 0/TBD | Not started | - |
 | 5. Performance | 0/TBD | Not started | - |
