@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db import init_db
 from app.api.routes_health import router as health_router
+from app.api.routes_satellites import router as satellites_router
 
 
 @asynccontextmanager
@@ -22,3 +23,4 @@ app.add_middleware(
 )
 
 app.include_router(health_router, prefix="/api")
+app.include_router(satellites_router, prefix="/api/satellites")
