@@ -95,7 +95,12 @@ Plans:
   1. Frame rate holds at or near 60 FPS with the full satellite catalog and hundreds of aircraft active simultaneously
   2. Spatial queries (aircraft within bounding box, search by NORAD ID) return in under 100ms under full load
   3. All nine critical pitfall checks pass: Primitive API verified, viewer cleanup verified, ECI/ECEF coordinate validation confirmed against ISS ground track reference
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — BlendOption.OPAQUE rendering hardening (SatelliteLayer + AircraftLayer)
+- [ ] 05-02-PLAN.md — Aircraft latlon index migration + backend latency integration tests
+- [ ] 05-03-PLAN.md — ISS ground track unit test + cleanup test + nine pitfall audit + FPS checkpoint
 
 ## Progress
 
@@ -108,4 +113,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Satellite Layer | 2/4 | In Progress|  |
 | 3. Aircraft Layer | 3/3 | Complete   | 2026-03-11 |
 | 4. Controls and Polish | 2/3 | In Progress|  |
-| 5. Performance | 0/TBD | Not started | - |
+| 5. Performance | 0/3 | Not started | - |
