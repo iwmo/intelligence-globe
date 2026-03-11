@@ -142,6 +142,7 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
       const picked = viewer.scene.pick(click.position);
       if (picked && typeof picked.id === 'number' && picked.id > 1000) {
         useAppStore.getState().setSelectedSatelliteId(picked.id);
+        useAppStore.getState().setSelectedAircraftId(null); // Clear aircraft selection
       }
     }, ScreenSpaceEventType.LEFT_CLICK);
 

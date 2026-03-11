@@ -1,14 +1,18 @@
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
+import { AircraftDetailPanel } from './AircraftDetailPanel';
 
 export function RightDrawer() {
-  const selectedId = useAppStore(s => s.selectedSatelliteId);
+  const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
+  const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
+
+  const isOpen = selectedSatelliteId !== null || selectedAircraftId !== null;
 
   return (
     <div style={{
       position: 'absolute',
       top: 0,
-      right: selectedId !== null ? 0 : '-320px',
+      right: isOpen ? 0 : '-320px',
       width: '300px',
       height: '100%',
       background: 'rgba(10, 14, 20, 0.92)',
@@ -17,7 +21,8 @@ export function RightDrawer() {
       zIndex: 100,
       overflowY: 'auto',
     }}>
-      <SatelliteDetailPanel />
+      {selectedSatelliteId !== null && <SatelliteDetailPanel />}
+      {selectedAircraftId !== null && <AircraftDetailPanel />}
     </div>
   );
 }
