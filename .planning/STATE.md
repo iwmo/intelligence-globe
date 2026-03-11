@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-controls-and-polish/04-03-PLAN.md
-last_updated: "2026-03-11T17:05:14.468Z"
+stopped_at: Completed 05-performance/05-01-PLAN.md
+last_updated: "2026-03-11T17:23:35.707Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 16
+  completed_plans: 14
   percent: 0
 ---
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-controls-and-polish P02 | 3min | 2 tasks | 6 files |
 | Phase 04-controls-and-polish P04-02 | 15min | 3 tasks | 6 files |
 | Phase 04-controls-and-polish P04-03 | 25 | 3 tasks | 6 files |
+| Phase 05-performance P01 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,8 @@ Recent decisions affecting current work:
 - [Phase 04-controls-and-polish]: matchesSatelliteFilter derives constellation from OBJECT_NAME prefix — avoids coupling to backend schema
 - [Phase 04-controls-and-polish]: Combined filter+visibility effect in AircraftLayer replaces Plan 02 visibility-only effect — single owner of point.show prevents race/conflict
 - [Phase 04-controls-and-polish]: min(300px, calc(100vw - 48px)) CSS expression for RightDrawer width — no JS resize listener needed, pure CSS responsive
+- [Phase 05-performance]: BlendOption.OPAQUE applied to both PointPrimitiveCollections: skips GPU translucency render pass, up to 2x fill cost improvement at 5,000+ satellites
+- [Phase 05-performance]: PointPrimitive colors raised to alpha=1.0: required for OPAQUE mode correctness — alpha <1.0 produces rendering artifacts
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T16:57:43.948Z
-Stopped at: Completed 04-controls-and-polish/04-03-PLAN.md
+Last session: 2026-03-11T17:23:35.704Z
+Stopped at: Completed 05-performance/05-01-PLAN.md
 Resume file: None

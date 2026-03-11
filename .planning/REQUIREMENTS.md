@@ -38,7 +38,7 @@ Requirements for initial release. Maps to roadmap phases.
 
 - [x] **INFRA-01**: Full stack deployable via Docker Compose on homelab/VPS
 - [x] **INFRA-02**: FastAPI backend with PostgreSQL + PostGIS for spatial data storage
-- [ ] **INFRA-03**: Globe renders smoothly with 5,000+ satellites and hundreds of aircraft simultaneously
+- [x] **INFRA-03**: Globe renders smoothly with 5,000+ satellites and hundreds of aircraft simultaneously
 
 ## v2 Requirements
 
@@ -104,7 +104,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-04 | Phase 4 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
-| INFRA-03 | Phase 5 | Pending |
+| INFRA-03 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 17 total
