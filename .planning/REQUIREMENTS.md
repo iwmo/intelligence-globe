@@ -32,7 +32,7 @@ Requirements for initial release. Maps to roadmap phases.
 - [x] **INT-01**: User can click any satellite to inspect metadata (NORAD ID, altitude, velocity, TLE epoch, constellation)
 - [x] **INT-02**: User can click any aircraft to inspect metadata (callsign, ICAO24, altitude, speed, heading, country)
 - [x] **INT-03**: User can toggle each data layer on/off independently (satellites, aircraft)
-- [ ] **INT-04**: UI is responsive and usable on desktop and tablet viewports
+- [x] **INT-04**: UI is responsive and usable on desktop and tablet viewports
 
 ### Infrastructure
 
@@ -101,7 +101,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-01 | Phase 2 | Complete |
 | INT-02 | Phase 3 | Complete |
 | INT-03 | Phase 4 | Complete |
-| INT-04 | Phase 4 | Pending |
+| INT-04 | Phase 4 | Complete |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 5 | Pending |

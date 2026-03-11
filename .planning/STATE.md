@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-controls-and-polish/04-02-PLAN.md
-last_updated: "2026-03-11T16:48:41.269Z"
+stopped_at: Completed 04-controls-and-polish/04-03-PLAN.md
+last_updated: "2026-03-11T16:57:43.951Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-controls-and-polish P01 | 4min | 2 tasks | 7 files |
 | Phase 04-controls-and-polish P02 | 3min | 2 tasks | 6 files |
 | Phase 04-controls-and-polish P04-02 | 15min | 3 tasks | 6 files |
+| Phase 04-controls-and-polish P04-03 | 25 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,9 @@ Recent decisions affecting current work:
 - [Phase 04-controls-and-polish]: onWorkerReady callback prop pattern in SatelliteLayer: worker exposed to parent via callback rather than forwardRef
 - [Phase 04-controls-and-polish]: satWorker state + satWorkerRef in App.tsx: useState triggers re-render to pass worker down, useRef provides stable ref for SearchBar
 - [Phase 04-controls-and-polish]: Per-point show (not collection.show) for layer visibility: avoids conflicts with Plan 03 filter effects
+- [Phase 04-controls-and-polish]: matchesSatelliteFilter derives constellation from OBJECT_NAME prefix — avoids coupling to backend schema
+- [Phase 04-controls-and-polish]: Combined filter+visibility effect in AircraftLayer replaces Plan 02 visibility-only effect — single owner of point.show prevents race/conflict
+- [Phase 04-controls-and-polish]: min(300px, calc(100vw - 48px)) CSS expression for RightDrawer width — no JS resize listener needed, pure CSS responsive
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T16:48:29.095Z
-Stopped at: Completed 04-controls-and-polish/04-02-PLAN.md
+Last session: 2026-03-11T16:57:43.948Z
+Stopped at: Completed 04-controls-and-polish/04-03-PLAN.md
 Resume file: None
