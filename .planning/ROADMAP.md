@@ -29,7 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The browser shows a 3D interactive globe with terrain, atmosphere, day/night shading, and a star field
   3. The globe renders with a dark cinematic theme and glowing accents — no white or default CesiumJS chrome visible
   4. FastAPI health endpoint returns 200 and the frontend communicates with it successfully
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Docker Compose stack + FastAPI backend + pytest scaffold
+- [ ] 01-02-PLAN.md — Vite + CesiumJS frontend + cinematic globe + app shell
+- [ ] 01-03-PLAN.md — Full-stack smoke test + human visual verification checkpoint
 
 ### Phase 2: Satellite Layer
 **Goal**: Users can see 5,000+ real-time satellites on the globe, select one for details, and verify orbit path accuracy
@@ -83,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/3 | In progress | - |
 | 2. Satellite Layer | 0/TBD | Not started | - |
 | 3. Aircraft Layer | 0/TBD | Not started | - |
 | 4. Controls and Polish | 0/TBD | Not started | - |
