@@ -9,8 +9,8 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Globe Foundation
 
-- [ ] **GLOB-01**: User sees a 3D interactive globe with terrain, atmosphere, day/night shading, and star field
-- [ ] **GLOB-02**: Globe renders with cinematic dark theme and glowing accents (mission control aesthetic)
+- [x] **GLOB-01**: User sees a 3D interactive globe with terrain, atmosphere, day/night shading, and star field
+- [x] **GLOB-02**: Globe renders with cinematic dark theme and glowing accents (mission control aesthetic)
 - [ ] **GLOB-03**: User sees a data freshness indicator showing last update time per active layer
 
 ### Satellite Tracking
@@ -87,8 +87,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GLOB-01 | Phase 1 | Pending |
-| GLOB-02 | Phase 1 | Pending |
+| GLOB-01 | Phase 1 | Complete |
+| GLOB-02 | Phase 1 | Complete |
 | GLOB-03 | Phase 4 | Pending |
 | SAT-01 | Phase 2 | Pending |
 | SAT-02 | Phase 2 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation-01-PLAN.md
-last_updated: "2026-03-11T11:06:45.377Z"
+stopped_at: Completed 01-foundation/01-02-PLAN.md
+last_updated: "2026-03-11T11:11:43.229Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 5 | 3 tasks | 18 files |
+| Phase 01-foundation P02 | 10min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: AsyncAttrs imported from sqlalchemy.ext.asyncio not sqlalchemy.orm (version build-specific)
 - [Phase 01-foundation]: Pydantic Settings uses model_config = ConfigDict() for v2 compatibility
 - [Phase 01-foundation]: Test execution uses python3.11 (homebrew) due to conda environment path collision
+- [Phase 01-foundation]: viewerRef guard (not useState) for CesiumJS Viewer — prevents StrictMode double-mount destroying GPU context
+- [Phase 01-foundation]: Tailwind v3 (not v4) with shadcn/ui — v4 CSS import pattern incompatible with existing Vite config
+- [Phase 01-foundation]: EllipsoidTerrainProvider fallback when VITE_CESIUM_ION_TOKEN absent — no crash on dev without ion token
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T11:06:45.374Z
-Stopped at: Completed 01-foundation-01-PLAN.md
+Last session: 2026-03-11T11:11:43.226Z
+Stopped at: Completed 01-foundation/01-02-PLAN.md
 Resume file: None
