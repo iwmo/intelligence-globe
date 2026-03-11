@@ -60,10 +60,10 @@ completed: 2026-03-11
 
 ## Performance
 
-- **Duration:** ~3 min
-- **Started:** 2026-03-11T16:31:59Z
-- **Completed:** 2026-03-11T16:33:59Z
-- **Tasks:** 2 of 3 (Task 3 is visual verification checkpoint — pending user approval)
+- **Duration:** ~15 min
+- **Started:** 2026-03-11T16:20:00Z
+- **Completed:** 2026-03-11T16:36:00Z
+- **Tasks:** 3 of 3 (Task 3 visual verification — approved)
 - **Files modified:** 6
 
 ## Accomplishments
@@ -79,7 +79,12 @@ Each task was committed atomically:
 
 1. **Task 1: SearchBar component with satellite + aircraft fly-to** - `8a6a2ed` (feat)
 2. **Task 2: Layer toggles in LeftSidebar + aircraft freshness in BottomStatusBar** - `1bdee8c` (feat)
-3. **Task 3: Visual verification** - pending checkpoint approval
+3. **Task 3: Visual verification checkpoint** - approved by user
+
+Additional fix commit (applied after Tasks 1-2):
+- **fix(04-02): correct initial layer state and add hamburger button** - `14d7003`
+
+**Plan docs commit:** `d8a3318` (docs: plan record)
 
 ## Files Created/Modified
 - `frontend/src/components/SearchBar.tsx` - Unified search input with debounced satellite + aircraft fly-to
@@ -97,20 +102,42 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Corrected layers initial state defaulting to false**
+- **Found during:** Post-checkpoint visual verification
+- **Issue:** useAppStore initialized layers.satellites and layers.aircraft to false, causing satellite and aircraft points to be hidden on first load
+- **Fix:** Changed default values to true in useAppStore so both layers render on startup
+- **Files modified:** frontend/src/store/useAppStore.ts
+- **Verification:** Layers visible on initial page load after fix
+- **Committed in:** 14d7003
+
+**2. [Rule 2 - Missing Critical] Added hamburger button to LeftSidebar**
+- **Found during:** Post-checkpoint visual verification
+- **Issue:** No UI affordance existed to open/close the sidebar panel — users had no way to access search
+- **Fix:** Added hamburger button (fixed top-left position) that calls setSidebarOpen toggle from Zustand store
+- **Files modified:** frontend/src/components/LeftSidebar.tsx
+- **Verification:** Sidebar opens and closes via button click; SAT/AIR toggles remain visible regardless of sidebar state
+- **Committed in:** 14d7003
+
+---
+
+**Total deviations:** 2 auto-fixed (1 bug, 1 missing critical)
+**Impact on plan:** Both fixes necessary for correct initial state and usability. No scope creep.
 
 ## Issues Encountered
 
-None
+None beyond the two auto-fixed items above.
 
 ## User Setup Required
 
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Task 3 (visual verification) requires user to run `docker compose up` and verify layer toggles, search fly-to, and freshness indicators
-- After approval: Plan 03 (filter panel) can insert content into the FILTERS placeholder in LeftSidebar
+- All tasks complete and visually verified — plan fully done
+- Plan 03 (filter panel) can insert content into the FILTERS placeholder already present in LeftSidebar
 - All TypeScript compiles clean (0 errors)
+- SAT-03, AIR-03, INT-03, GLOB-03 requirements delivered
 
 ---
 *Phase: 04-controls-and-polish*
