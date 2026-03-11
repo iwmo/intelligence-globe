@@ -4,8 +4,7 @@ import {
   Viewer,
   Color,
   EllipsoidTerrainProvider,
-  TileMapServiceImageryProvider,
-  buildModuleUrl,
+  UrlTemplateImageryProvider,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import '../styles/globe.css';
@@ -32,11 +31,12 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
       try {
         if (!containerRef.current || viewerRef.current) return;
 
-        // Bundled NaturalEarth II — no ion token required
-        const imageryProvider = await TileMapServiceImageryProvider.fromUrl(
-          buildModuleUrl('Assets/Textures/NaturalEarthII'),
-          { fileExtension: 'jpg' }
-        );
+        // ESRI World Imagery — high-resolution satellite photos, free, no token
+        const imageryProvider = new UrlTemplateImageryProvider({
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          maximumLevel: 19,
+          credit: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+        });
 
         if (!containerRef.current || viewerRef.current) return;
 

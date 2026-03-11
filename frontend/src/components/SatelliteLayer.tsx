@@ -9,6 +9,7 @@ import {
   Cartesian2,
   ArcType,
   Color,
+  Material,
 } from 'cesium';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
@@ -107,9 +108,9 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
           polys.add({
             positions: orbitPositions,
             width: 1.5,
-            material: { fabric: { type: 'Color', uniforms: {
+            material: Material.fromType('Color', {
               color: Color.fromCssColorString('#00D4FF').withAlpha(0.5),
-            }}},
+            }),
             arcType: ArcType.NONE,
           });
         }
@@ -122,9 +123,9 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
           polys.add({
             positions: groundPositions,
             width: 1.0,
-            material: { fabric: { type: 'Color', uniforms: {
+            material: Material.fromType('Color', {
               color: Color.fromCssColorString('#FFD700').withAlpha(0.4),
-            }}},
+            }),
             arcType: ArcType.NONE,
           });
         }
