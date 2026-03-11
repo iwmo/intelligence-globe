@@ -12,7 +12,7 @@ Five phases deliver the full v1 intelligence platform in strict dependency order
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Running Docker stack with an empty interactive 3D globe
+- [x] **Phase 1: Foundation** - Running Docker stack with an empty interactive 3D globe (completed 2026-03-11)
 - [ ] **Phase 2: Satellite Layer** - 5,000+ live satellites with orbit paths and click-to-inspect
 - [ ] **Phase 3: Aircraft Layer** - Real-time aircraft with smooth trails and click-to-inspect
 - [ ] **Phase 4: Controls and Polish** - Search, filters, layer toggles, and cinematic UI
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete   | 2026-03-11 |
 | 2. Satellite Layer | 0/TBD | Not started | - |
 | 3. Aircraft Layer | 0/TBD | Not started | - |
 | 4. Controls and Polish | 0/TBD | Not started | - |

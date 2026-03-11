@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-02-PLAN.md
-last_updated: "2026-03-11T11:11:43.229Z"
+stopped_at: Completed 01-foundation/01-03-PLAN.md — Phase 1 complete
+last_updated: "2026-03-11T11:40:18.004Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 5 | 3 tasks | 18 files |
 | Phase 01-foundation P02 | 10min | 2 tasks | 15 files |
+| Phase 01-foundation P03 | 20 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: viewerRef guard (not useState) for CesiumJS Viewer — prevents StrictMode double-mount destroying GPU context
 - [Phase 01-foundation]: Tailwind v3 (not v4) with shadcn/ui — v4 CSS import pattern incompatible with existing Vite config
 - [Phase 01-foundation]: EllipsoidTerrainProvider fallback when VITE_CESIUM_ION_TOKEN absent — no crash on dev without ion token
+- [Phase 01-foundation]: AbortController timeout (5s) on health fetch prevents indefinite isLoading state in TanStack Query
+- [Phase 01-foundation]: pointer-events: auto !important on .cesium-widget canvas fixes scroll-to-zoom blocked by Cesium widget CSS
+- [Phase 01-foundation]: viewer.resize() on Cesium init aligns canvas dimensions with CSS absolute-positioned container
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T11:11:43.226Z
-Stopped at: Completed 01-foundation/01-02-PLAN.md
+Last session: 2026-03-11T11:40:18.002Z
+Stopped at: Completed 01-foundation/01-03-PLAN.md — Phase 1 complete
 Resume file: None
