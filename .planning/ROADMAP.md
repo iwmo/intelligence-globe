@@ -62,7 +62,12 @@ Plans:
   2. Each aircraft shows a trail polyline representing its recent movement history
   3. Aircraft positions move smoothly between poll intervals — no visible teleporting or jumping
   4. Clicking an aircraft opens a metadata panel showing callsign, ICAO24, altitude, speed, heading, and country
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Aircraft model + Alembic migration + test scaffold + API routes (list, detail, freshness)
+- [ ] 03-02-PLAN.md — OpenSky OAuth2 ingest RQ task + worker startup wire
+- [ ] 03-03-PLAN.md — AircraftLayer frontend (points, lerp, trail-on-select, click-to-inspect) + visual verification
 
 ### Phase 4: Controls and Polish
 **Goal**: Users can navigate the full dataset precisely — search for any object, filter by type or region, and toggle layers — in a fully polished cinematic interface
@@ -96,6 +101,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-11 |
 | 2. Satellite Layer | 2/4 | In Progress|  |
-| 3. Aircraft Layer | 0/TBD | Not started | - |
+| 3. Aircraft Layer | 0/3 | Not started | - |
 | 4. Controls and Polish | 0/TBD | Not started | - |
 | 5. Performance | 0/TBD | Not started | - |
