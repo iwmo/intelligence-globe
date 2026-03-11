@@ -24,9 +24,6 @@ interface AppState {
   };
   setAircraftFilter: (f: Partial<AppState['aircraftFilter']>) => void;
 
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-
   aircraftLastUpdated: string | null;
   setAircraftLastUpdated: (ts: string | null) => void;
 }
@@ -51,9 +48,6 @@ export const useAppStore = create<AppState>((set) => ({
   aircraftFilter: { altitudeRange: null, boundingBox: null },
   setAircraftFilter: (f) =>
     set((s) => ({ aircraftFilter: { ...s.aircraftFilter, ...f } })),
-
-  searchQuery: '',
-  setSearchQuery: (q) => set({ searchQuery: q }),
 
   aircraftLastUpdated: null,
   setAircraftLastUpdated: (ts) => set({ aircraftLastUpdated: ts }),

@@ -7,7 +7,6 @@ describe('useAppStore — filter and search slices', () => {
     useAppStore.setState({
       satelliteFilter: { constellation: null, altitudeBand: null },
       aircraftFilter: { altitudeRange: null, boundingBox: null },
-      searchQuery: '',
       aircraftLastUpdated: null,
     });
   });
@@ -55,20 +54,6 @@ describe('useAppStore — filter and search slices', () => {
       const { aircraftFilter } = useAppStore.getState();
       expect(aircraftFilter.altitudeRange).toEqual([0, 5000]);
       expect(aircraftFilter.boundingBox).toEqual({ minLat: 40, maxLat: 50, minLon: -10, maxLon: 10 });
-    });
-  });
-
-  describe('searchQuery', () => {
-    it('defaults to empty string', () => {
-      const { searchQuery } = useAppStore.getState();
-      expect(searchQuery).toBe('');
-    });
-
-    it('setSearchQuery replaces the full string', () => {
-      useAppStore.getState().setSearchQuery('ISS');
-      expect(useAppStore.getState().searchQuery).toBe('ISS');
-      useAppStore.getState().setSearchQuery('');
-      expect(useAppStore.getState().searchQuery).toBe('');
     });
   });
 
