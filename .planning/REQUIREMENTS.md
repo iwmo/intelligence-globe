@@ -11,27 +11,27 @@ Requirements for initial release. Maps to roadmap phases.
 
 - [x] **GLOB-01**: User sees a 3D interactive globe with terrain, atmosphere, day/night shading, and star field
 - [x] **GLOB-02**: Globe renders with cinematic dark theme and glowing accents (mission control aesthetic)
-- [ ] **GLOB-03**: User sees a data freshness indicator showing last update time per active layer
+- [x] **GLOB-03**: User sees a data freshness indicator showing last update time per active layer
 
 ### Satellite Tracking
 
 - [x] **SAT-01**: User sees 5,000+ real-time satellites rendered on the globe from CelesTrak TLE/GP data
 - [x] **SAT-02**: User sees orbit path polylines and ground tracks for selected satellites
-- [ ] **SAT-03**: User can search satellites by name or NORAD ID and fly to result
-- [ ] **SAT-04**: User can filter satellites by constellation (Starlink, GPS, ISS, etc.) or altitude band
+- [x] **SAT-03**: User can search satellites by name or NORAD ID and fly to result
+- [x] **SAT-04**: User can filter satellites by constellation (Starlink, GPS, ISS, etc.) or altitude band
 
 ### Aircraft Tracking
 
 - [x] **AIR-01**: User sees real-time aircraft positions on the globe from OpenSky Network API
 - [x] **AIR-02**: User sees trail polylines showing each aircraft's recent movement history
-- [ ] **AIR-03**: User can search aircraft by callsign or ICAO24 and fly to result
-- [ ] **AIR-04**: User can filter aircraft by region (bounding box) or altitude range
+- [x] **AIR-03**: User can search aircraft by callsign or ICAO24 and fly to result
+- [x] **AIR-04**: User can filter aircraft by region (bounding box) or altitude range
 
 ### Interaction
 
 - [x] **INT-01**: User can click any satellite to inspect metadata (NORAD ID, altitude, velocity, TLE epoch, constellation)
 - [x] **INT-02**: User can click any aircraft to inspect metadata (callsign, ICAO24, altitude, speed, heading, country)
-- [ ] **INT-03**: User can toggle each data layer on/off independently (satellites, aircraft)
+- [x] **INT-03**: User can toggle each data layer on/off independently (satellites, aircraft)
 - [ ] **INT-04**: UI is responsive and usable on desktop and tablet viewports
 
 ### Infrastructure
@@ -89,18 +89,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | GLOB-01 | Phase 1 | Complete |
 | GLOB-02 | Phase 1 | Complete |
-| GLOB-03 | Phase 4 | Pending |
+| GLOB-03 | Phase 4 | Complete |
 | SAT-01 | Phase 2 | Complete |
 | SAT-02 | Phase 2 | Complete |
-| SAT-03 | Phase 4 | Pending |
-| SAT-04 | Phase 4 | Pending |
+| SAT-03 | Phase 4 | Complete |
+| SAT-04 | Phase 4 | Complete |
 | AIR-01 | Phase 3 | Complete |
 | AIR-02 | Phase 3 | Complete |
-| AIR-03 | Phase 4 | Pending |
-| AIR-04 | Phase 4 | Pending |
+| AIR-03 | Phase 4 | Complete |
+| AIR-04 | Phase 4 | Complete |
 | INT-01 | Phase 2 | Complete |
 | INT-02 | Phase 3 | Complete |
-| INT-03 | Phase 4 | Pending |
+| INT-03 | Phase 4 | Complete |
 | INT-04 | Phase 4 | Pending |
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
