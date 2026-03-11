@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: planning
-stopped_at: Completed 07-visual-engine-navigation/07-01-PLAN.md
-last_updated: "2026-03-11T20:03:38.487Z"
+stopped_at: Completed 07-visual-engine-navigation/07-03-PLAN.md
+last_updated: "2026-03-11T20:09:11.667Z"
 last_activity: 2026-03-11 — v2.0 roadmap written (Phases 7-12, 17 requirements mapped)
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 3
   percent: 0
 ---
 
@@ -62,6 +62,13 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 - [Phase 07-visual-engine-navigation]: Wave 0 stub pattern uses vi.mock without static import to avoid Vite import analysis failure on non-existent modules
 - [Phase 07-visual-engine-navigation]: VisualPreset and PostProcessUniforms types exported from useAppStore.ts as single source of truth for downstream components
 - [Phase 07-visual-engine-navigation]: postProcessUniforms setter uses spread merge pattern to support partial uniform updates from individual UI sliders
+| Phase 07-visual-engine-navigation P04 | 3 | 2 tasks | 6 files |
+| Phase 07-visual-engine-navigation P03 | 3min | 1 tasks | 3 files |
+- [Phase 07-visual-engine-navigation]: LandmarkNav navigation goes through viewerRegistry singleton to avoid prop drilling
+- [Phase 07-visual-engine-navigation]: cancelFlight() called before every flyToLandmark to prevent CesiumJS concurrent flight errors on rapid keypresses
+- [Phase 07-visual-engine-navigation]: Distance-proportional flight duration: Math.hypot(deltaLon,deltaLat)/30 clamped 0.5s-3.5s
+- [Phase 07-visual-engine-navigation]: getCameraGridRef exported from CinematicHUD.tsx (not a separate file) — keeps MGRS logic co-located with its consumer component
+- [Phase 07-visual-engine-navigation]: Polar guard uses explicit numeric check (lat > 84 || lat < -80) rather than catching forward() errors — more explicit and testable
 
 ### Pending Todos
 
@@ -80,6 +87,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-11T20:03:38.484Z
-Stopped at: Completed 07-visual-engine-navigation/07-01-PLAN.md
+Last session: 2026-03-11T20:09:11.665Z
+Stopped at: Completed 07-visual-engine-navigation/07-03-PLAN.md
 Resume: Start with `/gsd:plan-phase 7`
