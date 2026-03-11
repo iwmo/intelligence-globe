@@ -42,15 +42,28 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       collectionRef.current = viewer.scene.primitives.add(new PointPrimitiveCollection());
     }
 
-    // Set up click handler (once per viewer)
+    // Set up unified click handler (once per viewer).
+    // Both satellite and aircraft clicks are dispatched here to avoid the
+    // dual-handler race condition where two ScreenSpaceEventHandlers call
+    // scene.pick() independently on the same LEFT_CLICK event.
     if (!handlerRef.current) {
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
       handlerRef.current = handler;
       handler.setInputAction((click: { position: Cartesian2 }) => {
         const picked = viewer.scene.pick(click.position);
-        if (picked && typeof picked.id === 'string') {
+        if (!picked) return;
+        if (typeof picked.id === 'string') {
+          // Aircraft: ICAO24 is a hex string (e.g. "3c6581")
           useAppStore.getState().setSelectedAircraftId(picked.id);
-          useAppStore.getState().setSelectedSatelliteId(null); // Clear satellite selection
+          useAppStore.getState().setSelectedSatelliteId(null);
+        } else if (typeof picked.id === 'number' && picked.id > 1000) {
+          // Satellite: NORAD catalog ID is a number > 1000
+          useAppStore.getState().setSelectedSatelliteId(picked.id);
+          useAppStore.getState().setSelectedAircraftId(null);
+        } else {
+          // Clicked globe background or unrecognised primitive — clear both
+          useAppStore.getState().setSelectedSatelliteId(null);
+          useAppStore.getState().setSelectedAircraftId(null);
         }
       }, ScreenSpaceEventType.LEFT_CLICK);
     }

@@ -3,10 +3,7 @@ import {
   Viewer,
   PointPrimitiveCollection,
   PolylineCollection,
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
   Cartesian3,
-  Cartesian2,
   ArcType,
   Color,
   Material,
@@ -39,7 +36,8 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
   const orbitCollectionRef = useRef<PolylineCollection | null>(null);
   const indexMapRef = useRef<Map<number, number>>(new Map());
   const rafRef = useRef<number>(0);
-  const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+  // handlerRef kept for cleanup reference (no handler registered here — AircraftLayer owns click dispatch)
+  const handlerRef = useRef<null>(null);
 
   // Effect 1: Initialize worker and point collection when viewer + data are ready
   useEffect(() => {
@@ -135,16 +133,7 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
     // Send OMM records to worker
     worker.postMessage({ type: 'LOAD_OMM', payload: satData });
 
-    // Click handler
-    const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-    handlerRef.current = handler;
-    handler.setInputAction((click: { position: Cartesian2 }) => {
-      const picked = viewer.scene.pick(click.position);
-      if (picked && typeof picked.id === 'number' && picked.id > 1000) {
-        useAppStore.getState().setSelectedSatelliteId(picked.id);
-        useAppStore.getState().setSelectedAircraftId(null); // Clear aircraft selection
-      }
-    }, ScreenSpaceEventType.LEFT_CLICK);
+    // Click handling is owned by AircraftLayer (unified dispatcher) — no handler here.
 
     // Propagation loop at 1 Hz
     let lastProp = 0;
@@ -161,7 +150,6 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
     return () => {
       cancelAnimationFrame(rafRef.current);
       worker.terminate();
-      handler.destroy();
       if (collection && !collection.isDestroyed()) {
         viewer.scene.primitives.remove(collection);
       }
