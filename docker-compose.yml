@@ -1,12 +1,15 @@
 services:
   postgres:
     image: postgis/postgis:16-3.5
+    platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-opensignal}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-opensignal}"]
       interval: 10s
@@ -39,12 +42,14 @@ services:
       - "8000:8000"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: development
     depends_on:
       - backend
     environment:
       VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:8000}
     ports:
       - "3000:3000"
 
