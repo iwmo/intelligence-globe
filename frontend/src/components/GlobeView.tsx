@@ -39,6 +39,7 @@ export function GlobeView() {
         selectionIndicator: false,
         timeline: false,
         navigationHelpButton: false,
+        useDefaultRenderLoop: true,
         terrainProvider,
       });
 
@@ -46,6 +47,9 @@ export function GlobeView() {
       viewer.scene.globe.enableLighting = true;
       viewer.scene.globe.dynamicAtmosphereLighting = true;
       viewer.scene.backgroundColor = Color.BLACK;
+
+      // Force resize so canvas dimensions match container after CSS positioning
+      viewer.resize();
 
       viewerRef.current = viewer;
     }

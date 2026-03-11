@@ -5,6 +5,11 @@
   background: #000000 !important;
 }
 
+/* Ensure the Cesium canvas receives all pointer events including scroll-to-zoom */
+.cesium-widget canvas {
+  pointer-events: auto !important;
+}
+
 /* Hide credit container (personal/homelab use only) */
 .cesium-viewer-bottom {
   display: none !important;
