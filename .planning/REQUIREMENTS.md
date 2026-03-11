@@ -36,8 +36,8 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Full stack deployable via Docker Compose on homelab/VPS
-- [ ] **INFRA-02**: FastAPI backend with PostgreSQL + PostGIS for spatial data storage
+- [x] **INFRA-01**: Full stack deployable via Docker Compose on homelab/VPS
+- [x] **INFRA-02**: FastAPI backend with PostgreSQL + PostGIS for spatial data storage
 - [x] **INFRA-03**: Globe renders smoothly with 5,000+ satellites and hundreds of aircraft simultaneously
 
 ## v2 Requirements

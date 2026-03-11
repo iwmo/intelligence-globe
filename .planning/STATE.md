@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-performance/05-03-PLAN.md — Phase 5 fully done
-last_updated: "2026-03-11T17:59:04.926Z"
+stopped_at: Completed 06-deploy-hardening/06-01-PLAN.md — Phase 6 Plan 1 complete
+last_updated: "2026-03-11T18:33:23.124Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 17
+  completed_plans: 17
   percent: 0
 ---
 
@@ -69,6 +69,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05-performance P02 | 8min | 2 tasks | 3 files |
 | Phase 05-performance P03 | 8min | 2 tasks | 2 files |
 | Phase 05-performance P03 | 8min | 3 tasks | 2 files |
+| Phase 06-deploy-hardening P01 | 3min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,10 @@ Recent decisions affecting current work:
 - [Phase 05-performance]: vi.hoisted() used to create mock variables before vi.mock() hoisting — avoids 'cannot access before initialization' error
 - [Phase 05-performance]: Worker global mocked as class (not vi.fn()) so 'new Worker()' constructor call in SatelliteLayer works
 - [Phase 05-performance]: Human FPS checkpoint approved: Chrome DevTools Performance trace shows ~60fps sustained with full satellite catalog at global zoom, GPU continuously active, no red frame drops in 10.86s recording
+- [Phase 06-deploy-hardening]: docker-compose command override uses exec uvicorn so uvicorn receives SIGTERM correctly for graceful shutdown
+- [Phase 06-deploy-hardening]: SearchBar null-worker else branch sets 'loading position...' status — worker not ready is a transient UX state, not an error
+- [Phase 06-deploy-hardening]: searchQuery/setSearchQuery removed from Zustand — dead code confirmed by grep, no consumers anywhere in codebase
+- [Phase 06-deploy-hardening]: backend/.env password corrected to match Docker postgres container — .env remains gitignored
 
 ### Pending Todos
 
@@ -148,6 +153,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:52:07.174Z
-Stopped at: Completed 05-performance/05-03-PLAN.md — Phase 5 fully done
+Last session: 2026-03-11T18:33:23.120Z
+Stopped at: Completed 06-deploy-hardening/06-01-PLAN.md — Phase 6 Plan 1 complete
 Resume file: None
