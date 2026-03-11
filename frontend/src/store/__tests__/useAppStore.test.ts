@@ -8,6 +8,15 @@ describe('useAppStore — filter and search slices', () => {
       satelliteFilter: { constellation: null, altitudeBand: null },
       aircraftFilter: { altitudeRange: null, boundingBox: null },
       aircraftLastUpdated: null,
+      visualPreset: 'normal',
+      postProcessUniforms: {
+        bloomIntensity: 0.5,
+        sharpenAmount: 0.5,
+        gainAmount: 1.0,
+        scanlineSpacing: 3,
+        pixelationLevel: 1,
+      },
+      cleanUI: false,
     });
   });
 
@@ -84,6 +93,63 @@ describe('useAppStore — filter and search slices', () => {
     it('layers still works', () => {
       useAppStore.getState().setLayerVisible('satellites', true);
       expect(useAppStore.getState().layers.satellites).toBe(true);
+    });
+  });
+});
+
+describe('useAppStore — visual engine and clean UI slices', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      visualPreset: 'normal',
+      postProcessUniforms: {
+        bloomIntensity: 0.5,
+        sharpenAmount: 0.5,
+        gainAmount: 1.0,
+        scanlineSpacing: 3,
+        pixelationLevel: 1,
+      },
+      cleanUI: false,
+    });
+  });
+
+  describe('visualPreset', () => {
+    it('defaults to "normal"', () => {
+      expect(useAppStore.getState().visualPreset).toBe('normal');
+    });
+
+    it('setVisualPreset sets preset to "nvg"', () => {
+      useAppStore.getState().setVisualPreset('nvg');
+      expect(useAppStore.getState().visualPreset).toBe('nvg');
+    });
+  });
+
+  describe('postProcessUniforms', () => {
+    it('bloomIntensity defaults to 0.5', () => {
+      expect(useAppStore.getState().postProcessUniforms.bloomIntensity).toBe(0.5);
+    });
+
+    it('setPostProcessUniforms merges — gainAmount remains unchanged when only bloomIntensity updated', () => {
+      useAppStore.getState().setPostProcessUniforms({ bloomIntensity: 1.2 });
+      const uniforms = useAppStore.getState().postProcessUniforms;
+      expect(uniforms.bloomIntensity).toBe(1.2);
+      expect(uniforms.gainAmount).toBe(1.0);
+    });
+  });
+
+  describe('cleanUI', () => {
+    it('defaults to false', () => {
+      expect(useAppStore.getState().cleanUI).toBe(false);
+    });
+
+    it('setCleanUI(true) sets cleanUI to true', () => {
+      useAppStore.getState().setCleanUI(true);
+      expect(useAppStore.getState().cleanUI).toBe(true);
+    });
+
+    it('setCleanUI(false) sets cleanUI back to false', () => {
+      useAppStore.getState().setCleanUI(true);
+      useAppStore.getState().setCleanUI(false);
+      expect(useAppStore.getState().cleanUI).toBe(false);
     });
   });
 });

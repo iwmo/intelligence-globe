@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 
+export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
+
+export interface PostProcessUniforms {
+  bloomIntensity: number;
+  sharpenAmount: number;
+  gainAmount: number;
+  scanlineSpacing: number;
+  pixelationLevel: number;
+}
+
 interface AppState {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
@@ -26,6 +36,16 @@ interface AppState {
 
   aircraftLastUpdated: string | null;
   setAircraftLastUpdated: (ts: string | null) => void;
+
+  // Visual engine slices (Phase 7)
+  visualPreset: VisualPreset;
+  setVisualPreset: (preset: VisualPreset) => void;
+
+  postProcessUniforms: PostProcessUniforms;
+  setPostProcessUniforms: (u: Partial<PostProcessUniforms>) => void;
+
+  cleanUI: boolean;
+  setCleanUI: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -51,4 +71,21 @@ export const useAppStore = create<AppState>((set) => ({
 
   aircraftLastUpdated: null,
   setAircraftLastUpdated: (ts) => set({ aircraftLastUpdated: ts }),
+
+  // Visual engine slices
+  visualPreset: 'normal',
+  setVisualPreset: (preset) => set({ visualPreset: preset }),
+
+  postProcessUniforms: {
+    bloomIntensity: 0.5,
+    sharpenAmount: 0.5,
+    gainAmount: 1.0,
+    scanlineSpacing: 3,
+    pixelationLevel: 1,
+  },
+  setPostProcessUniforms: (u) =>
+    set((s) => ({ postProcessUniforms: { ...s.postProcessUniforms, ...u } })),
+
+  cleanUI: false,
+  setCleanUI: (v) => set({ cleanUI: v }),
 }));
