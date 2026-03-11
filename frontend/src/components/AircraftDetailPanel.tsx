@@ -13,6 +13,11 @@ interface AircraftDetail {
   trail: Array<{ lon: number; lat: number; alt: number | null; ts: number | null }>;
 }
 
+interface AircraftRoute {
+  origin: string | null;
+  destination: string | null;
+}
+
 export function AircraftDetailPanel() {
   const selectedId = useAppStore(s => s.selectedAircraftId);
   const clearSelection = useAppStore(s => s.setSelectedAircraftId);
@@ -28,7 +33,23 @@ export function AircraftDetailPanel() {
     staleTime: 60_000,
   });
 
+  // Route fetch: per-selection, cached for 5 minutes.
+  // Gracefully degrades — many flights return null origin/destination.
+  const { data: routeData, isLoading: routeLoading } = useQuery<AircraftRoute>({
+    queryKey: ['aircraft-route', selectedId],
+    queryFn: async () => {
+      const res = await fetch(`/api/aircraft/${selectedId}/route`);
+      if (!res.ok) return { origin: null, destination: null };
+      return res.json() as Promise<AircraftRoute>;
+    },
+    enabled: selectedId !== null,
+    staleTime: 300_000, // 5 minutes — route data doesn't change mid-flight
+    retry: false,       // Don't retry route lookups — fail fast and show "unavailable"
+  });
+
   if (!selectedId) return null;
+
+  const hasRoute = routeData && (routeData.origin || routeData.destination);
 
   return (
     <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
@@ -49,10 +70,30 @@ export function AircraftDetailPanel() {
 
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {/* Flight number: callsign is the ICAO flight designator (e.g. "BAW123") */}
           <div>
-            <span style={{ color: '#888' }}>Callsign: </span>
-            <span>{data.callsign ?? 'Unknown'}</span>
+            <span style={{ color: '#888' }}>Flight: </span>
+            <span style={{ fontWeight: 'bold', letterSpacing: '0.05em' }}>
+              {data.callsign ? data.callsign.trim() : 'Unknown'}
+            </span>
           </div>
+
+          {/* Origin/destination route */}
+          <div>
+            <span style={{ color: '#888' }}>Route: </span>
+            {routeLoading ? (
+              <span style={{ color: '#666' }}>...</span>
+            ) : hasRoute ? (
+              <span style={{ color: '#FF8C00' }}>
+                {routeData.origin ?? '???'} &rarr; {routeData.destination ?? '???'}
+              </span>
+            ) : (
+              <span style={{ color: '#555' }}>Unavailable</span>
+            )}
+          </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,140,0,0.15)', paddingTop: '0.5rem', marginTop: '0.25rem' }} />
+
           <div>
             <span style={{ color: '#888' }}>ICAO24: </span>
             <span style={{ color: '#FF8C00' }}>{data.icao24}</span>
