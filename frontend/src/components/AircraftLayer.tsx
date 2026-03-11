@@ -8,6 +8,7 @@ import {
   Cartesian3,
   Cartesian2,
   ArcType,
+  BlendOption,
   Color,
   Material,
 } from 'cesium';
@@ -66,7 +67,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
 
     // Create collection once per viewer mount
     if (!collectionRef.current || collectionRef.current.isDestroyed()) {
-      collectionRef.current = viewer.scene.primitives.add(new PointPrimitiveCollection());
+      collectionRef.current = viewer.scene.primitives.add(new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE }));
     }
 
     // Set up unified click handler (once per viewer).
@@ -148,7 +149,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
         const point = collection.add({
           position: nextPos,
           pixelSize: 4,
-          color: Color.fromCssColorString('#FF8C00').withAlpha(0.9),
+          color: Color.fromCssColorString('#FF8C00'),
           id: ac.icao24,
         });
         pointsByIcao24.set(ac.icao24, point);
