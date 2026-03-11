@@ -9,6 +9,8 @@ interface AppState {
   setSelectedSatelliteId: (id: number | null) => void;
   tleLastUpdated: string | null;       // ISO8601 string from /api/satellites/freshness
   setTleLastUpdated: (ts: string | null) => void;
+  selectedAircraftId: string | null;
+  setSelectedAircraftId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -21,4 +23,6 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedSatelliteId: (id) => set({ selectedSatelliteId: id }),
   tleLastUpdated: null,
   setTleLastUpdated: (ts) => set({ tleLastUpdated: ts }),
+  selectedAircraftId: null,
+  setSelectedAircraftId: (id) => set({ selectedAircraftId: id }),
 }));
