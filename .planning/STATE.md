@@ -1,33 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
-status: complete
-stopped_at: v1.0 milestone archived — all 6 phases, 17 plans complete
-last_updated: "2026-03-11T21:45:00.000Z"
-last_activity: 2026-03-11 — v1.0 milestone complete, archived to .planning/milestones/
+milestone: v2.0
+milestone_name: WorldView Parity
+status: defining_requirements
+stopped_at: ~
+last_updated: "2026-03-11T00:00:00.000Z"
+last_activity: 2026-03-11 — Milestone v2.0 started
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11 after v1.0)
+See: .planning/PROJECT.md (updated 2026-03-11 after v2.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Planning next milestone (v1.1 or v2.0)
+**Current focus:** Defining requirements for v2.0 WorldView Parity
 
 ## Current Position
 
-Phase: All v1.0 phases complete
-Status: Milestone archived — ready for next milestone planning
-Last activity: 2026-03-11 — v1.0 shipped (6 phases, 17 plans, ~4,400 LOC)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-11 — Milestone v2.0 started
 
 Progress: [██████████] 100%
 

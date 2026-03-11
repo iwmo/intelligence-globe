@@ -2,7 +2,25 @@
 
 ## What This Is
 
-A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, and GNSS anomalies on an interactive globe using only open-source tools and public OSINT data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI inspired by aerospace mission control. v1.0 ships 5,000+ live satellites and real-time aircraft on one polished CesiumJS globe.
+A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, ships, GPS jamming, earthquakes, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR) and full historical event replay. v2.0 delivers full WorldView-class situational awareness: multi-layer OSINT fusion, visual style engine, and 4D timeline playback.
+
+## Current Milestone: v2.0 WorldView Parity
+
+**Goal:** Elevate Intelligence Globe from a live-tracking tool to a full OSINT situational awareness platform — matching and exceeding WorldView with visual style presets, new data layers (military flights, GPS jamming, ships, earthquakes, weather), and a 4D timeline replay engine.
+
+**Target features:**
+- Visual style presets: NVG (night vision), CRT (scanlines), FLIR (thermal), Noir, Normal
+- Post-processing controls: Bloom, Sharpen, Gain, Scanlines, Pixelation sliders
+- Cinematic HUD overlay: fake classification markings, MGRS/lat-lon readout, satellite telemetry
+- Military flights layer (ADSB Exchange)
+- GPS Jamming heatmap (gpsjam.org / ADSB-derived)
+- Maritime traffic layer (AIS)
+- Earthquake layer (USGS 24h GeoJSON)
+- Weather radar overlay (NOAA NEXRAD)
+- Street traffic particle simulation (OpenStreetMap road network)
+- Landmark / city preset navigation with keyboard shortcuts
+- 4D historical replay: timeline scrubber, speed controls, event markers
+- OSINT event correlation: satellite overpass lines, event filter tags
 
 ## Core Value
 
@@ -26,11 +44,18 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 
 ### Active
 
-- [ ] GNSS anomaly detection with heatmap/polygon visualization (ANOM-01, 02, 03)
-- [ ] Historical replay via time slider (HIST-01, 02)
-- [ ] Ships layer from public AIS source (SHIP-01)
-- [ ] Configurable alerts for region events (ADV-01)
-- [ ] Export globe view as screenshot (ADV-02)
+- [ ] Visual style presets: NVG, CRT, FLIR, Noir (VIS-01 to 04)
+- [ ] Post-processing controls: Bloom, Sharpen, Gain, Scanlines, Pixelation (VIS-05)
+- [ ] Cinematic HUD overlay with classification markings and telemetry (VIS-06)
+- [ ] Military flights layer via ADSB Exchange (LAY-01)
+- [ ] GPS Jamming heatmap via gpsjam.org (LAY-02)
+- [ ] Maritime traffic via AIS (LAY-03)
+- [ ] Earthquake layer via USGS 24h feed (LAY-04)
+- [ ] Weather radar overlay via NOAA NEXRAD (LAY-05)
+- [ ] Street traffic particle simulation via OSM (LAY-06)
+- [ ] Landmark/city preset navigation with keyboard shortcuts (NAV-01)
+- [ ] 4D historical replay with timeline scrubber and speed controls (REP-01 to 04)
+- [ ] OSINT event correlation: satellite overpass lines, event filter tags (REP-05, 06)
 
 ### Out of Scope
 
@@ -79,4 +104,4 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Primitive API (not Entity API) | Entity API collapses at 5,000+ objects | ✓ Good — critical decision |
 
 ---
-*Last updated: 2026-03-11 after v1.0 milestone*
+*Last updated: 2026-03-11 after v2.0 milestone start*
