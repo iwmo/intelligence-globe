@@ -80,7 +80,12 @@ Plans:
   4. User can filter aircraft by region (bounding box) or altitude range and the scene updates
   5. User can toggle each data layer on and off independently; a data freshness indicator shows last update time per active layer
   6. The UI is usable on desktop and tablet viewports with no overlapping or broken layout
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Store extension, viewerRegistry, and worker GET_POSITION (foundation for search + filters)
+- [ ] 04-02-PLAN.md — SearchBar with fly-to, layer toggle strip, and per-layer freshness indicators
+- [ ] 04-03-PLAN.md — Filter panel (constellation, altitude band, region, altitude range) and responsive layout
 
 ### Phase 5: Performance
 **Goal**: The platform sustains smooth operation at full production load — 5,000+ satellites and hundreds of aircraft simultaneously — meeting the performance contract required for real operational use
