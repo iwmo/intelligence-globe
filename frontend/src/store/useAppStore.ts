@@ -11,6 +11,24 @@ interface AppState {
   setTleLastUpdated: (ts: string | null) => void;
   selectedAircraftId: string | null;
   setSelectedAircraftId: (id: string | null) => void;
+
+  satelliteFilter: {
+    constellation: string | null;
+    altitudeBand: [number, number] | null; // [min_km, max_km]
+  };
+  setSatelliteFilter: (f: Partial<AppState['satelliteFilter']>) => void;
+
+  aircraftFilter: {
+    altitudeRange: [number, number] | null; // [min_m, max_m]
+    boundingBox: { minLat: number; maxLat: number; minLon: number; maxLon: number } | null;
+  };
+  setAircraftFilter: (f: Partial<AppState['aircraftFilter']>) => void;
+
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+
+  aircraftLastUpdated: string | null;
+  setAircraftLastUpdated: (ts: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -25,4 +43,18 @@ export const useAppStore = create<AppState>((set) => ({
   setTleLastUpdated: (ts) => set({ tleLastUpdated: ts }),
   selectedAircraftId: null,
   setSelectedAircraftId: (id) => set({ selectedAircraftId: id }),
+
+  satelliteFilter: { constellation: null, altitudeBand: null },
+  setSatelliteFilter: (f) =>
+    set((s) => ({ satelliteFilter: { ...s.satelliteFilter, ...f } })),
+
+  aircraftFilter: { altitudeRange: null, boundingBox: null },
+  setAircraftFilter: (f) =>
+    set((s) => ({ aircraftFilter: { ...s.aircraftFilter, ...f } })),
+
+  searchQuery: '',
+  setSearchQuery: (q) => set({ searchQuery: q }),
+
+  aircraftLastUpdated: null,
+  setAircraftLastUpdated: (ts) => set({ aircraftLastUpdated: ts }),
 }));
