@@ -135,3 +135,16 @@ None — the `.env` password fix is a local environment correction. If starting 
 ---
 *Phase: 06-deploy-hardening*
 *Completed: 2026-03-11*
+
+## Self-Check: PASSED
+
+- FOUND: docker-compose.yml (contains `alembic upgrade head`)
+- FOUND: frontend/src/components/SearchBar.tsx (contains else branch)
+- FOUND: frontend/src/components/__tests__/SearchBar.nullguard.test.tsx (created)
+- FOUND: frontend/src/store/useAppStore.ts (searchQuery removed)
+- FOUND: .planning/phases/06-deploy-hardening/06-01-SUMMARY.md (this file)
+- FOUND: c7abba0 (feat: alembic migration command)
+- FOUND: 10424db (test: SearchBar nullguard RED)
+- FOUND: a87eb57 (feat: SearchBar else branch GREEN)
+- FOUND: a8035d7 (refactor: remove dead searchQuery slice)
+- FOUND: 9458479 (docs: plan metadata commit)

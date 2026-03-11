@@ -1,0 +1,62 @@
+# Retrospective: OpenSignal Globe
+
+---
+
+## Milestone: v1.0 — MVP
+
+**Shipped:** 2026-03-11
+**Phases:** 6 | **Plans:** 17 | **LOC:** ~4,400 TypeScript/Python
+
+### What Was Built
+
+- Docker Compose full-stack (PostgreSQL+PostGIS, Redis, FastAPI, Vite+React) with automated Alembic migration entrypoint
+- 5,000+ real-time satellites on CesiumJS globe via satellite.js Web Worker SGP4 at 1 Hz
+- Live aircraft tracking from OpenSky OAuth2 with lerp interpolation and JSONB trail storage
+- Unified search + fly-to (satellite name/NORAD ID, callsign/ICAO24) with constellation/altitude/region filter panels
+- 60 FPS verified at full scene load with BlendOption.OPAQUE and zero-copy IPC
+- Phase 6 gap closure: automated migrations, null-worker guard, dead store cleanup
+
+### What Worked
+
+- **Primitive API decision early** — identifying Entity API collapse at 5,000+ objects before Phase 2 saved a likely full rewrite
+- **Web Worker + transferable Float64Array** — zero-copy IPC pattern made the difference between smooth 60 FPS and main-thread jank
+- **Phase 6 gap closure** — auditing before archiving caught real gaps (INFRA-01/02, SAT-03) and a dedicated phase closed them cleanly
+- **Self-re-enqueue pattern for RQ** — simple, version-stable; Celery would have added unnecessary complexity for homelab use
+- **Unified click handler in AircraftLayer** — eliminating the dual-handler race between satellite and aircraft layers was the right call
+
+### What Was Inefficient
+
+- **OpenSky API deprecation discovery** — Basic Auth deprecation (March 18, 2026) was discovered during planning; earlier research would have saved a decision revision
+- **Alembic migration gap** — `alembic upgrade head` was not automated in Phase 1 despite being an explicit INFRA requirement; required a dedicated Phase 6 plan to close
+- **Phase ordering** — Phase 3 depends on Phase 2 per the roadmap, but the aircraft layer doesn't actually depend on satellite data; the dependency was artificial and slowed parallelization
+- **Zustand searchQuery dead state** — accumulated between Phase 4 and Phase 6; earlier linting/grep would have caught it sooner
+
+### Patterns Established
+
+- **CelesTrak OMM/JSON** over legacy TLE text — future-proofed against July 2026 5-digit catalog cutover
+- **RQ sync wrapper pattern** (`def sync_task() { asyncio.run(async_task()) }`) — RQ cannot pickle async coroutines
+- **30s AbortController on large fetches** — 4MB satellite payload exceeds default 5s timeout
+- **EllipsoidTerrainProvider fallback** when ion token absent — prevents dev crash
+- **viewerRef guard** (not useState) for CesiumJS Viewer — prevents StrictMode double-mount GPU context destruction
+
+### Key Lessons
+
+1. **Audit before archiving** — running `/gsd:audit-milestone` before declaring done caught three real gaps that would have been silent tech debt
+2. **Explicit INFRA success criteria** — "runs via Docker Compose" requirements need to explicitly test clean-checkout migration, not just "runs"
+3. **OpenSky OAuth2 is the only path** — document this as a prerequisite for any future aircraft tracking work
+4. **BlendOption.OPAQUE is mandatory at scale** — treat this as a standard pattern for any future PointPrimitiveCollection work in this codebase
+5. **Phase insertions work** — Phase 6 (gap closure) inserted cleanly after audit; the decimal phase numbering system is solid for future urgent insertions
+
+### Cost Observations
+
+- Sessions: 1 continuous session (2026-03-11, ~8.5 hours)
+- Model: balanced profile (sonnet-4.6)
+- Notable: all 17 plans executed with parallelization enabled; wave-based execution compressed calendar time significantly
+
+---
+
+## Cross-Milestone Trends
+
+| Milestone | Phases | Plans | LOC | Key Pattern |
+|-----------|--------|-------|-----|-------------|
+| v1.0 MVP | 6 | 17 | ~4,400 | Primitive API + Web Worker for scale |
