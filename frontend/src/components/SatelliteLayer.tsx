@@ -10,6 +10,7 @@ import {
 } from 'cesium';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
+import { flyToCartesian } from '../lib/viewerRegistry';
 
 interface OrbitResultMessage {
   type: 'ORBIT_RESULT';
@@ -35,7 +36,12 @@ interface PositionResultMessage {
 
 type WorkerOutMessage = LoadedMessage | PositionsMessage | OrbitResultMessage | PositionResultMessage;
 
-export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
+interface SatelliteLayerProps {
+  viewer: Viewer | null;
+  onWorkerReady?: (worker: Worker) => void;
+}
+
+export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
   const satellites = useSatellites();
   const workerRef = useRef<Worker | null>(null);
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
@@ -59,6 +65,7 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
       { type: 'module' }
     );
     workerRef.current = worker;
+    if (onWorkerReady) onWorkerReady(worker);
 
     // Capture satellites.data in closure so the onmessage handler has stable reference
     const satData = satellites.data;
@@ -93,8 +100,10 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
       }
 
       if (msg.type === 'POSITION_RESULT') {
-        // Consumed by SearchBar via a pendingFlyTo callback registered on the worker ref.
-        // No action needed here — the message is routed to the pending callback by Plan 02.
+        const posMsg = msg as { type: 'POSITION_RESULT'; norad: number; position: { x: number; y: number; z: number } | null };
+        if (posMsg.position) {
+          flyToCartesian(new Cartesian3(posMsg.position.x, posMsg.position.y, posMsg.position.z));
+        }
       }
 
       if (msg.type === 'ORBIT_RESULT') {
@@ -173,7 +182,7 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
       handlerRef.current = null;
       indexMapRef.current = new Map();
     };
-  }, [viewer, satellites.data]);
+  }, [viewer, satellites.data, onWorkerReady]);
 
   // Effect 2: Watch selectedSatelliteId to trigger COMPUTE_ORBIT
   const selectedId = useAppStore(s => s.selectedSatelliteId);
