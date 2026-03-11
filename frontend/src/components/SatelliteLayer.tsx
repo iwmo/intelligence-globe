@@ -27,7 +27,13 @@ interface PositionsMessage {
   buf: Float64Array;
 }
 
-type WorkerOutMessage = LoadedMessage | PositionsMessage | OrbitResultMessage;
+interface PositionResultMessage {
+  type: 'POSITION_RESULT';
+  norad: number;
+  position: { x: number; y: number; z: number } | null;
+}
+
+type WorkerOutMessage = LoadedMessage | PositionsMessage | OrbitResultMessage | PositionResultMessage;
 
 export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
   const satellites = useSatellites();
@@ -84,6 +90,11 @@ export function SatelliteLayer({ viewer }: { viewer: Viewer | null }) {
             pt.position = new Cartesian3(x, y, z);
           }
         }
+      }
+
+      if (msg.type === 'POSITION_RESULT') {
+        // Consumed by SearchBar via a pendingFlyTo callback registered on the worker ref.
+        // No action needed here — the message is routed to the pending callback by Plan 02.
       }
 
       if (msg.type === 'ORBIT_RESULT') {

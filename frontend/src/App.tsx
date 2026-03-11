@@ -6,6 +6,7 @@ import { BottomStatusBar } from './components/BottomStatusBar';
 import { RightDrawer } from './components/RightDrawer';
 import { SatelliteLayer } from './components/SatelliteLayer';
 import { AircraftLayer } from './components/AircraftLayer';
+import { registerViewer } from './lib/viewerRegistry';
 
 export default function App() {
   const [cesiumViewer, setCesiumViewer] = useState<Viewer | null>(null);
@@ -13,7 +14,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
       {/* Globe fills the entire viewport */}
-      <GlobeView onViewerReady={setCesiumViewer} />
+      <GlobeView onViewerReady={(v) => { registerViewer(v); setCesiumViewer(v); }} />
       {/* Satellite layer — renders null to DOM, manages CesiumJS primitives */}
       <SatelliteLayer viewer={cesiumViewer} />
       {/* Aircraft layer — renders null to DOM, manages aircraft CesiumJS primitives */}

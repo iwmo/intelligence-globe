@@ -27,7 +27,12 @@ interface ComputeOrbitMessage {
   payload: { omm: Record<string, unknown>; periodSeconds: number };
 }
 
-type WorkerMessage = LoadOmmMessage | PropagateMessage | ComputeOrbitMessage;
+interface GetPositionMessage {
+  type: 'GET_POSITION';
+  payload: { norad: number };
+}
+
+type WorkerMessage = LoadOmmMessage | PropagateMessage | ComputeOrbitMessage | GetPositionMessage;
 
 self.onmessage = (event: MessageEvent<WorkerMessage>) => {
   const { type, payload } = event.data;
@@ -95,6 +100,29 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
     }
 
     self.postMessage({ type: 'ORBIT_RESULT', orbitPoints, groundPoints });
+    return;
+  }
+
+  if (type === 'GET_POSITION') {
+    const { norad } = payload as { norad: number };
+    const entry = satrecs.find(s => s.norad === norad);
+    if (!entry) {
+      self.postMessage({ type: 'POSITION_RESULT', norad, position: null });
+      return;
+    }
+    const now = new Date();
+    const gmst = satellite.gstime(now);
+    const pv = satellite.propagate(entry.satrec, now);
+    if (typeof pv.position === 'boolean' || pv.position === undefined) {
+      self.postMessage({ type: 'POSITION_RESULT', norad, position: null });
+      return;
+    }
+    const ecf = satellite.eciToEcf(pv.position, gmst);
+    self.postMessage({
+      type: 'POSITION_RESULT',
+      norad,
+      position: { x: ecf.x * 1000, y: ecf.y * 1000, z: ecf.z * 1000 },
+    });
     return;
   }
 };
