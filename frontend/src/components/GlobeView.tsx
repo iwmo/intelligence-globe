@@ -10,7 +10,11 @@ import {
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import '../styles/globe.css';
 
-export function GlobeView() {
+interface GlobeViewProps {
+  onViewerReady?: (viewer: Viewer) => void;
+}
+
+export function GlobeView({ onViewerReady }: GlobeViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export function GlobeView() {
         });
 
         viewerRef.current = viewer;
+        onViewerReady?.(viewer);
 
         // Direct wheel handler — bypasses CesiumJS canvas-level listener
         const onWheel = (e: WheelEvent) => {
