@@ -6,6 +6,9 @@ export function BottomStatusBar() {
   const { data, isError, isLoading } = useHealthCheck();
   const tleLastUpdated = useAppStore(s => s.tleLastUpdated);
   const setTleLastUpdated = useAppStore(s => s.setTleLastUpdated);
+  const aircraftLastUpdated = useAppStore(s => s.aircraftLastUpdated);
+  const setAircraftLastUpdated = useAppStore(s => s.setAircraftLastUpdated);
+  const layers = useAppStore(s => s.layers);
 
   // Fetch TLE freshness once on mount
   useEffect(() => {
@@ -14,6 +17,19 @@ export function BottomStatusBar() {
       .then((d: { last_updated?: string | null }) => setTleLastUpdated(d.last_updated ?? null))
       .catch(() => {});
   }, [setTleLastUpdated]);
+
+  // Fetch aircraft freshness on mount and every 90s
+  useEffect(() => {
+    const fetchAircraftFreshness = () =>
+      fetch('/api/aircraft/freshness')
+        .then(r => r.json())
+        .then((d: { last_updated?: string | null }) =>
+          setAircraftLastUpdated(d.last_updated ?? null))
+        .catch(() => {});
+    fetchAircraftFreshness();
+    const id = setInterval(fetchAircraftFreshness, 90_000);
+    return () => clearInterval(id);
+  }, [setAircraftLastUpdated]);
 
   const apiStatus = isLoading
     ? 'connecting...'
@@ -26,6 +42,10 @@ export function BottomStatusBar() {
   const formattedTle = tleLastUpdated
     ? `TLE: ${new Date(tleLastUpdated).toUTCString().slice(0, 25)}`
     : 'TLE: loading...';
+
+  const formattedAcf = aircraftLastUpdated
+    ? `ACF: ${new Date(aircraftLastUpdated).toUTCString().slice(0, 25)}`
+    : 'ACF: loading...';
 
   return (
     <div
@@ -54,9 +74,18 @@ export function BottomStatusBar() {
           API {apiStatus}
         </span>
       </div>
-      <span style={{ color: tleLastUpdated ? '#00D4FF' : '#666', fontSize: '11px', fontFamily: 'monospace' }}>
-        {formattedTle}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', minWidth: 0 }}>
+        {layers.satellites && (
+          <span style={{ color: tleLastUpdated ? '#00D4FF' : '#666', fontSize: '11px', fontFamily: 'monospace', minWidth: 0 }}>
+            {formattedTle}
+          </span>
+        )}
+        {layers.aircraft && (
+          <span style={{ color: aircraftLastUpdated ? '#00D4FF' : '#666', fontSize: '11px', fontFamily: 'monospace', minWidth: 0 }}>
+            {formattedAcf}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

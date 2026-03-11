@@ -184,6 +184,16 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
     };
   }, [viewer, satellites.data, onWorkerReady]);
 
+  // Effect 4: Toggle satellite layer visibility
+  const layerVisible = useAppStore(s => s.layers.satellites);
+  useEffect(() => {
+    if (!collectionRef.current || collectionRef.current.isDestroyed()) return;
+    const collection = collectionRef.current;
+    for (let i = 0; i < collection.length; i++) {
+      collection.get(i).show = layerVisible;
+    }
+  }, [layerVisible]);
+
   // Effect 2: Watch selectedSatelliteId to trigger COMPUTE_ORBIT
   const selectedId = useAppStore(s => s.selectedSatelliteId);
   useEffect(() => {

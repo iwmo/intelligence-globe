@@ -1,20 +1,95 @@
+import type { RefObject } from 'react';
+import { Satellite, Plane } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { SearchBar } from './SearchBar';
 
-export function LeftSidebar() {
-  const { sidebarOpen } = useAppStore();
-  if (!sidebarOpen) return null;
+interface LeftSidebarProps {
+  workerRef: RefObject<Worker | null>;
+}
+
+export function LeftSidebar({ workerRef }: LeftSidebarProps) {
+  const { sidebarOpen, layers, setLayerVisible } = useAppStore();
+
   return (
-    <div
+    <>
+      {/* Persistent layer toggle strip — always visible bottom-left */}
+      <div style={{
+        position: 'fixed', bottom: '40px', left: '12px',
+        display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 60,
+      }}>
+        <LayerToggleButton
+          label="SAT"
+          active={layers.satellites}
+          icon={<Satellite size={12} />}
+          onToggle={() => setLayerVisible('satellites', !layers.satellites)}
+        />
+        <LayerToggleButton
+          label="AIR"
+          active={layers.aircraft}
+          icon={<Plane size={12} />}
+          onToggle={() => setLayerVisible('aircraft', !layers.aircraft)}
+        />
+      </div>
+
+      {/* Sliding sidebar panel */}
+      {sidebarOpen && (
+        <div
+          style={{
+            position: 'fixed', left: 0, top: 0, bottom: '32px',
+            width: '280px',
+            background: 'rgba(0,0,0,0.92)',
+            borderRight: '1px solid rgba(0,212,255,0.15)',
+            zIndex: 50,
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ padding: '16px 12px 8px', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
+            <span style={{ color: 'rgba(0,212,255,0.7)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.15em' }}>
+              SEARCH
+            </span>
+          </div>
+          <SearchBar workerRef={workerRef} />
+
+          <div style={{ padding: '16px 12px 8px', marginTop: '8px', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
+            <span style={{ color: 'rgba(0,212,255,0.7)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.15em' }}>
+              FILTERS
+            </span>
+          </div>
+          {/* Filter panel content inserted by Plan 03 */}
+          <div style={{ padding: '12px', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
+            Filters coming soon...
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+interface LayerToggleButtonProps {
+  label: string;
+  active: boolean;
+  icon: React.ReactNode;
+  onToggle: () => void;
+}
+
+function LayerToggleButton({ label, active, icon, onToggle }: LayerToggleButtonProps) {
+  return (
+    <button
+      onClick={onToggle}
+      title={`Toggle ${label} layer`}
       style={{
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        bottom: '32px',
-        width: '280px',
-        background: 'rgba(0, 0, 0, 0.9)',
-        borderRight: '1px solid rgba(0, 212, 255, 0.15)',
-        zIndex: 50,
+        display: 'flex', alignItems: 'center', gap: '6px',
+        padding: '6px 10px',
+        background: active ? 'rgba(0,212,255,0.15)' : 'rgba(0,0,0,0.7)',
+        border: `1px solid ${active ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.15)'}`,
+        borderRadius: '4px', cursor: 'pointer',
+        color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)',
+        fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
+        transition: 'all 0.15s ease',
       }}
-    />
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

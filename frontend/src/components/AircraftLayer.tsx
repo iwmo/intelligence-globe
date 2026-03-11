@@ -151,6 +151,14 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     }
   }, [viewer, aircraft.data]);
 
+  // Effect for layer visibility: toggle all aircraft points show/hide
+  const layerVisible = useAppStore(s => s.layers.aircraft);
+  useEffect(() => {
+    for (const [, point] of pointsByIcao24) {
+      if (point) point.show = layerVisible;
+    }
+  }, [layerVisible]);
+
   // Effect 3: Trail-on-selection — show trail polyline for selected aircraft
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
