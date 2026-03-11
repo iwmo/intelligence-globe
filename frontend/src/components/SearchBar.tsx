@@ -47,13 +47,17 @@ export function SearchBar({ workerRef }: SearchBarProps) {
     if (satMatch) {
       setSelectedSatelliteId(satMatch.norad_cat_id);
       setSelectedAircraftId(null);
-      setStatus(`Satellite: ${(satMatch.omm as Record<string, string>).OBJECT_NAME ?? satMatch.norad_cat_id}`);
       // Request live ECEF position from worker; fly-to handled by POSITION_RESULT
       if (workerRef.current) {
+        setStatus(`Satellite: ${(satMatch.omm as Record<string, string>).OBJECT_NAME ?? satMatch.norad_cat_id}`);
         workerRef.current.postMessage({
           type: 'GET_POSITION',
           payload: { norad: satMatch.norad_cat_id },
         });
+      } else {
+        // Worker not yet ready — TLE data still loading. Status remains visible.
+        const name = (satMatch.omm as Record<string, string>).OBJECT_NAME ?? String(satMatch.norad_cat_id);
+        setStatus(`Satellite: ${name} (loading position...)`);
       }
       return;
     }
