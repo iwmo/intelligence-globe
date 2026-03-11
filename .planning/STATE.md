@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-performance/05-02-PLAN.md
-last_updated: "2026-03-11T17:32:09.138Z"
+stopped_at: "Checkpoint 05-performance/05-03: awaiting human FPS verification (Task 3)"
+last_updated: "2026-03-11T17:40:37.570Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 0
 ---
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-controls-and-polish P04-03 | 25 | 3 tasks | 6 files |
 | Phase 05-performance P01 | 5 | 2 tasks | 2 files |
 | Phase 05-performance P02 | 8min | 2 tasks | 3 files |
+| Phase 05-performance P03 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,8 @@ Recent decisions affecting current work:
 - [Phase 05-performance]: Partial B-tree index WHERE NOT NULL skips aircraft with missing GPS positions — index is on (latitude, longitude) so only airborne-with-GPS rows are indexed
 - [Phase 05-performance]: Performance tests skip automatically when table has >100 rows — 100ms budget is calibrated for empty-DB baseline, not full-load production
 - [Phase 05-performance]: conftest.py patched to replace AsyncSessionLocal alongside engine — get_db() resolves the original pooled factory despite engine being patched
+- [Phase 05-performance]: vi.hoisted() used to create mock variables before vi.mock() hoisting — avoids 'cannot access before initialization' error
+- [Phase 05-performance]: Worker global mocked as class (not vi.fn()) so 'new Worker()' constructor call in SatelliteLayer works
 
 ### Pending Todos
 
@@ -143,6 +146,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:32:09.134Z
-Stopped at: Completed 05-performance/05-02-PLAN.md
+Last session: 2026-03-11T17:40:37.566Z
+Stopped at: Checkpoint 05-performance/05-03: awaiting human FPS verification (Task 3)
 Resume file: None
