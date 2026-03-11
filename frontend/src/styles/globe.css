@@ -16,6 +16,7 @@
 }
 
 /* Fullscreen globe */
+html,
 body {
   margin: 0;
   padding: 0;
@@ -29,4 +30,6 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+  /* Prevent browser from consuming wheel events before they reach CesiumJS */
+  touch-action: none;
 }
