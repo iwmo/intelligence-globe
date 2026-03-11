@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-03-PLAN.md — Phase 1 fully verified
-last_updated: "2026-03-11T12:37:54.250Z"
+stopped_at: Completed 02-satellite-layer/02-01-PLAN.md — satellite data layer with Alembic migration and 3 endpoints
+last_updated: "2026-03-11T13:05:21.127Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P02 | 10min | 2 tasks | 15 files |
 | Phase 01-foundation P03 | 20 | 2 tasks | 3 files |
 | Phase 01-foundation P03 | 45 | 2 tasks | 7 files |
+| Phase 02-satellite-layer P01 | 3 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: VITE_API_BASE_URL hardcoded to http://backend:8000 in docker-compose.yml — localhost resolves incorrectly inside container
 - [Phase 01-foundation]: AbortController timeout (5s) on health fetch enables TanStack Query retry cycle without indefinite isLoading
 - [Phase 01-foundation]: viewerRef.current null-check in requestAnimationFrame prevents React StrictMode double-mount from crashing GPU context
+- [Phase 02-satellite-layer]: Alembic env.py uses asyncio.run() with async engine and run_sync — avoids needing a separate sync DB URL for migrations
+- [Phase 02-satellite-layer]: Dual GET decorator on list_satellites (@router.get('') + @router.get('/')) handles trailing-slash without disabling redirect_slashes globally
+- [Phase 02-satellite-layer]: include_object filter in alembic/env.py excludes reflected PostGIS/tiger tables from autogenerate
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:29:51.392Z
-Stopped at: Completed 01-foundation/01-03-PLAN.md — Phase 1 fully verified
+Last session: 2026-03-11T13:05:21.125Z
+Stopped at: Completed 02-satellite-layer/02-01-PLAN.md — satellite data layer with Alembic migration and 3 endpoints
 Resume file: None

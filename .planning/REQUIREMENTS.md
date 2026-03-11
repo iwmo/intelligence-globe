@@ -15,7 +15,7 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Satellite Tracking
 
-- [ ] **SAT-01**: User sees 5,000+ real-time satellites rendered on the globe from CelesTrak TLE/GP data
+- [x] **SAT-01**: User sees 5,000+ real-time satellites rendered on the globe from CelesTrak TLE/GP data
 - [ ] **SAT-02**: User sees orbit path polylines and ground tracks for selected satellites
 - [ ] **SAT-03**: User can search satellites by name or NORAD ID and fly to result
 - [ ] **SAT-04**: User can filter satellites by constellation (Starlink, GPS, ISS, etc.) or altitude band
@@ -29,7 +29,7 @@ Requirements for initial release. Maps to roadmap phases.
 
 ### Interaction
 
-- [ ] **INT-01**: User can click any satellite to inspect metadata (NORAD ID, altitude, velocity, TLE epoch, constellation)
+- [x] **INT-01**: User can click any satellite to inspect metadata (NORAD ID, altitude, velocity, TLE epoch, constellation)
 - [ ] **INT-02**: User can click any aircraft to inspect metadata (callsign, ICAO24, altitude, speed, heading, country)
 - [ ] **INT-03**: User can toggle each data layer on/off independently (satellites, aircraft)
 - [ ] **INT-04**: UI is responsive and usable on desktop and tablet viewports
@@ -90,7 +90,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GLOB-01 | Phase 1 | Complete |
 | GLOB-02 | Phase 1 | Complete |
 | GLOB-03 | Phase 4 | Pending |
-| SAT-01 | Phase 2 | Pending |
+| SAT-01 | Phase 2 | Complete |
 | SAT-02 | Phase 2 | Pending |
 | SAT-03 | Phase 4 | Pending |
 | SAT-04 | Phase 4 | Pending |
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AIR-02 | Phase 3 | Pending |
 | AIR-03 | Phase 4 | Pending |
 | AIR-04 | Phase 4 | Pending |
-| INT-01 | Phase 2 | Pending |
+| INT-01 | Phase 2 | Complete |
 | INT-02 | Phase 3 | Pending |
 | INT-03 | Phase 4 | Pending |
 | INT-04 | Phase 4 | Pending |
