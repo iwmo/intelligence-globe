@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Running Docker stack with an empty interactive 3D globe (completed 2026-03-11)
 - [ ] **Phase 2: Satellite Layer** - 5,000+ live satellites with orbit paths and click-to-inspect
-- [ ] **Phase 3: Aircraft Layer** - Real-time aircraft with smooth trails and click-to-inspect
+- [x] **Phase 3: Aircraft Layer** - Real-time aircraft with smooth trails and click-to-inspect (completed 2026-03-11)
 - [ ] **Phase 4: Controls and Polish** - Search, filters, layer toggles, and cinematic UI
 - [ ] **Phase 5: Performance** - Verified 60 FPS at full scene load with all layers active
 
@@ -101,6 +101,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-03-11 |
 | 2. Satellite Layer | 2/4 | In Progress|  |
-| 3. Aircraft Layer | 2/3 | In Progress|  |
+| 3. Aircraft Layer | 3/3 | Complete   | 2026-03-11 |
 | 4. Controls and Polish | 0/TBD | Not started | - |
 | 5. Performance | 0/TBD | Not started | - |

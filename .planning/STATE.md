@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-aircraft-layer/03-02-PLAN.md — OpenSky ingest RQ task live, 10448 aircraft in DB
-last_updated: "2026-03-11T14:54:01.153Z"
+stopped_at: Completed 03-aircraft-layer/03-03-PLAN.md — aircraft layer complete, route lookup live, panel switching fixed
+last_updated: "2026-03-11T15:12:12.089Z"
 last_activity: 2026-03-11 — Roadmap created, all 17 v1 requirements mapped to 5 phases
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-satellite-layer P04 | 60min | 3 tasks | 6 files |
 | Phase 03-aircraft-layer P01 | 525615min | 2 tasks | 9 files |
 | Phase 03-aircraft-layer P02 | 20min | 2 tasks | 2 files |
+| Phase 03-aircraft-layer P03 | 30min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 03-aircraft-layer]: sync_ingest_aircraft finally block re-enqueues unconditionally — task loop never stops even on ingest failure
 - [Phase 03-aircraft-layer]: Pre-fetch trail_map with single SELECT before upsert loop — avoids N+1 at 10,000+ aircraft scale
 - [Phase 03-aircraft-layer]: Docker container rebuild required for code changes — restart alone uses stale image
+- [Phase 03-aircraft-layer]: Unified CesiumJS click handler in AircraftLayer owns all scene.pick() dispatch — eliminates dual-handler race between SatelliteLayer and AircraftLayer
+- [Phase 03-aircraft-layer]: Per-selection OpenSky route lookup: backend proxies /flights/aircraft with 2h lookback; graceful null fallback prevents panel breakage when data unavailable
 
 ### Pending Todos
 
@@ -117,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T14:54:01.150Z
-Stopped at: Completed 03-aircraft-layer/03-02-PLAN.md — OpenSky ingest RQ task live, 10448 aircraft in DB
+Last session: 2026-03-11T15:12:12.085Z
+Stopped at: Completed 03-aircraft-layer/03-03-PLAN.md — aircraft layer complete, route lookup live, panel switching fixed
 Resume file: None
