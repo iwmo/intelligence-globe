@@ -11,7 +11,8 @@ import {
   PerInstanceColorAppearance,
   Color,
 } from 'cesium';
-import { useGpsJamming, GpsJammingCell } from '../hooks/useGpsJamming';
+import { useGpsJamming } from '../hooks/useGpsJamming';
+import type { GpsJammingCell } from '../hooks/useGpsJamming';
 import { useAppStore } from '../store/useAppStore';
 
 interface GpsJammingLayerProps {
