@@ -1,4 +1,179 @@
-// RED stub — Phase 12 Plan 01
-// OsintEventPanel will be implemented in Plan 04
-// This file exists to allow test collection without import errors
-// The component is intentionally NOT exported yet
+import React, { useState } from 'react';
+
+interface Props {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  color: '#fff',
+  padding: '4px',
+  fontFamily: 'monospace',
+  boxSizing: 'border-box',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '2px',
+  color: '#aaa',
+};
+
+const fieldStyle: React.CSSProperties = {
+  marginBottom: '8px',
+};
+
+export function OsintEventPanel({ open = true, onClose }: Props) {
+  const [label, setLabel] = useState('');
+  const [ts, setTs] = useState(() => new Date().toISOString().slice(0, 16));
+  const [category, setCategory] = useState<string>('KINETIC');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [lat, setLat] = useState('');
+  const [lon, setLon] = useState('');
+
+  if (!open) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const body = {
+      ts: new Date(ts).toISOString(),
+      category,
+      label,
+      source_url: sourceUrl || null,
+      latitude: lat ? parseFloat(lat) : null,
+      longitude: lon ? parseFloat(lon) : null,
+    };
+    const r = await fetch('/api/osint-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      onClose?.();
+      setLabel('');
+      setTs(new Date().toISOString().slice(0, 16));
+      setCategory('KINETIC');
+      setSourceUrl('');
+      setLat('');
+      setLon('');
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: '60px',
+        right: '16px',
+        zIndex: 90,
+        width: '280px',
+        background: 'rgba(0,10,20,0.92)',
+        border: '1px solid rgba(0,212,255,0.3)',
+        padding: '12px',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ccc',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ fontWeight: 700, color: '#00D4FF' }}>OSINT EVENT</span>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: '14px' }}
+        >
+          X
+        </button>
+      </div>
+      <form onSubmit={handleSubmit}>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>LABEL</span>
+          <input
+            name="label"
+            type="text"
+            required
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>DATE/TIME</span>
+          <input
+            name="ts"
+            type="datetime-local"
+            required
+            value={ts}
+            onChange={(e) => setTs(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>CATEGORY</span>
+          <select
+            name="category"
+            required
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ ...inputStyle, color: '#fff' }}
+          >
+            <option value="KINETIC">KINETIC</option>
+            <option value="AIRSPACE">AIRSPACE</option>
+            <option value="MARITIME">MARITIME</option>
+            <option value="SEISMIC">SEISMIC</option>
+            <option value="JAMMING">JAMMING</option>
+          </select>
+        </div>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>SOURCE URL</span>
+          <input
+            name="source_url"
+            type="url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>LATITUDE (optional)</span>
+          <input
+            name="latitude"
+            type="number"
+            step="any"
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div style={fieldStyle}>
+          <span style={labelStyle}>LONGITUDE (optional)</span>
+          <input
+            name="longitude"
+            type="number"
+            step="any"
+            value={lon}
+            onChange={(e) => setLon(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <button
+          type="submit"
+          style={{
+            width: '100%',
+            background: '#00D4FF',
+            color: '#000',
+            fontWeight: 700,
+            border: 'none',
+            padding: '6px',
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+          }}
+        >
+          LOG EVENT
+        </button>
+      </form>
+    </div>
+  );
+}
