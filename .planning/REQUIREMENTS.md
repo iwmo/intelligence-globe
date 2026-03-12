@@ -18,7 +18,7 @@
 - [x] **ICONS-02**: Military flights displayed as a distinct military aircraft SVG billboard icon
 - [x] **ICONS-03**: Ships displayed as vessel-shaped SVG billboard icons
 - [ ] **ICONS-04**: Satellites displayed as improved orbital-cross markers (PointPrimitive — billboard not used at 5,000+ entity count due to GPU texture limit)
-- [ ] **ICONS-05**: Aircraft, military, and ship icons scale proportionally with camera altitude
+- [x] **ICONS-05**: Aircraft, military, and ship icons scale proportionally with camera altitude
 
 ### NAV — Navigation Controls
 
@@ -63,7 +63,7 @@
 | ICONS-02 | Phase 14 | Complete |
 | ICONS-03 | Phase 14 | Complete |
 | ICONS-04 | Phase 14 | Pending |
-| ICONS-05 | Phase 14 | Pending |
+| ICONS-05 | Phase 14 | Complete |
 | NAV-01 | Phase 15 | Pending |
 | NAV-02 | Phase 15 | Pending |
 | NAV-03 | Phase 15 | Pending |

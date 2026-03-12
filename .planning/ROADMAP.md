@@ -128,6 +128,6 @@ Plans:
 | 11. Replay Engine | v2.0 | 4/4 | Complete | 2026-03-12 |
 | 12. OSINT Event Correlation | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 13. Collapsible Sidebar Layout | 2/3 | In Progress|  | — |
-| 14. Entity Icons and Altitude Scaling | 1/4 | In Progress|  | — |
+| 14. Entity Icons and Altitude Scaling | 2/4 | In Progress|  | — |
 | 15. Camera Navigation Controls | v3.0 | 0/3 | Not started | — |
 | 16. Persistent Settings Panel | v3.0 | 0/3 | Not started | — |

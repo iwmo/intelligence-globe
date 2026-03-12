@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: planning
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-12T17:39:19.885Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-12T17:43:46.842Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -62,6 +62,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 13-collapsible-sidebar-layout]: App.tsx owns no floating UI panels that belong in sidebar — panels live in LeftSidebar sections
 | Phase 14 P01 | 2m | 2 tasks | 3 files |
 - [Phase 14]: Export canvas constants (not unexported) so downstream billboard plans can import the same HTMLCanvasElement reference for CesiumJS TextureAtlas deduplication
+| Phase 14-entity-icons-altitude-scaling P02 | 3 | 2 tasks | 2 files |
+- [Phase 14]: Ship heading uses 511-sentinel fallback to cog; military heading uses track field directly
+- [Phase 14]: alignedAxis: Cartesian3.ZERO for screen-space billboard rotation — icons face camera, not globe surface normal
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:39:19.883Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-12T17:43:46.839Z
+Stopped at: Completed 14-02-PLAN.md
 Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
