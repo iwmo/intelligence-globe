@@ -13,6 +13,10 @@ const mockState = {
   replaySpeedMultiplier: 60,
   setReplaySpeedMultiplier: vi.fn(),
   setReplayWindow: vi.fn(),
+  activeCategories: [] as string[],
+  toggleCategory: vi.fn(),
+  setAreaOfInterest: vi.fn(),
+  tleLastUpdated: null as string | null,
 };
 
 vi.mock('../../store/useAppStore', () => ({
@@ -20,6 +24,9 @@ vi.mock('../../store/useAppStore', () => ({
 }));
 vi.mock('../../hooks/useReplaySnapshots', () => ({
   useReplaySnapshots: vi.fn(() => ({ data: new Map(), isLoading: false })),
+}));
+vi.mock('../../hooks/useOsintEvents', () => ({
+  useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
 }));
 
 // Static import after vi.mock — produces ModuleNotFoundError when PlaybackBar.tsx does not exist

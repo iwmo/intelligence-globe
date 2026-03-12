@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
-import { OSINT_EVENTS, EVENT_COLORS } from '../data/osintEvents';
+import { useOsintEvents } from '../hooks/useOsintEvents';
+import { EVENT_COLORS } from '../data/osintEvents';
 import type { OsintEvent } from '../data/osintEvents';
 
 const SPEED_PRESETS = [
@@ -12,7 +13,13 @@ const SPEED_PRESETS = [
   { label: '1h/s',  value: 3600 },
 ] as const;
 
-export function PlaybackBar() {
+const OSINT_CATEGORIES = ['KINETIC', 'AIRSPACE', 'MARITIME', 'SEISMIC', 'JAMMING'] as const;
+
+interface PlaybackBarProps {
+  onOpenOsintPanel?: () => void;
+}
+
+export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const replayMode         = useAppStore(s => s.replayMode);
   const setReplayMode      = useAppStore(s => s.setReplayMode);
   const replayTs           = useAppStore(s => s.replayTs);
@@ -22,6 +29,18 @@ export function PlaybackBar() {
   const setReplayWindow    = useAppStore(s => s.setReplayWindow);
   const speedMultiplier    = useAppStore(s => s.replaySpeedMultiplier);
   const setSpeedMultiplier = useAppStore(s => s.setReplaySpeedMultiplier);
+  const activeCategories   = useAppStore(s => s.activeCategories);
+  const toggleCategory     = useAppStore(s => s.toggleCategory);
+  const setAreaOfInterest  = useAppStore(s => s.setAreaOfInterest);
+  const tleLastUpdated     = useAppStore(s => s.tleLastUpdated);
+
+  // TLE staleness for overpass warning (matches SatelliteLayer.tsx logic)
+  const TLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const tleAge = tleLastUpdated ? Date.now() - new Date(tleLastUpdated).getTime() : 0;
+  const tleStalenessWarning = replayMode === 'playback' && tleLastUpdated != null && tleAge > TLE_MAX_AGE_MS;
+
+  // Dynamic OSINT events from database
+  const { events: osintEvents } = useOsintEvents(replayMode === 'playback');
 
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -185,35 +204,45 @@ export function PlaybackBar() {
               style={{ width: '100%', position: 'relative', zIndex: 1 }}
             />
             {/* OSINT event marker dots overlaid on scrubber track */}
-            {hasWindow && (OSINT_EVENTS as OsintEvent[]).map(evt => {
-              const frac = (evt.ts - replayWindowStart!) / (replayWindowEnd! - replayWindowStart!);
-              if (frac < 0 || frac > 1) return null;
-              return (
-                <div
-                  key={evt.id}
-                  data-event-id={evt.id}
-                  title={evt.label}
-                  onClick={() => setReplayTs(evt.ts)}
-                  style={{
-                    position: 'absolute',
-                    left: `${frac * 100}%`,
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '8px',
-                    height: '8px',
-                    minWidth: '16px',
-                    minHeight: '16px',
-                    borderRadius: '50%',
-                    background: EVENT_COLORS[evt.category] ?? '#fff',
-                    cursor: 'pointer',
-                    zIndex: 2,
-                    border: '1px solid rgba(0,0,0,0.5)',
-                    padding: '4px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              );
-            })}
+            {hasWindow && (() => {
+              const visibleEvents: OsintEvent[] = activeCategories.length === 0
+                ? osintEvents
+                : osintEvents.filter(e => activeCategories.includes(e.category));
+              return visibleEvents.map(evt => {
+                const frac = (evt.ts - replayWindowStart!) / (replayWindowEnd! - replayWindowStart!);
+                if (frac < 0 || frac > 1) return null;
+                return (
+                  <div
+                    key={evt.id}
+                    data-event-id={evt.id}
+                    title={evt.label}
+                    onClick={() => {
+                      setReplayTs(evt.ts);
+                      if (evt.latitude != null && evt.longitude != null) {
+                        setAreaOfInterest({ lat: evt.latitude, lon: evt.longitude });
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: `${frac * 100}%`,
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '8px',
+                      height: '8px',
+                      minWidth: '16px',
+                      minHeight: '16px',
+                      borderRadius: '50%',
+                      background: EVENT_COLORS[evt.category] ?? '#fff',
+                      cursor: 'pointer',
+                      zIndex: 2,
+                      border: '1px solid rgba(0,0,0,0.5)',
+                      padding: '4px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                );
+              });
+            })()}
           </div>
 
           {/* Current timestamp */}
@@ -249,6 +278,64 @@ export function PlaybackBar() {
               {p.label}
             </button>
           ))}
+
+          {/* LOG button — opens OsintEventPanel */}
+          <button
+            onClick={() => onOpenOsintPanel?.()}
+            style={{
+              background: 'rgba(0,212,255,0.15)',
+              color: '#00D4FF',
+              border: '1px solid rgba(0,212,255,0.4)',
+              padding: '2px 6px',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontSize: '10px',
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            LOG
+          </button>
+
+          {/* Category chips */}
+          <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
+            {OSINT_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => toggleCategory(cat)}
+                style={{
+                  background: (activeCategories.length === 0 || activeCategories.includes(cat))
+                    ? EVENT_COLORS[cat]
+                    : 'rgba(255,255,255,0.05)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  padding: '2px 5px',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  opacity: (activeCategories.length === 0 || activeCategories.includes(cat)) ? 1 : 0.35,
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* TLE staleness warning */}
+          {tleStalenessWarning && (
+            <span style={{
+              color: '#ff3333',
+              fontSize: '9px',
+              fontFamily: 'monospace',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}>
+              TLE &gt;7d — overpass suppressed
+            </span>
+          )}
         </>
       )}
     </div>

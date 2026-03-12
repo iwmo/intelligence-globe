@@ -15,9 +15,10 @@ const mockState = {
   replaySpeedMultiplier: 60,
   setReplaySpeedMultiplier: vi.fn(),
   setReplayWindow: vi.fn(),
-  // Phase 12 slice — does NOT exist in store yet (RED)
   activeCategories: [] as string[],
   toggleCategory,
+  setAreaOfInterest: vi.fn(),
+  tleLastUpdated: null as string | null,
 };
 
 vi.mock('../../store/useAppStore', () => ({
@@ -26,6 +27,10 @@ vi.mock('../../store/useAppStore', () => ({
 
 vi.mock('../../hooks/useReplaySnapshots', () => ({
   useReplaySnapshots: vi.fn(() => ({ data: new Map(), isLoading: false })),
+}));
+
+vi.mock('../../hooks/useOsintEvents', () => ({
+  useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
 }));
 
 // Static import after vi.mock

@@ -16,6 +16,7 @@ import { PostProcessPanel } from './components/PostProcessPanel';
 import { CinematicHUD } from './components/CinematicHUD';
 import { LandmarkNav } from './components/LandmarkNav';
 import { PlaybackBar } from './components/PlaybackBar';
+import { OsintEventPanel } from './components/OsintEventPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
 
@@ -23,6 +24,7 @@ export default function App() {
   const [cesiumViewer, setCesiumViewer] = useState<Viewer | null>(null);
   const [satWorker, setSatWorker] = useState<Worker | null>(null);
   const satWorkerRef = useRef<Worker | null>(null);
+  const [osintPanelOpen, setOsintPanelOpen] = useState(false);
   const { cleanUI } = useAppStore();
 
   useKeyboardShortcuts();
@@ -58,7 +60,10 @@ export default function App() {
       <LandmarkNav viewer={cesiumViewer} />
 
       {/* Phase 11: PlaybackBar — ALWAYS rendered, not gated by cleanUI */}
-      <PlaybackBar />
+      <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />
+
+      {/* Phase 12: OsintEventPanel — ALWAYS mounted, controlled by osintPanelOpen state */}
+      <OsintEventPanel open={osintPanelOpen} onClose={() => setOsintPanelOpen(false)} />
 
       {/* UI chrome overlays — gated by cleanUI (VIS-04) */}
       {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}
