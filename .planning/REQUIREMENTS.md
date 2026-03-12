@@ -16,7 +16,7 @@ Requirements for the v2.0 WorldView Parity milestone.
 
 ### Navigation
 
-- [ ] **NAV-01**: User can jump to a city (including Doha) via a quick-jump bar at the bottom of the globe
+- [x] **NAV-01**: User can jump to a city (including Doha) via a quick-jump bar at the bottom of the globe
 - [x] **NAV-02**: User can fly to curated landmarks within a city with precise camera centering using OSM bounding box data
 - [x] **NAV-03**: User can cycle through landmarks via keyboard shortcuts (Q/W/E/R/T)
 
@@ -65,7 +65,7 @@ Deferred to future release.
 | VIS-02 | Phase 7 | Complete |
 | VIS-03 | Phase 7 | Complete |
 | VIS-04 | Phase 7 | Complete |
-| NAV-01 | Phase 7 | Pending |
+| NAV-01 | Phase 7 | Complete |
 | NAV-02 | Phase 7 | Complete |
 | NAV-03 | Phase 7 | Complete |
 | LAY-01 | Phase 8 | Pending |
