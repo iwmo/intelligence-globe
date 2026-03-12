@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Satellite, Plane, ShieldAlert, Anchor } from 'lucide-react';
+import { Satellite, Plane, ShieldAlert, Anchor, Radio, Car } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
@@ -58,6 +58,27 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
           active={layers.ships}
           icon={<Anchor size={12} />}
           onToggle={() => setLayerVisible('ships', !layers.ships)}
+        />
+        <LayerToggleButton
+          label="JAM"
+          active={layers.gpsJamming}
+          icon={<Radio size={12} />}
+          onToggle={() => setLayerVisible('gpsJamming', !layers.gpsJamming)}
+        />
+        {layers.gpsJamming && (
+          <span style={{
+            fontSize: '8px', color: 'rgba(255,200,0,0.7)',
+            maxWidth: '48px', textAlign: 'center', lineHeight: '1.2',
+            display: 'block'
+          }}>
+            GPS degradation anomaly — inferred from aircraft telemetry, not geolocated
+          </span>
+        )}
+        <LayerToggleButton
+          label="TFC"
+          active={layers.streetTraffic}
+          icon={<Car size={12} />}
+          onToggle={() => setLayerVisible('streetTraffic', !layers.streetTraffic)}
         />
       </div>
 

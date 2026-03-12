@@ -8,6 +8,8 @@ import { SatelliteLayer } from './components/SatelliteLayer';
 import { AircraftLayer } from './components/AircraftLayer';
 import { MilitaryAircraftLayer } from './components/MilitaryAircraftLayer';
 import { ShipLayer } from './components/ShipLayer';
+import { GpsJammingLayer } from './components/GpsJammingLayer';
+import { StreetTrafficLayer } from './components/StreetTrafficLayer';
 import { registerViewer } from './lib/viewerRegistry';
 import { PostProcessEngine } from './components/PostProcessEngine';
 import { PostProcessPanel } from './components/PostProcessPanel';
@@ -40,6 +42,10 @@ export default function App() {
       <MilitaryAircraftLayer viewer={cesiumViewer} />
       {/* Phase 8: Ship layer — cyan dots, manages own visibility via store */}
       <ShipLayer viewer={cesiumViewer} />
+      {/* Phase 9: GPS Jamming layer — H3 hexagons, manages own visibility via store */}
+      <GpsJammingLayer viewer={cesiumViewer} />
+      {/* Phase 9: Street Traffic layer — particle dots on roads, manages own visibility via store */}
+      <StreetTrafficLayer viewer={cesiumViewer} />
 
       {/* Phase 7: Post-processing (invisible, manages WebGL stages) */}
       <PostProcessEngine viewer={cesiumViewer} />
