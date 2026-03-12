@@ -121,7 +121,7 @@ Plans:
 | 5. Performance | v1.0 | 3/3 | Complete | 2026-03-11 |
 | 6. Deploy Hardening | v1.0 | 1/1 | Complete | 2026-03-11 |
 | 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 8. New Data Pipelines — Military + Maritime | v2.0 | 0/5 | Not started | — |
+| 8. New Data Pipelines — Military + Maritime | 1/5 | In Progress|  | — |
 | 9. GPS Jamming + Street Traffic | v2.0 | 0/? | Not started | — |
 | 10. Snapshot Infrastructure | v2.0 | 0/? | Not started | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |

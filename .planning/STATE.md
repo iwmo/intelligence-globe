@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: planning
-stopped_at: Completed 07-visual-engine-navigation/07-05-PLAN.md
-last_updated: "2026-03-12T06:05:11.535Z"
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-01-PLAN.md
+last_updated: "2026-03-12T06:40:43.944Z"
 last_activity: 2026-03-11 — v2.0 roadmap written (Phases 7-12, 17 requirements mapped)
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 10
+  completed_plans: 6
   percent: 0
 ---
 
@@ -74,6 +74,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 07-visual-engine-navigation P05 | 20 | 2 tasks | 1 files |
 - [Phase 07-visual-engine-navigation]: PostProcessPanel rendered as left-side floating panel — RightDrawer has no children prop
 - [Phase 07-visual-engine-navigation]: CinematicHUD and LandmarkNav mounted unconditionally outside cleanUI gate so telemetry and nav persist in Clean UI mode
+| Phase 08-new-data-pipelines-military-maritime P01 | 6 | 2 tasks | 6 files |
+- [Phase 08-new-data-pipelines-military-maritime]: Wave 0 backend API test pattern: AsyncClient(ASGITransport(app=app)) mirrors aircraft test pattern for military + ships
+- [Phase 08-new-data-pipelines-military-maritime]: test_military_detail and test_ship_detail assert 404 (not 422) to force routes to exist before GREEN
+- [Phase 08-new-data-pipelines-military-maritime]: Frontend smoke tests use static import after vi.mock() — no vi.hoisted() needed for simple cesium/store/hook mocks
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:58:53.884Z
-Stopped at: Completed 07-visual-engine-navigation/07-05-PLAN.md
+Last session: 2026-03-12T06:40:43.941Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-01-PLAN.md
 Resume: Start with `/gsd:plan-phase 7`

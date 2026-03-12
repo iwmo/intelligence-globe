@@ -22,9 +22,9 @@ Requirements for the v2.0 WorldView Parity milestone.
 
 ### Data Layers
 
-- [ ] **LAY-01**: User sees military flights as distinct orange icons, toggleable separately from commercial flights, sourced from airplanes.live military endpoint
+- [x] **LAY-01**: User sees military flights as distinct orange icons, toggleable separately from commercial flights, sourced from airplanes.live military endpoint
 - [ ] **LAY-02**: User sees a GPS jamming heatmap as H3 hexagons derived from ADS-B NIC/NACp position accuracy fields, aggregated in PostGIS
-- [ ] **LAY-03**: User sees maritime traffic (ship icons) from AIS data with click-to-inspect vessel metadata
+- [x] **LAY-03**: User sees maritime traffic (ship icons) from AIS data with click-to-inspect vessel metadata
 - [ ] **LAY-04**: User sees street traffic as a particle simulation (moving dots on OSM road network), zoom-dependent density, viewport-scoped road fetch
 
 ### Replay Engine
@@ -68,8 +68,8 @@ Deferred to future release.
 | NAV-01 | Phase 7 | Complete |
 | NAV-02 | Phase 7 | Complete |
 | NAV-03 | Phase 7 | Complete |
-| LAY-01 | Phase 8 | Pending |
-| LAY-03 | Phase 8 | Pending |
+| LAY-01 | Phase 8 | Complete |
+| LAY-03 | Phase 8 | Complete |
 | LAY-02 | Phase 9 | Pending |
 | LAY-04 | Phase 9 | Pending |
 | REP-01 | Phase 10 | Pending |
