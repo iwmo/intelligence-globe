@@ -169,13 +169,13 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         <div>{utcTime}</div>
       </div>
 
-      {/* 5. Clean UI Toggle — bottom-left (pointer-events re-enabled) */}
+      {/* 5. Clean UI Toggle — bottom-left, offset right to clear SAT/AIR layer toggles */}
       <button
         onClick={() => setCleanUI(!cleanUI)}
         style={{
           position: 'absolute',
           bottom: 40,
-          left: 12,
+          left: 80,
           pointerEvents: 'auto',
           background: 'rgba(0, 0, 0, 0.6)',
           border: '1px solid rgba(0, 255, 0, 0.5)',

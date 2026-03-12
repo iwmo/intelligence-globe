@@ -49,13 +49,13 @@ export default function App() {
       {!cleanUI && <RightDrawer />}
       {!cleanUI && <BottomStatusBar />}
 
-      {/* Phase 7: Post-process control panel — floating panel (RightDrawer has no children slot) */}
+      {/* Phase 7: Post-process control panel — left side, below hamburger */}
       {!cleanUI && (
         <div style={{
           position: 'fixed',
-          top: '80px',
-          right: '12px',
-          zIndex: 70,
+          top: '84px',
+          left: '12px',
+          zIndex: 75,
         }}>
           <PostProcessPanel />
         </div>
