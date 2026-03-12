@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 11-replay-engine/11-04-PLAN.md
-last_updated: "2026-03-12T13:22:58.247Z"
+stopped_at: Completed 12-osint-event-correlation/12-01-PLAN.md
+last_updated: "2026-03-12T13:51:39.845Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 28
+  completed_plans: 24
   percent: 40
 ---
 
@@ -135,6 +135,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 11-replay-engine P04 | continuation | 3 tasks | 4 files |
 - [Phase 11-replay-engine]: Playback interpolation added as additive useEffect in each layer — live lerp effects left completely untouched to reduce regression risk
 - [Phase 11-replay-engine]: PlaybackBar mounted unconditionally outside cleanUI gate in App.tsx, consistent with CinematicHUD/LandmarkNav pattern from Phase 07
+| Phase 12-osint-event-correlation P01 | 10 | 1 tasks | 10 files |
+- [Phase 12-osint-event-correlation]: Empty stub files used for non-existent modules: Vite import-analysis scans dynamic imports at transform time — vi.mock alone insufficient; stub files resolve the path
+- [Phase 12-osint-event-correlation]: SEISMIC category added to PlaybackBar category chips test — forces Plan 05 to include it alongside existing KINETIC/AIRSPACE/MARITIME/JAMMING
 
 ### Pending Todos
 
@@ -153,6 +156,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T13:19:19.034Z
-Stopped at: Completed 11-replay-engine/11-04-PLAN.md
+Last session: 2026-03-12T13:51:39.842Z
+Stopped at: Completed 12-osint-event-correlation/12-01-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
