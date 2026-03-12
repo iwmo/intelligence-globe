@@ -18,7 +18,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         title={sidebarOpen ? 'Close panel' : 'Open panel'}
         style={{
-          position: 'fixed', top: '12px', left: '12px', zIndex: 70,
+          position: 'fixed', top: '32px', left: '12px', zIndex: 85,
           display: 'flex', flexDirection: 'column', gap: '4px',
           padding: '8px', background: 'rgba(0,0,0,0.75)',
           border: '1px solid rgba(0,212,255,0.25)', borderRadius: '4px',

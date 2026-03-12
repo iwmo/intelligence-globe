@@ -150,12 +150,12 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         <div>SUN EL: --</div>
       </div>
 
-      {/* 4. REC Timestamp — top-left */}
+      {/* 4. REC Timestamp — top-left, offset right to clear hamburger button */}
       <div
         style={{
           position: 'absolute',
           top: 36,
-          left: 12,
+          left: 56,
           color: '#00ff00',
           fontSize: '12px',
           lineHeight: '1.6',

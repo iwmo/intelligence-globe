@@ -1,9 +1,9 @@
 {
   "landmarks": [
-    { "id": "doha-city",     "name": "Doha City Center",           "shortcut": "Q", "lat": 25.2854, "lon": 51.5310, "altMeters": 80000, "heading": 0, "pitch": -45 },
-    { "id": "hamad-airport", "name": "Hamad International Airport", "shortcut": "W", "lat": 25.2731, "lon": 51.6082, "altMeters": 15000, "heading": 0, "pitch": -60 },
-    { "id": "the-pearl",     "name": "The Pearl-Qatar",             "shortcut": "E", "lat": 25.3706, "lon": 51.5500, "altMeters": 8000,  "heading": 0, "pitch": -60 },
-    { "id": "lusail-city",   "name": "Lusail City",                 "shortcut": "R", "lat": 25.4321, "lon": 51.5185, "altMeters": 20000, "heading": 0, "pitch": -50 },
-    { "id": "west-bay",      "name": "West Bay Lagoon",             "shortcut": "T", "lat": 25.3285, "lon": 51.5292, "altMeters": 12000, "heading": 0, "pitch": -55 }
+    { "id": "doha-city",     "name": "Doha City Center",           "shortcut": "Q", "lat": 25.2854, "lon": 51.5310, "altMeters": 80000, "heading": 0, "pitch": -90 },
+    { "id": "hamad-airport", "name": "Hamad International Airport", "shortcut": "W", "lat": 25.2731, "lon": 51.6082, "altMeters": 15000, "heading": 0, "pitch": -90 },
+    { "id": "the-pearl",     "name": "The Pearl-Qatar",             "shortcut": "E", "lat": 25.3706, "lon": 51.5500, "altMeters": 8000,  "heading": 0, "pitch": -90 },
+    { "id": "lusail-city",   "name": "Lusail City",                 "shortcut": "R", "lat": 25.4321, "lon": 51.5185, "altMeters": 20000, "heading": 0, "pitch": -90 },
+    { "id": "west-bay",      "name": "West Bay Lagoon",             "shortcut": "T", "lat": 25.3285, "lon": 51.5292, "altMeters": 12000, "heading": 0, "pitch": -90 }
   ]
 }
