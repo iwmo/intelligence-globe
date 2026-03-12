@@ -1,12 +1,20 @@
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
+import { MilitaryDetailPanel } from './MilitaryDetailPanel';
+import { ShipDetailPanel } from './ShipDetailPanel';
 
 export function RightDrawer() {
   const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
   const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
+  const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
+  const selectedShipId = useAppStore(s => s.selectedShipId);
 
-  const isOpen = selectedSatelliteId !== null || selectedAircraftId !== null;
+  const isOpen =
+    selectedSatelliteId !== null ||
+    selectedAircraftId !== null ||
+    selectedMilitaryId !== null ||
+    selectedShipId !== null;
 
   if (!isOpen) return null;
 
@@ -26,6 +34,8 @@ export function RightDrawer() {
     }}>
       {selectedSatelliteId !== null && <SatelliteDetailPanel />}
       {selectedAircraftId !== null && <AircraftDetailPanel />}
+      {selectedMilitaryId !== null && <MilitaryDetailPanel />}
+      {selectedShipId !== null && <ShipDetailPanel />}
     </div>
   );
 }
