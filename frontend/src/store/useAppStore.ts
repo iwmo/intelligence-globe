@@ -50,6 +50,17 @@ interface AppState {
 
   cleanUI: boolean;
   setCleanUI: (v: boolean) => void;
+
+  // Replay engine slice (Phase 11)
+  replayMode: 'live' | 'playback';
+  setReplayMode: (mode: 'live' | 'playback') => void;
+  replayTs: number;
+  setReplayTs: (ts: number) => void;
+  replaySpeedMultiplier: number;
+  setReplaySpeedMultiplier: (s: number) => void;
+  replayWindowStart: number | null;
+  replayWindowEnd: number | null;
+  setReplayWindow: (start: number, end: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -96,4 +107,15 @@ export const useAppStore = create<AppState>((set) => ({
 
   cleanUI: false,
   setCleanUI: (v) => set({ cleanUI: v }),
+
+  // Replay engine slice
+  replayMode: 'live',
+  setReplayMode: (mode) => set({ replayMode: mode }),
+  replayTs: Date.now(),
+  setReplayTs: (ts) => set({ replayTs: ts }),
+  replaySpeedMultiplier: 60,
+  setReplaySpeedMultiplier: (s) => set({ replaySpeedMultiplier: s }),
+  replayWindowStart: null,
+  replayWindowEnd: null,
+  setReplayWindow: (start, end) => set({ replayWindowStart: start, replayWindowEnd: end }),
 }));

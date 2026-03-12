@@ -1,20 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAppStore } from '../store/useAppStore';
 
 export interface ShipRecord {
   mmsi: string;
   vessel_name: string | null;
   vessel_type: string | null;
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lon: number;
   sog: number | null;           // knots
   cog: number | null;           // degrees
-  true_heading: number | null;  // 511 = not available
+  heading: number | null;       // 511 = not available
   nav_status: number | null;
   last_update: string | null;
   updated_at: string | null;
 }
 
 export function useShips() {
+  const replayMode = useAppStore(s => s.replayMode);
   return useQuery<ShipRecord[]>({
     queryKey: ['ships'],
     queryFn: async () => {
@@ -29,7 +31,7 @@ export function useShips() {
       }
     },
     staleTime: 30_000,         // 30 seconds — matches batch flush interval
-    refetchInterval: 30_000,
+    refetchInterval: replayMode === 'live' ? 30_000 : false,
     retry: 3,
     retryDelay: 5_000,
   });

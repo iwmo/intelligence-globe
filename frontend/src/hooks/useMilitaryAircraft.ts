@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAppStore } from '../store/useAppStore';
 
 export interface MilitaryAircraftRecord {
   hex: string;
@@ -7,13 +8,14 @@ export interface MilitaryAircraftRecord {
   alt_baro: number | null;      // feet (airplanes.live uses feet, not meters)
   gs: number | null;            // knots
   track: number | null;         // degrees
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lon: number;
   squawk: string | null;
   updated_at: string | null;
 }
 
 export function useMilitaryAircraft() {
+  const replayMode = useAppStore(s => s.replayMode);
   return useQuery<MilitaryAircraftRecord[]>({
     queryKey: ['military-aircraft'],
     queryFn: async () => {
@@ -28,7 +30,7 @@ export function useMilitaryAircraft() {
       }
     },
     staleTime: 300_000,        // 5 minutes — matches backend poll interval
-    refetchInterval: 300_000,
+    refetchInterval: replayMode === 'live' ? 300_000 : false,
     retry: 3,
     retryDelay: 5_000,
   });

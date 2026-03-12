@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAppStore } from '../store/useAppStore';
 
 export interface AircraftRecord {
   icao24: string;
@@ -13,6 +14,7 @@ export interface AircraftRecord {
 }
 
 export function useAircraft() {
+  const replayMode = useAppStore(s => s.replayMode);
   return useQuery<AircraftRecord[]>({
     queryKey: ['aircraft'],
     queryFn: async () => {
@@ -27,7 +29,7 @@ export function useAircraft() {
       }
     },
     staleTime: 90_000,         // 90 seconds — matches OpenSky poll interval
-    refetchInterval: 90_000,
+    refetchInterval: replayMode === 'live' ? 90_000 : false,
     retry: 3,
     retryDelay: 5_000,
   });
