@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 10-snapshot-infrastructure/10-01-PLAN.md
-last_updated: "2026-03-12T12:18:32.187Z"
+stopped_at: Completed 10-snapshot-infrastructure/10-02-PLAN.md
+last_updated: "2026-03-12T12:23:50.569Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 40
 ---
 
@@ -116,6 +116,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 10-snapshot-infrastructure P01 | 3 | 2 tasks | 2 files |
 - [Phase 10-snapshot-infrastructure]: Deferred imports in snapshot unit tests: ModuleNotFoundError is the correct RED signal
 - [Phase 10-snapshot-infrastructure]: test_replay_invalid_layer incidentally passes RED (expects 404, gets 404 from missing route) — acceptable; contract enforces correct behavior in GREEN
+| Phase 10-snapshot-infrastructure P02 | 2min | 2 tasks | 3 files |
+- [Phase 10-snapshot-infrastructure]: snapshot_from_* helpers accept both ORM instances and plain dicts via isinstance(row, dict) — unit tests pass plain dicts; production task passes ORM rows
+- [Phase 10-snapshot-infrastructure]: text() bulk INSERT used for position_snapshots writes — avoids ORM composite PK + BIGSERIAL interaction complexity in partitioned tables
+- [Phase 10-snapshot-infrastructure]: ensure_partition() drops 7-day-old partition in same DDL session as CREATE — bounds storage without a separate cleanup task
 
 ### Pending Todos
 
@@ -134,6 +138,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T12:18:32.183Z
-Stopped at: Completed 10-snapshot-infrastructure/10-01-PLAN.md
+Last session: 2026-03-12T12:23:50.565Z
+Stopped at: Completed 10-snapshot-infrastructure/10-02-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
