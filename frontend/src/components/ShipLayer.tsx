@@ -49,12 +49,12 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
 
     for (const ship of ships.data) {
       if (
-        ship.latitude == null || ship.longitude == null ||
-        isNaN(ship.latitude) || isNaN(ship.longitude)
+        ship.lat == null || ship.lon == null ||
+        isNaN(ship.lat) || isNaN(ship.lon)
       ) continue;
 
       // Ships at sea level + 100m
-      const pos = Cartesian3.fromDegrees(ship.longitude, ship.latitude, 100);
+      const pos = Cartesian3.fromDegrees(ship.lon, ship.lat, 100);
 
       if (shipPointsByMmsi.has(ship.mmsi)) {
         // Direct position update — no lerp needed for slow-moving ships
@@ -63,13 +63,14 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         const point = collection.add({
           position: pos,
           pixelSize: 4,
-          color: Color.fromCssColorString('#06B6D4'), // cyan
+          color: Color.fromCssColorString('#06B6D4'), // cyan — distinct from sat (#00D4FF), air (#FF8C00), mil (#F59E0B)
           id: `mmsi:${ship.mmsi}`,
+          show: layerVisible,
         });
         shipPointsByMmsi.set(ship.mmsi, point);
       }
     }
-  }, [viewer, ships.data]);
+  }, [viewer, ships.data, layerVisible]);
 
   // Effect 3: Visibility toggle
   useEffect(() => {
