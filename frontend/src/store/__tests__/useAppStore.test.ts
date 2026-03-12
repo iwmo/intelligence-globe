@@ -201,6 +201,44 @@ describe('useAppStore — Phase 12 OSINT event correlation slices (RED)', () => 
   });
 });
 
+describe('useAppStore — sidebarSections slice', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      sidebarSections: { layers: true, filters: true, search: true, visualEngine: true },
+    } as Parameters<typeof useAppStore.setState>[0]);
+  });
+
+  it('initializes with all four sections open', () => {
+    const { sidebarSections } = useAppStore.getState() as Record<string, unknown> & { sidebarSections: Record<string, boolean> };
+    expect(sidebarSections.layers).toBe(true);
+    expect(sidebarSections.filters).toBe(true);
+    expect(sidebarSections.search).toBe(true);
+    expect(sidebarSections.visualEngine).toBe(true);
+  });
+
+  it('toggleSidebarSection("layers") flips layers from true to false', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['toggleSidebarSection'] as (s: string) => void)('layers');
+    const updated = useAppStore.getState() as Record<string, unknown> & { sidebarSections: Record<string, boolean> };
+    expect(updated.sidebarSections.layers).toBe(false);
+  });
+
+  it('toggleSidebarSection("filters") does NOT change sidebarSections.layers', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['toggleSidebarSection'] as (s: string) => void)('filters');
+    const updated = useAppStore.getState() as Record<string, unknown> & { sidebarSections: Record<string, boolean> };
+    expect(updated.sidebarSections.layers).toBe(true);
+  });
+
+  it('toggleSidebarSection("layers") called twice returns to original value', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['toggleSidebarSection'] as (s: string) => void)('layers');
+    (state['toggleSidebarSection'] as (s: string) => void)('layers');
+    const updated = useAppStore.getState() as Record<string, unknown> & { sidebarSections: Record<string, boolean> };
+    expect(updated.sidebarSections.layers).toBe(true);
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({
