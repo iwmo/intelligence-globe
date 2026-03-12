@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 10-snapshot-infrastructure/10-03-PLAN.md
-last_updated: "2026-03-12T12:32:00.245Z"
+stopped_at: Completed 11-replay-engine/11-01-PLAN.md
+last_updated: "2026-03-12T12:59:40.116Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 23
+  completed_plans: 20
   percent: 40
 ---
 
@@ -123,6 +123,8 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 10-snapshot-infrastructure P03 | 3min | 2 tasks | 3 files |
 - [Phase 10-snapshot-infrastructure]: @router.get('/snapshots') used (not empty string '') — empty string maps to /api/replay not /api/replay/snapshots; plan note was incorrect
 - [Phase 10-snapshot-infrastructure]: String-based RQ enqueue for sync_snapshot_positions — consistent with all other task registrations in worker.py
+| Phase 11-replay-engine P01 | 6min | 3 tasks | 4 files |
+- [Phase 11-replay-engine]: Store replay fields and /api/replay/window pre-implemented in Phase 10 Plan 03; Plans 02-04 scope reduced to PlaybackBar and useReplaySnapshots only
 
 ### Pending Todos
 
@@ -141,6 +143,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T12:28:42.900Z
-Stopped at: Completed 10-snapshot-infrastructure/10-03-PLAN.md
+Last session: 2026-03-12T12:59:40.104Z
+Stopped at: Completed 11-replay-engine/11-01-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
