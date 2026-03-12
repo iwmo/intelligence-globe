@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-AIRPLANES_LIVE_MIL_URL = "http://api.airplanes.live/v2/mil"
+AIRPLANES_LIVE_MIL_URL = "https://api.airplanes.live/v2/mil"
 POLL_INTERVAL_SECONDS = 300
 
 
@@ -72,6 +72,8 @@ def parse_military_aircraft(ac: dict) -> dict | None:
         "latitude": ac.get("lat"),
         "longitude": ac.get("lon"),
         "squawk": ac.get("squawk"),
+        "nic": ac.get("nic"),
+        "nac_p": ac.get("nac_p"),
     }
 
 
@@ -136,6 +138,8 @@ async def ingest_military_aircraft() -> int:
                         "latitude": record["latitude"],
                         "longitude": record["longitude"],
                         "squawk": record["squawk"],
+                        "nic": record["nic"],
+                        "nac_p": record["nac_p"],
                         "updated_at": func.now(),
                     },
                 )
