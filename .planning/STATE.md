@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 09-gps-jamming-street-traffic/09-04-PLAN.md
-last_updated: "2026-03-12T10:07:52.927Z"
+stopped_at: Completed 09-gps-jamming-street-traffic/09-05-PLAN.md
+last_updated: "2026-03-12T11:34:39.158Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 40
 ---
 
@@ -109,6 +109,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 09-gps-jamming-street-traffic P04 | 3min | 2 tasks | 4 files |
 - [Phase 09-gps-jamming-street-traffic]: h3-js installed in Plan 04 (not Plan 05): Vite import-analysis statically scans dynamic imports too — package must be present for test to run
 - [Phase 09-gps-jamming-street-traffic]: GpsJammingLayer.tsx uses synchronous buildHexPrimitive() — h3-js installed so no lazy-loading needed; removePrimitive() guards isDestroyed() before primitives.remove()
+| Phase 09-gps-jamming-street-traffic P05 | 30min | 2 tasks | 4 files |
+- [Phase 09-gps-jamming-street-traffic]: GpsJammingLayer and StreetTrafficLayer mounted always-on in App.tsx — consistent with MilitaryAircraftLayer/ShipLayer pattern from Phase 08 P05
+- [Phase 09-gps-jamming-street-traffic]: GPS degradation disclaimer rendered as static conditional span below JAM toggle, not CesiumJS entity label — avoids globe label budget and positions caveat near user control
+- [Phase 09-gps-jamming-street-traffic]: String-based RQ enqueue used for sync_aggregate_gps_jamming — no module-level import, consistent with satellite and aircraft task registrations
 
 ### Pending Todos
 
@@ -127,6 +131,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T10:07:52.919Z
-Stopped at: Completed 09-gps-jamming-street-traffic/09-04-PLAN.md
+Last session: 2026-03-12T11:34:39.155Z
+Stopped at: Completed 09-gps-jamming-street-traffic/09-05-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
