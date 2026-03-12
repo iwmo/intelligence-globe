@@ -14,6 +14,7 @@ def main() -> None:
     - Satellite ingest: every 2 hours (CelesTrak catalog refresh)
     - Aircraft ingest: every 90 seconds (OpenSky near-live positions)
     - Military ingest: every 300 seconds (airplanes.live /v2/mil)
+    - Snapshot positions: every 60 seconds (historical record for replay)
     """
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     conn = Redis.from_url(redis_url)
@@ -34,6 +35,10 @@ def main() -> None:
     # Enqueue GPS jamming aggregation; task will self-re-enqueue every 86400 seconds (daily)
     queue.enqueue("app.tasks.ingest_gps_jamming.sync_aggregate_gps_jamming")
     logger.info("Enqueued GPS jamming aggregation job; first run starting now")
+
+    # Enqueue snapshot positions task; self-re-enqueues every 60 seconds
+    queue.enqueue("app.tasks.snapshot_positions.sync_snapshot_positions")
+    logger.info("Enqueued snapshot positions task; first run starting now")
 
     worker = Worker([queue], connection=conn)
     worker.work(with_scheduler=True)

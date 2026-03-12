@@ -9,6 +9,7 @@ from app.api.routes_aircraft import router as aircraft_router
 from app.api.routes_ships import router as ships_router
 from app.api.routes_military import router as military_router
 from app.api.routes_gps_jamming import router as gps_jamming_router
+from app.api.routes_replay import router as replay_router
 
 
 @asynccontextmanager
@@ -32,3 +33,4 @@ app.include_router(aircraft_router, prefix="/api/aircraft")
 app.include_router(ships_router, prefix="/api/ships")
 app.include_router(military_router, prefix="/api/military")
 app.include_router(gps_jamming_router, prefix="/api/gps-jamming")
+app.include_router(replay_router, prefix="/api/replay")
