@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: executing
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-04-PLAN.md
-last_updated: "2026-03-12T06:54:02.387Z"
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-05-PLAN.md (awaiting human-verify checkpoint)
+last_updated: "2026-03-12T06:56:34.235Z"
 last_activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 35
 ---
 
@@ -90,6 +90,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 - [Phase 08-new-data-pipelines-military-maritime]: Ship heading 511 displayed as N/A (AIS standard: value 511 means heading not available)
 - [Phase 08-new-data-pipelines-military-maritime]: layers.militaryAircraft and layers.ships default false — user opt-in prevents globe clutter on first load
 - [Phase 08-new-data-pipelines-military-maritime]: ShipLayer omits lerp rAF loop — direct position update sufficient for ship update cadence (30s)
+| Phase 08-new-data-pipelines-military-maritime P05 | 5 | 1 tasks | 2 files |
+- [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraftLayer and ShipLayer mounted always-on in App.tsx — manage own visibility via store (no conditional mount gate)
+- [Phase 08-new-data-pipelines-military-maritime]: ShieldAlert and Anchor icons used for MIL/SHIP toggles — confirmed present in installed lucide-react before editing
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:54:02.384Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-04-PLAN.md
+Last session: 2026-03-12T06:56:34.231Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-05-PLAN.md (awaiting human-verify checkpoint)
 Resume: Execute 08-04-PLAN.md (ShipLayer frontend component)
