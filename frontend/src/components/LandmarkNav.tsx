@@ -35,7 +35,7 @@ const LANDMARK_BUTTON_STYLE: React.CSSProperties = {
 const LANDMARK_BUTTON_HOVER_STYLE: React.CSSProperties = {
   ...LANDMARK_BUTTON_STYLE,
   background: 'rgba(0, 212, 255, 0.2)',
-  borderColor: 'rgba(0, 212, 255, 0.6)',
+  border: '1px solid rgba(0, 212, 255, 0.6)',
 };
 
 function LandmarkButton({ landmark }: { landmark: (typeof landmarksData.landmarks)[number] }) {
