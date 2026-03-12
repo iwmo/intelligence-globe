@@ -61,6 +61,13 @@ interface AppState {
   replayWindowStart: number | null;
   replayWindowEnd: number | null;
   setReplayWindow: (start: number, end: number) => void;
+
+  // Phase 12 slices
+  areaOfInterest: { lat: number; lon: number } | null;
+  setAreaOfInterest: (aoi: { lat: number; lon: number } | null) => void;
+  activeCategories: string[];
+  setActiveCategories: (cats: string[]) => void;
+  toggleCategory: (cat: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -118,4 +125,15 @@ export const useAppStore = create<AppState>((set) => ({
   replayWindowStart: null,
   replayWindowEnd: null,
   setReplayWindow: (start, end) => set({ replayWindowStart: start, replayWindowEnd: end }),
+
+  // Phase 12 slices
+  areaOfInterest: null,
+  setAreaOfInterest: (aoi) => set({ areaOfInterest: aoi }),
+  activeCategories: [],
+  setActiveCategories: (cats) => set({ activeCategories: cats }),
+  toggleCategory: (cat) => set((s) => ({
+    activeCategories: s.activeCategories.includes(cat)
+      ? s.activeCategories.filter(c => c !== cat)
+      : [...s.activeCategories, cat],
+  })),
 }));

@@ -1,4 +1,5 @@
 import * as satellite from 'satellite.js';
+import { computeOverpassElevationBatch } from './overpassElevation';
 
 interface OmmRecord {
   norad_cat_id: number;
@@ -32,7 +33,17 @@ interface GetPositionMessage {
   payload: { norad: number };
 }
 
-type WorkerMessage = LoadOmmMessage | PropagateMessage | ComputeOrbitMessage | GetPositionMessage;
+interface ComputeOverpassMessage {
+  type: 'COMPUTE_OVERPASS';
+  payload: {
+    lat: number;
+    lon: number;
+    timestamp: number;
+    elevationThresholdDeg?: number;
+  };
+}
+
+type WorkerMessage = LoadOmmMessage | PropagateMessage | ComputeOrbitMessage | GetPositionMessage | ComputeOverpassMessage;
 
 self.onmessage = (event: MessageEvent<WorkerMessage>) => {
   const { type, payload } = event.data;
@@ -100,6 +111,14 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
     }
 
     self.postMessage({ type: 'ORBIT_RESULT', orbitPoints, groundPoints });
+    return;
+  }
+
+  if (type === 'COMPUTE_OVERPASS') {
+    const p = payload as ComputeOverpassMessage['payload'];
+    const threshold = p.elevationThresholdDeg ?? 10;
+    const overhead = computeOverpassElevationBatch(satrecs, p.timestamp, p.lat, p.lon, threshold);
+    self.postMessage({ type: 'OVERPASS_RESULT', overhead, timestamp: p.timestamp });
     return;
   }
 

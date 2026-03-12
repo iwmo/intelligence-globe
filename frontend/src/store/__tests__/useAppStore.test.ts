@@ -163,10 +163,12 @@ describe('useAppStore — replay slice', () => {
 // ---------------------------------------------------------------------------
 describe('useAppStore — Phase 12 OSINT event correlation slices (RED)', () => {
   beforeEach(() => {
-    // Only reset known existing state; Phase 12 fields do not exist yet
+    // Reset Phase 12 slices to initial state between tests
     useAppStore.setState({
       replayMode: 'live',
-    });
+      activeCategories: [],
+      areaOfInterest: null,
+    } as Parameters<typeof useAppStore.setState>[0]);
   });
 
   describe('activeCategories', () => {
