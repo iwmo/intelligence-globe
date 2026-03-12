@@ -93,7 +93,12 @@ Plans:
   1. A running RQ task inserts position batches for aircraft, military flights, and ships into time-partitioned PostgreSQL tables every 60 seconds without blocking the live API
   2. Daily partitions are created automatically; partitions older than 7 days are dropped automatically without manual intervention
   3. A read-only replay API endpoint returns snapshot records for a given time range and layer type, returning correctly even when queried mid-recording
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Wave 0 TDD: failing test stubs for snapshot helpers and replay API route (RED phase)
+- [ ] 10-02-PLAN.md — PositionSnapshot model, Alembic migration (partitioned table), snapshot_positions RQ task with ensure_partition helper
+- [ ] 10-03-PLAN.md — Replay API route GET /api/replay/snapshots, main.py wiring, worker.py snapshot task registration
 
 ### Phase 11: Replay Engine
 **Goal**: Users can switch out of live mode, scrub backward through time, and watch historical entity positions play back on the globe at configurable speeds with OSINT event markers on the timeline
@@ -130,6 +135,6 @@ Plans:
 | 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 8. New Data Pipelines — Military + Maritime | 2/5 | In Progress|  | — |
 | 9. GPS Jamming + Street Traffic | 5/5 | Complete    | 2026-03-12 | — |
-| 10. Snapshot Infrastructure | v2.0 | 0/? | Not started | — |
+| 10. Snapshot Infrastructure | v2.0 | 0/3 | Not started | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |
 | 12. OSINT Event Correlation | v2.0 | 0/? | Not started | — |
