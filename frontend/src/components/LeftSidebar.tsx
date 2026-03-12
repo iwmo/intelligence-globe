@@ -3,13 +3,15 @@ import { Satellite, Plane, ShieldAlert, Anchor, Radio, Car } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
+import { CollapsibleSection } from './CollapsibleSection';
+import { PostProcessPanel } from './PostProcessPanel';
 
 interface LeftSidebarProps {
   workerRef: RefObject<Worker | null>;
 }
 
 export function LeftSidebar({ workerRef }: LeftSidebarProps) {
-  const { sidebarOpen, setSidebarOpen, layers, setLayerVisible } = useAppStore();
+  const { sidebarOpen, setSidebarOpen, layers, setLayerVisible, sidebarSections, toggleSidebarSection } = useAppStore();
 
   return (
     <>
@@ -65,15 +67,6 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
           icon={<Radio size={12} />}
           onToggle={() => setLayerVisible('gpsJamming', !layers.gpsJamming)}
         />
-        {layers.gpsJamming && (
-          <span style={{
-            fontSize: '8px', color: 'rgba(255,200,0,0.7)',
-            maxWidth: '48px', textAlign: 'center', lineHeight: '1.2',
-            display: 'block'
-          }}>
-            GPS degradation anomaly — inferred from aircraft telemetry, not geolocated
-          </span>
-        )}
         <LayerToggleButton
           label="TFC"
           active={layers.streetTraffic}
@@ -94,19 +87,80 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
             overflowY: 'auto',
           }}
         >
-          <div style={{ padding: '16px 12px 8px', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
-            <span style={{ color: 'rgba(0,212,255,0.7)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.15em' }}>
-              SEARCH
-            </span>
-          </div>
-          <SearchBar workerRef={workerRef} />
+          {/* LAYERS section */}
+          <CollapsibleSection
+            title="LAYERS"
+            open={sidebarSections.layers}
+            onToggle={() => toggleSidebarSection('layers')}
+          >
+            <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <LayerToggleButton
+                label="SAT"
+                active={layers.satellites}
+                icon={<Satellite size={12} />}
+                onToggle={() => setLayerVisible('satellites', !layers.satellites)}
+              />
+              <LayerToggleButton
+                label="AIR"
+                active={layers.aircraft}
+                icon={<Plane size={12} />}
+                onToggle={() => setLayerVisible('aircraft', !layers.aircraft)}
+              />
+              <LayerToggleButton
+                label="MIL"
+                active={layers.militaryAircraft}
+                icon={<ShieldAlert size={12} />}
+                onToggle={() => setLayerVisible('militaryAircraft', !layers.militaryAircraft)}
+              />
+              <LayerToggleButton
+                label="SHIP"
+                active={layers.ships}
+                icon={<Anchor size={12} />}
+                onToggle={() => setLayerVisible('ships', !layers.ships)}
+              />
+              <LayerToggleButton
+                label="JAM"
+                active={layers.gpsJamming}
+                icon={<Radio size={12} />}
+                onToggle={() => setLayerVisible('gpsJamming', !layers.gpsJamming)}
+              />
+              <LayerToggleButton
+                label="TFC"
+                active={layers.streetTraffic}
+                icon={<Car size={12} />}
+                onToggle={() => setLayerVisible('streetTraffic', !layers.streetTraffic)}
+              />
+            </div>
+          </CollapsibleSection>
 
-          <div style={{ padding: '16px 12px 8px', marginTop: '8px', borderBottom: '1px solid rgba(0,212,255,0.1)' }}>
-            <span style={{ color: 'rgba(0,212,255,0.7)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.15em' }}>
-              FILTERS
-            </span>
-          </div>
-          <FilterPanel />
+          {/* SEARCH section */}
+          <CollapsibleSection
+            title="SEARCH"
+            open={sidebarSections.search}
+            onToggle={() => toggleSidebarSection('search')}
+          >
+            <SearchBar workerRef={workerRef} />
+          </CollapsibleSection>
+
+          {/* FILTERS section */}
+          <CollapsibleSection
+            title="FILTERS"
+            open={sidebarSections.filters}
+            onToggle={() => toggleSidebarSection('filters')}
+          >
+            <FilterPanel />
+          </CollapsibleSection>
+
+          {/* VISUAL ENGINE section */}
+          <CollapsibleSection
+            title="VISUAL ENGINE"
+            open={sidebarSections.visualEngine}
+            onToggle={() => toggleSidebarSection('visualEngine')}
+          >
+            <div style={{ padding: '4px 0' }}>
+              <PostProcessPanel />
+            </div>
+          </CollapsibleSection>
         </div>
       )}
     </>
