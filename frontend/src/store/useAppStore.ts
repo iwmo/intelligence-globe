@@ -13,7 +13,7 @@ export interface PostProcessUniforms {
 interface AppState {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean };
+  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean; gpsJamming: boolean; streetTraffic: boolean };
   setLayerVisible: (layer: keyof AppState['layers'], visible: boolean) => void;
   selectedSatelliteId: number | null;
   setSelectedSatelliteId: (id: number | null) => void;
@@ -55,7 +55,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false },
+  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false },
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
