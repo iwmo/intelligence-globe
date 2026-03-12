@@ -76,7 +76,14 @@ Plans:
   2. The jamming heatmap updates daily from NIC/NACp aggregation of ADS-B data and renders as ground polygons without degrading framerate
   3. User zooms below 500 km altitude over an urban area and sees animated dot particles flowing along OSM road network geometry, with density scaling to zoom level
   4. Particle simulation is viewport-scoped — particles only load for the visible area and do not appear when zoomed out to global view
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Wave 0 TDD: backend GPS jamming test stubs + frontend smoke test stubs (RED phase)
+- [ ] 09-02-PLAN.md — GPS Jamming backend: MilitaryAircraft nic/nac_p extension, Alembic migration, gps_jamming_cells table, H3 aggregation RQ task, /api/gps-jamming route, store extension
+- [ ] 09-03-PLAN.md — Street Traffic frontend: useStreetTraffic hook (Overpass, viewport-scoped) + StreetTrafficLayer particle component
+- [ ] 09-04-PLAN.md — GPS Jamming frontend: useGpsJamming hook + GpsJammingLayer batched GroundPrimitive component
+- [ ] 09-05-PLAN.md — Wiring: npm install h3-js osmtogeojson, App.tsx mount, LeftSidebar JAM/TFC toggles, worker registration, human verification
 
 ### Phase 10: Snapshot Infrastructure
 **Goal**: The system silently records position snapshots of all live entities at 60-second intervals into partitioned storage, creating the historical record that replay depends on
@@ -122,7 +129,7 @@ Plans:
 | 6. Deploy Hardening | v1.0 | 1/1 | Complete | 2026-03-11 |
 | 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 8. New Data Pipelines — Military + Maritime | 2/5 | In Progress|  | — |
-| 9. GPS Jamming + Street Traffic | v2.0 | 0/? | Not started | — |
+| 9. GPS Jamming + Street Traffic | v2.0 | 0/5 | Not started | — |
 | 10. Snapshot Infrastructure | v2.0 | 0/? | Not started | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |
 | 12. OSINT Event Correlation | v2.0 | 0/? | Not started | — |
