@@ -15,6 +15,7 @@ import { PostProcessEngine } from './components/PostProcessEngine';
 import { PostProcessPanel } from './components/PostProcessPanel';
 import { CinematicHUD } from './components/CinematicHUD';
 import { LandmarkNav } from './components/LandmarkNav';
+import { PlaybackBar } from './components/PlaybackBar';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
 
@@ -55,6 +56,9 @@ export default function App() {
 
       {/* Phase 7: Navigation bar — visible in both modes */}
       <LandmarkNav viewer={cesiumViewer} />
+
+      {/* Phase 11: PlaybackBar — ALWAYS rendered, not gated by cleanUI */}
+      <PlaybackBar />
 
       {/* UI chrome overlays — gated by cleanUI (VIS-04) */}
       {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}
