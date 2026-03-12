@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 11-replay-engine/11-02-PLAN.md
-last_updated: "2026-03-12T13:01:38.236Z"
+stopped_at: Completed 11-replay-engine/11-03-PLAN.md
+last_updated: "2026-03-12T13:08:28.284Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
   percent: 40
 ---
 
@@ -128,6 +128,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 11-replay-engine P02 | 7 | 2 tasks | 5 files |
 - [Phase 11-replay-engine]: func.min/max aggregate in single SELECT for /api/replay/window — avoids two separate DB round-trips
 - [Phase 11-replay-engine]: refetchInterval: replayMode === 'live' ? interval : false pattern established for all polling hooks — pauses live updates during historical playback
+| Phase 11-replay-engine P03 | 3 | 2 tasks | 4 files |
+- [Phase 11-replay-engine]: PlaybackBar test mock uses mutable mockState object so per-describe replayMode override works without module re-import
+- [Phase 11-replay-engine]: rAF loop reads replayTs via useAppStore.getState() to avoid stale closure — replayTs excluded from useEffect deps
+- [Phase 11-replay-engine]: OSINT_EVENTS kept as empty array in Phase 11 — PlaybackBar handles zero event markers gracefully
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T13:01:38.232Z
-Stopped at: Completed 11-replay-engine/11-02-PLAN.md
+Last session: 2026-03-12T13:08:28.280Z
+Stopped at: Completed 11-replay-engine/11-03-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
