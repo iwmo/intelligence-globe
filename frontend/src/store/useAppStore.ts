@@ -68,6 +68,15 @@ interface AppState {
   activeCategories: string[];
   setActiveCategories: (cats: string[]) => void;
   toggleCategory: (cat: string) => void;
+
+  // Phase 13 slices
+  sidebarSections: {
+    layers: boolean;
+    filters: boolean;
+    search: boolean;
+    visualEngine: boolean;
+  };
+  toggleSidebarSection: (section: keyof AppState['sidebarSections']) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -136,4 +145,14 @@ export const useAppStore = create<AppState>((set) => ({
       ? s.activeCategories.filter(c => c !== cat)
       : [...s.activeCategories, cat],
   })),
+
+  // Phase 13 slices
+  sidebarSections: { layers: true, filters: true, search: true, visualEngine: true },
+  toggleSidebarSection: (section) =>
+    set((s) => ({
+      sidebarSections: {
+        ...s.sidebarSections,
+        [section]: !s.sidebarSections[section],
+      },
+    })),
 }));
