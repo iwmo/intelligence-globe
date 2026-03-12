@@ -109,7 +109,13 @@ Plans:
   2. User sees a custom timeline scrubber showing the available history window and can drag to any point, with the globe smoothly interpolating entity positions between 60-second snapshots
   3. User can select a playback speed (1m/s, 3m/s, 5m/s, 15m/s, 1h/s) and see entity motion scale accordingly — positions remain geographically plausible at all speeds
   4. User sees colored event markers on the timeline (Kinetic, Airspace Closure, Maritime, GPS Jamming, Internet Blackout) and can click a marker to jump the scrubber to that moment
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Wave 0 TDD: failing test stubs for store replay slice, PlaybackBar, useReplaySnapshots, and backend window route (RED phase)
+- [ ] 11-02-PLAN.md — Backend /api/replay/window endpoint + Zustand store replay slice + live polling hooks pause in playback mode
+- [ ] 11-03-PLAN.md — useReplaySnapshots hook with findAdjacentSnapshots binary search + osintEvents.ts seed data + PlaybackBar component
+- [ ] 11-04-PLAN.md — Layer playback interpolation (AircraftLayer, MilitaryAircraftLayer, ShipLayer), App.tsx wiring, human verification
 
 ### Phase 12: OSINT Event Correlation
 **Goal**: Users can log OSINT events, filter the timeline and layers by category, and see which satellites were overhead during any event — turning the replay into a structured intelligence analysis tool
