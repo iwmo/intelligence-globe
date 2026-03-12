@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 12-osint-event-correlation/12-02-PLAN.md
-last_updated: "2026-03-12T13:56:57.339Z"
+stopped_at: Completed 12-osint-event-correlation/12-03-PLAN.md
+last_updated: "2026-03-12T14:02:12.210Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 28
-  completed_plans: 25
+  completed_plans: 26
   percent: 40
 ---
 
@@ -141,6 +141,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 12-osint-event-correlation P02 | 2min | 2 tasks | 5 files |
 - [Phase 12-osint-event-correlation]: ts field accepts Unix milliseconds integer OR ISO datetime string via Pydantic field_validator — test contract sends ms epoch
 - [Phase 12-osint-event-correlation]: Category validation in Pydantic validator raises ValueError -> FastAPI converts to 422 automatically
+| Phase 12 P03 | 8min | 2 tasks | 4 files |
+- [Phase 12]: computeOverpassElevation accepts single SatRec or SatrecEntry[] union type to satisfy both test contract and worker batch usage
+- [Phase 12]: computeOverpassElevationBatch is a separate export returning OverheadSat[] with ECF in meters for Cesium rendering
 
 ### Pending Todos
 
@@ -159,6 +162,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T13:56:57.335Z
-Stopped at: Completed 12-osint-event-correlation/12-02-PLAN.md
+Last session: 2026-03-12T14:02:12.207Z
+Stopped at: Completed 12-osint-event-correlation/12-03-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)

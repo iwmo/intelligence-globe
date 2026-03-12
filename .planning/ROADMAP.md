@@ -150,4 +150,4 @@ Plans:
 | 9. GPS Jamming + Street Traffic | 5/5 | Complete    | 2026-03-12 | — |
 | 10. Snapshot Infrastructure | 3/3 | Complete    | 2026-03-12 | — |
 | 11. Replay Engine | 4/4 | Complete    | 2026-03-12 | — |
-| 12. OSINT Event Correlation | 2/5 | In Progress|  | — |
+| 12. OSINT Event Correlation | 3/5 | In Progress|  | — |
