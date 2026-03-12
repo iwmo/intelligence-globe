@@ -1,9 +1,12 @@
 """
-Replay API routes — GET /api/replay/snapshots.
+Replay API routes — GET /api/replay/snapshots and GET /api/replay/window.
 
 Returns position snapshots from the position_snapshots partitioned table
 for a given layer and time range.  Used by Phase 11 replay engine to load
 historical position data for playback.
+
+Also provides the /window endpoint to discover the available replay range
+(oldest and newest snapshot timestamps).
 
 Prefix is set in main.py as /api/replay, so route decorators use empty
 string "" (not "/") matching the established project pattern.
@@ -11,7 +14,7 @@ string "" (not "/") matching the established project pattern.
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -74,4 +77,29 @@ async def get_snapshots(
             for r in rows
         ],
         "count": len(rows),
+    }
+
+
+@router.get("/window")
+async def get_replay_window(
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the oldest and newest snapshot timestamps available.
+
+    Used by the frontend PlaybackBar to discover the available replay window
+    on startup. Returns null values when no snapshot data exists.
+
+    Returns:
+        JSON body with 'oldest_ts' (ISO string or null) and 'newest_ts' (ISO string or null).
+    """
+    result = await db.execute(
+        select(
+            func.min(PositionSnapshot.ts).label("oldest"),
+            func.max(PositionSnapshot.ts).label("newest"),
+        )
+    )
+    row = result.one()
+    return {
+        "oldest_ts": row.oldest.isoformat() if row.oldest else None,
+        "newest_ts": row.newest.isoformat() if row.newest else None,
     }
