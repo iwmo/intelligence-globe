@@ -129,7 +129,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Wave 0 TDD: failing test stubs for all Phase 12 behaviors (backend + frontend, RED phase)
+- [x] 12-01-PLAN.md — Wave 0 TDD: failing test stubs for all Phase 12 behaviors (backend + frontend, RED phase) (completed 2026-03-12)
 - [ ] 12-02-PLAN.md — OSINT event backend: OsintEvent model, Alembic migration, GET/POST /api/osint-events, main.py wiring
 - [ ] 12-03-PLAN.md — Overpass elevation pure function, propagation worker COMPUTE_OVERPASS, store areaOfInterest + activeCategories slices
 - [ ] 12-04-PLAN.md — Frontend: osintEvents.ts update (SEISMIC), useOsintEvents hook, OsintEventPanel form component

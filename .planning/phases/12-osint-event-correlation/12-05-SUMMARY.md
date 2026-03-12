@@ -69,8 +69,8 @@ completed: 2026-03-12
 - **Duration:** ~10 min
 - **Started:** 2026-03-12T14:07:00Z
 - **Completed:** 2026-03-12T14:15:00Z
-- **Tasks:** 2 (+ 1 human-verify checkpoint pending)
-- **Files modified:** 6
+- **Tasks:** 2 (+ 1 human-verify checkpoint — approved)
+- **Files modified:** 7
 
 ## Accomplishments
 
@@ -84,6 +84,7 @@ completed: 2026-03-12
 
 1. **Task 1: SatelliteLayer overpass arc lines, AOI right-click, TLE age warning** - `e40bfb1` (feat)
 2. **Task 2: PlaybackBar category chips, dynamic events, OsintEventPanel mount in App.tsx** - `c74d8ab` (feat)
+3. **Post-checkpoint fix: use import type for GpsJammingCell** - `47f4f2d` (fix)
 
 ## Files Created/Modified
 
@@ -93,6 +94,7 @@ completed: 2026-03-12
 - `frontend/src/components/__tests__/SatelliteLayer.cleanup.test.tsx` - Extended cesium mock with ScreenSpaceEventHandler/Ellipsoid/Math/Cartesian2; updated Pitfall 7 to allow GEODESIC
 - `frontend/src/components/__tests__/PlaybackBar.category.test.tsx` - Added useOsintEvents mock and missing store fields
 - `frontend/src/components/__tests__/PlaybackBar.test.tsx` - Added useOsintEvents mock and Phase 12 store fields
+- `frontend/src/components/GpsJammingLayer.tsx` - Fixed `import type` for GpsJammingCell to satisfy verbatimModuleSyntax (post-checkpoint fix)
 
 ## Decisions Made
 
@@ -122,8 +124,18 @@ completed: 2026-03-12
 
 ---
 
-**Total deviations:** 2 auto-fixed (1 bug restore, 1 blocking mock fix)
-**Impact on plan:** Both fixes necessary for test correctness and architectural integrity. No scope creep.
+**3. [Rule 1 - Bug] Fixed GpsJammingLayer.tsx import type for verbatimModuleSyntax**
+- **Found during:** Post-checkpoint verification
+- **Issue:** `GpsJammingCell` imported as a value in GpsJammingLayer.tsx; TypeScript verbatimModuleSyntax requires `import type` for type-only imports
+- **Fix:** Changed to `import type { GpsJammingCell }`
+- **Files modified:** `frontend/src/components/GpsJammingLayer.tsx`
+- **Verification:** TypeScript compilation succeeds
+- **Committed in:** 47f4f2d
+
+---
+
+**Total deviations:** 3 auto-fixed (1 bug restore, 1 blocking mock fix, 1 TypeScript import type fix)
+**Impact on plan:** All fixes necessary for test correctness, architectural integrity, and TypeScript compliance. No scope creep.
 
 ## Issues Encountered
 
@@ -135,9 +147,10 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- All Phase 12 automated tests pass (99/99)
-- Human verification checkpoint (Task 3) pending: requires app running to verify visual overpass arcs, category chips, LOG button, and AOI crosshair
-- Phase 12 OSINT event correlation system fully integrated — ready for human sign-off on REP-05 and REP-06
+- All Phase 12 automated tests pass
+- Human verification checkpoint (Task 3) approved: visual overpass arcs, category chips, LOG button, and AOI crosshair confirmed working
+- Phase 12 OSINT event correlation complete — REP-05 and REP-06 satisfied
+- Deferred: layer-level `.show` gating for activeCategories across AircraftLayer, MilitaryAircraftLayer, ShipLayer, GpsJammingLayer — tracked in deferred-items.md
 
 ---
 *Phase: 12-osint-event-correlation*
