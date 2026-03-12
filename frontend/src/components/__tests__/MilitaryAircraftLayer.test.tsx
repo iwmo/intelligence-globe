@@ -17,10 +17,18 @@ vi.mock('../../store/useAppStore', () => ({
     setSelectedAircraftId: vi.fn(),
     setSelectedSatelliteId: vi.fn(),
     setSelectedShipId: vi.fn(),
+    replayMode: 'live',
+    replayTs: Date.now(),
+    replayWindowStart: null,
+    replayWindowEnd: null,
   })),
 }));
 vi.mock('../../hooks/useMilitaryAircraft', () => ({
   useMilitaryAircraft: vi.fn(() => ({ data: [], isLoading: false })),
+}));
+vi.mock('../../hooks/useReplaySnapshots', () => ({
+  useReplaySnapshots: vi.fn(() => ({ data: new Map(), isLoading: false })),
+  findAdjacentSnapshots: vi.fn(() => [null, null]),
 }));
 
 import { MilitaryAircraftLayer } from '../MilitaryAircraftLayer';

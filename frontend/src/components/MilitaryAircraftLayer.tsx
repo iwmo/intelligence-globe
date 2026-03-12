@@ -8,6 +8,7 @@ import {
 } from 'cesium';
 import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
+import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 // Module-scope map — military updates every 300s, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,6 +19,20 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.militaryAircraft);
+
+  // Replay state — read by playback interpolation effect
+  const replayMode  = useAppStore(s => s.replayMode);
+  const replayTs    = useAppStore(s => s.replayTs);
+  const windowStart = useAppStore(s => s.replayWindowStart);
+  const windowEnd   = useAppStore(s => s.replayWindowEnd);
+
+  // Fetch snapshots for military layer — only active in playback mode
+  const { data: snapshotsByEntity } = useReplaySnapshots(
+    'military',
+    windowStart,
+    windowEnd,
+    replayMode === 'playback',
+  );
 
   // Effect 1: Initialize PointPrimitiveCollection
   useEffect(() => {
@@ -74,6 +89,31 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       point.show = layerVisible;
     }
   }, [layerVisible]);
+
+  // Effect: Playback snapshot interpolation
+  // Runs only when replayMode === 'playback'. Does NOT modify live update logic.
+  useEffect(() => {
+    if (replayMode !== 'playback') return;
+    if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
+
+    for (const [hex, point] of militaryPointsByHex) {
+      if (!point) continue;
+      const snapshots = snapshotsByEntity.get(hex);
+      if (!snapshots || snapshots.length === 0) continue;
+
+      const [snapA, snapB] = findAdjacentSnapshots(snapshots, replayTs);
+      if (!snapA) continue;
+
+      const alpha = snapA && snapB
+        ? Math.min((replayTs - snapA.ts) / (snapB.ts - snapA.ts), 1.0)
+        : 1.0;
+      const lat = snapA && snapB ? snapA.latitude + alpha * (snapB.latitude - snapA.latitude) : snapA.latitude;
+      const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
+      const alt = (snapA.altitude ?? 0) * 0.3048 + 1000;
+
+      point.position = Cartesian3.fromDegrees(lon, lat, alt);
+    }
+  }, [replayMode, replayTs, snapshotsByEntity]);
 
   return null;
 }

@@ -14,6 +14,7 @@ import {
 } from 'cesium';
 import { useAircraft } from '../hooks/useAircraft';
 import { useAppStore } from '../store/useAppStore';
+import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 const POLL_INTERVAL_MS = 90_000;
 
@@ -50,6 +51,7 @@ const currPositions = new Map<string, Cartesian3>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pointsByIcao24 = new Map<string, any>(); // PointPrimitive reference
 let lastUpdateTime = Date.now();
+const scratchLerp = new Cartesian3(); // reused every frame — zero GC pressure
 
 export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const aircraft = useAircraft();
@@ -60,6 +62,20 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const rafRunningRef = useRef<boolean>(false);
 
   const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
+
+  // Replay state — read by playback interpolation effect
+  const replayMode  = useAppStore(s => s.replayMode);
+  const replayTs    = useAppStore(s => s.replayTs);
+  const windowStart = useAppStore(s => s.replayWindowStart);
+  const windowEnd   = useAppStore(s => s.replayWindowEnd);
+
+  // Fetch snapshots for aircraft layer — only active in playback mode
+  const { data: snapshotsByEntity } = useReplaySnapshots(
+    'aircraft',
+    windowStart,
+    windowEnd,
+    replayMode === 'playback',
+  );
 
   // Effect 1: Initialize PointPrimitiveCollection and manage aircraft points + lerp loop
   useEffect(() => {
@@ -189,7 +205,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           const prev = prevPositions.get(icao24);
           const curr = currPositions.get(icao24);
           if (prev && curr && point && !collection.isDestroyed()) {
-            point.position = Cartesian3.lerp(prev, curr, alpha, new Cartesian3());
+            point.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
           }
         }
         rafRef.current = requestAnimationFrame(lerp);
@@ -204,8 +220,9 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const aircraftFilter = useAppStore(s => s.aircraftFilter);
   const layerVisible = useAppStore(s => s.layers.aircraft);
   useEffect(() => {
+    const byIcao = new Map(aircraft.data?.map(a => [a.icao24, a]) ?? []);
     for (const [icao24, point] of pointsByIcao24) {
-      const ac = aircraft.data?.find(a => a.icao24 === icao24);
+      const ac = byIcao.get(icao24);
       if (!ac) continue;
       point.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
     }
@@ -244,6 +261,31 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       }
     }
   }, [selectedAircraftId, viewer, aircraft.data]);
+
+  // Effect: Playback snapshot interpolation
+  // Runs only when replayMode === 'playback'. Does NOT modify live lerp logic.
+  useEffect(() => {
+    if (replayMode !== 'playback') return;
+    if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
+
+    for (const [icao24, point] of pointsByIcao24) {
+      if (!point) continue;
+      const snapshots = snapshotsByEntity.get(icao24);
+      if (!snapshots || snapshots.length === 0) continue;
+
+      const [snapA, snapB] = findAdjacentSnapshots(snapshots, replayTs);
+      if (!snapA) continue;
+
+      const alpha = snapA && snapB
+        ? Math.min((replayTs - snapA.ts) / (snapB.ts - snapA.ts), 1.0)
+        : 1.0;
+      const lat = snapA && snapB ? snapA.latitude + alpha * (snapB.latitude - snapA.latitude) : snapA.latitude;
+      const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
+      const alt = (snapA.altitude ?? 0) + 1000;
+
+      point.position = Cartesian3.fromDegrees(lon, lat, alt);
+    }
+  }, [replayMode, replayTs, snapshotsByEntity]);
 
   return null;
 }

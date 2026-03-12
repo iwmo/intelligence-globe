@@ -8,6 +8,7 @@ import {
 } from 'cesium';
 import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
+import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 // Module-scope map — ships are slow, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,6 +19,20 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.ships);
+
+  // Replay state — read by playback interpolation effect
+  const replayMode  = useAppStore(s => s.replayMode);
+  const replayTs    = useAppStore(s => s.replayTs);
+  const windowStart = useAppStore(s => s.replayWindowStart);
+  const windowEnd   = useAppStore(s => s.replayWindowEnd);
+
+  // Fetch snapshots for ship layer — only active in playback mode
+  const { data: snapshotsByEntity } = useReplaySnapshots(
+    'ship',
+    windowStart,
+    windowEnd,
+    replayMode === 'playback',
+  );
 
   // Effect 1: Initialize PointPrimitiveCollection
   useEffect(() => {
@@ -78,6 +93,31 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       point.show = layerVisible;
     }
   }, [layerVisible]);
+
+  // Effect: Playback snapshot interpolation
+  // Runs only when replayMode === 'playback'. Ships have no live lerp — this is purely additive.
+  useEffect(() => {
+    if (replayMode !== 'playback') return;
+    if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
+
+    for (const [mmsi, point] of shipPointsByMmsi) {
+      if (!point) continue;
+      const snapshots = snapshotsByEntity.get(mmsi);
+      if (!snapshots || snapshots.length === 0) continue;
+
+      const [snapA, snapB] = findAdjacentSnapshots(snapshots, replayTs);
+      if (!snapA) continue;
+
+      const alpha = snapA && snapB
+        ? Math.min((replayTs - snapA.ts) / (snapB.ts - snapA.ts), 1.0)
+        : 1.0;
+      const lat = snapA && snapB ? snapA.latitude + alpha * (snapB.latitude - snapA.latitude) : snapA.latitude;
+      const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
+
+      // Ships at sea level + 100m (same as live mode)
+      point.position = Cartesian3.fromDegrees(lon, lat, 100);
+    }
+  }, [replayMode, replayTs, snapshotsByEntity]);
 
   return null;
 }
