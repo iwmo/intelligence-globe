@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import {
   Viewer,
-  PointPrimitiveCollection,
+  BillboardCollection,
   Cartesian3,
   BlendOption,
-  Color,
+  NearFarScalar,
+  Math as CesiumMath,
 } from 'cesium';
 import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
@@ -39,11 +40,11 @@ export const SHIP_ICON = drawShipIcon();
 
 // Module-scope map — ships are slow, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const shipPointsByMmsi = new Map<string, any>(); // PointPrimitive reference
+const shipBillboardsByMmsi = new Map<string, any>(); // Billboard reference
 
 export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
   const ships = useShips();
-  const collectionRef = useRef<PointPrimitiveCollection | null>(null);
+  const collectionRef = useRef<BillboardCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.ships);
 
@@ -61,13 +62,13 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
     replayMode === 'playback',
   );
 
-  // Effect 1: Initialize PointPrimitiveCollection
+  // Effect 1: Initialize BillboardCollection
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
     if (!collectionRef.current || collectionRef.current.isDestroyed()) {
       collectionRef.current = viewer.scene.primitives.add(
-        new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE })
+        new BillboardCollection({ blendOption: BlendOption.OPAQUE })
       );
     }
 
@@ -78,11 +79,11 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       }
       collectionRef.current = null;
       // Clear module-scope map on unmount
-      shipPointsByMmsi.clear();
+      shipBillboardsByMmsi.clear();
     };
   }, [viewer]);
 
-  // Effect 2: Update point positions directly on data refresh (no lerp — ships move slowly)
+  // Effect 2: Update billboard positions directly on data refresh (no lerp — ships move slowly)
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !ships.data || !collectionRef.current) return;
 
@@ -98,26 +99,37 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       // Ships at sea level + 100m
       const pos = Cartesian3.fromDegrees(ship.lon, ship.lat, 100);
 
-      if (shipPointsByMmsi.has(ship.mmsi)) {
-        // Direct position update — no lerp needed for slow-moving ships
-        shipPointsByMmsi.get(ship.mmsi).position = pos;
+      // Heading rotation with 511-sentinel fallback to cog
+      const rot = (ship.heading !== null && ship.heading !== 511)
+        ? ship.heading
+        : (ship.cog ?? 0);
+
+      if (shipBillboardsByMmsi.has(ship.mmsi)) {
+        // Direct position and heading update — no lerp needed for slow-moving ships
+        const bb = shipBillboardsByMmsi.get(ship.mmsi);
+        bb.position = pos;
+        bb.rotation = CesiumMath.toRadians(-rot);
       } else {
-        const point = collection.add({
+        const bb = collection.add({
           position: pos,
-          pixelSize: 4,
-          color: Color.fromCssColorString('#22C55E'), // green — distinct from sat (#00D4FF), air (#FF8C00), mil (#EF4444)
+          image: SHIP_ICON,
+          width: 20,
+          height: 20,
+          rotation: CesiumMath.toRadians(-rot),
+          alignedAxis: Cartesian3.ZERO,
           id: `mmsi:${ship.mmsi}`,
+          scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
           show: layerVisible,
         });
-        shipPointsByMmsi.set(ship.mmsi, point);
+        shipBillboardsByMmsi.set(ship.mmsi, bb);
       }
     }
   }, [viewer, ships.data, layerVisible]);
 
   // Effect 3: Visibility toggle
   useEffect(() => {
-    for (const [, point] of shipPointsByMmsi) {
-      point.show = layerVisible;
+    for (const [, bb] of shipBillboardsByMmsi) {
+      bb.show = layerVisible;
     }
   }, [layerVisible]);
 
@@ -127,8 +139,8 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
     if (replayMode !== 'playback') return;
     if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
 
-    for (const [mmsi, point] of shipPointsByMmsi) {
-      if (!point) continue;
+    for (const [mmsi, bb] of shipBillboardsByMmsi) {
+      if (!bb) continue;
       const snapshots = snapshotsByEntity.get(mmsi);
       if (!snapshots || snapshots.length === 0) continue;
 
@@ -142,7 +154,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
 
       // Ships at sea level + 100m (same as live mode)
-      point.position = Cartesian3.fromDegrees(lon, lat, 100);
+      bb.position = Cartesian3.fromDegrees(lon, lat, 100);
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
 
