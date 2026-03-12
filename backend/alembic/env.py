@@ -19,6 +19,7 @@ from app.db import Base  # noqa: F401 — registers DeclarativeBase metadata
 # Import all models so Alembic picks up their tables in autogenerate
 import app.models.satellite  # noqa: F401
 import app.models.aircraft  # noqa: F401
+import app.models.ship  # noqa: F401
 
 # Alembic Config object
 config = context.config
