@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: planning
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-12T17:43:46.842Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-03-12T17:47:30.945Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -65,6 +65,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 | Phase 14-entity-icons-altitude-scaling P02 | 3 | 2 tasks | 2 files |
 - [Phase 14]: Ship heading uses 511-sentinel fallback to cog; military heading uses track field directly
 - [Phase 14]: alignedAxis: Cartesian3.ZERO for screen-space billboard rotation — icons face camera, not globe surface normal
+| Phase 14-entity-icons-altitude-scaling P03 | 4 | 1 tasks | 1 files |
+- [Phase 14-entity-icons-altitude-scaling]: id: ac.icao24 (bare icao24, no prefix) preserved on billboards — unified LEFT_CLICK handler requires no changes
+- [Phase 14-entity-icons-altitude-scaling]: rAF lerp loop closure captures module-scope billboardsByIcao24 — no structural change to lerp architecture
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:43:46.839Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-03-12T17:47:30.942Z
+Stopped at: Completed 14-03-PLAN.md
 Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
