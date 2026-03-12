@@ -60,6 +60,21 @@ services:
       OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-REDACTED_OPENSKY_CLIENT_ID}
       OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-REDACTED_OPENSKY_SECRET}
 
+  ais-worker:
+    build:
+      context: ./backend
+      target: production
+    command: python -m app.workers.ingest_ais
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-opensignal}
+      REDIS_URL: redis://redis:6379/0
+      AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
+
   frontend:
     build:
       context: ./frontend
