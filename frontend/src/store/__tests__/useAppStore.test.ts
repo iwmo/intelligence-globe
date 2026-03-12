@@ -156,6 +156,49 @@ describe('useAppStore — replay slice', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 12 slices — RED tests
+// These tests FAIL because activeCategories, toggleCategory, areaOfInterest
+// do not yet exist in useAppStore.ts.
+// ---------------------------------------------------------------------------
+describe('useAppStore — Phase 12 OSINT event correlation slices (RED)', () => {
+  beforeEach(() => {
+    // Only reset known existing state; Phase 12 fields do not exist yet
+    useAppStore.setState({
+      replayMode: 'live',
+    });
+  });
+
+  describe('activeCategories', () => {
+    it('defaults to []', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      expect(state['activeCategories']).toEqual([]);
+    });
+
+    it('toggleCategory("KINETIC") adds KINETIC to activeCategories', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['toggleCategory'] as (c: string) => void)('KINETIC');
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['activeCategories']).toContain('KINETIC');
+    });
+
+    it('toggleCategory("KINETIC") again removes KINETIC (toggle off)', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['toggleCategory'] as (c: string) => void)('KINETIC');
+      (state['toggleCategory'] as (c: string) => void)('KINETIC');
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect((updated['activeCategories'] as string[]).includes('KINETIC')).toBe(false);
+    });
+  });
+
+  describe('areaOfInterest', () => {
+    it('defaults to null', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      expect(state['areaOfInterest']).toBeNull();
+    });
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({
