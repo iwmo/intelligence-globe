@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 12-osint-event-correlation/12-03-PLAN.md
-last_updated: "2026-03-12T14:02:12.210Z"
+stopped_at: Completed 12-osint-event-correlation/12-04-PLAN.md
+last_updated: "2026-03-12T14:05:51.943Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 28
-  completed_plans: 26
+  completed_plans: 27
   percent: 40
 ---
 
@@ -144,6 +144,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 12 P03 | 8min | 2 tasks | 4 files |
 - [Phase 12]: computeOverpassElevation accepts single SatRec or SatrecEntry[] union type to satisfy both test contract and worker batch usage
 - [Phase 12]: computeOverpassElevationBatch is a separate export returning OverheadSat[] with ECF in meters for Cesium rendering
+| Phase 12-osint-event-correlation P04 | 3min | 2 tasks | 3 files |
+- [Phase 12-osint-event-correlation]: OsintEventPanel props optional (open defaults true) so test renders without props
+- [Phase 12-osint-event-correlation]: useOsintEvents refetchInterval pause: enabled ? 30_000 : false matches all polling hooks pattern
 
 ### Pending Todos
 
@@ -162,6 +165,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T14:02:12.207Z
-Stopped at: Completed 12-osint-event-correlation/12-03-PLAN.md
+Last session: 2026-03-12T14:05:51.940Z
+Stopped at: Completed 12-osint-event-correlation/12-04-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
