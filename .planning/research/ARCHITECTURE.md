@@ -1,888 +1,499 @@
-# Architecture Research: v2.0 WorldView Parity Integration
+# Architecture Research
 
-**Domain:** Browser-based 3D OSINT geospatial platform — integrating 12 new features into existing CesiumJS/FastAPI v1.0 architecture
-**Researched:** 2026-03-11
-**Confidence:** HIGH
-
----
-
-## Executive Summary
-
-v2.0 adds 12 features onto a stable v1.0 foundation. The core architectural insight is that these 12 features split cleanly into four integration tiers, each requiring different amounts of new infrastructure:
-
-- **Tier 1 — Frontend-only (no backend needed):** Landmark presets, Cinematic HUD, Visual style presets + sliders. These are pure React/CesiumJS additions.
-- **Tier 2 — External tile services piped through CesiumJS ImageryLayer:** GPS Jamming heatmap, NOAA NEXRAD weather radar. CesiumJS already knows how to consume WMS/tile sources; no backend proxy required.
-- **Tier 3 — New backend data pipelines + new frontend layers:** Military flights (ADSB Exchange), Maritime traffic (AIS), Earthquakes (USGS), Street traffic particles (OSM). Each needs a new FastAPI router, new PostgreSQL table, and new RQ ingestion task.
-- **Tier 4 — New backend storage architecture + frontend replay engine:** 4D Historical Replay and OSINT Event Correlation. These are the most complex and establish the snapshot/event store that everything else builds on.
-
-The recommended build order works from simplest to most complex, front-loading Tier 1 and Tier 2 (no backend changes, instant visual payoff) and back-loading Tier 4 (requires snapshot infrastructure to accumulate data before replay is usable).
+**Domain:** 3D Geospatial Intelligence Globe — UI Refinement (v3.0)
+**Researched:** 2026-03-12
+**Confidence:** HIGH — based on direct codebase analysis + verified CesiumJS API documentation
 
 ---
 
 ## Standard Architecture
 
-### System Overview (v2.0 Extended)
+### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Frontend (React + TypeScript)                │
-│                                                                      │
-│  ┌──────────────┐  ┌───────────────┐  ┌──────────────────────────┐  │
-│  │  GlobeView   │  │  Post-Process │  │     Cinematic HUD        │  │
-│  │  (CesiumJS)  │  │  Engine       │  │  (React overlay, z-layer)│  │
-│  └──────┬───────┘  └───────────────┘  └──────────────────────────┘  │
-│         │                                                            │
-│  ┌──────▼────────────────────────────────────────────────────────┐  │
-│  │                    Layer Components (render null to DOM)       │  │
-│  │  SatelliteLayer  AircraftLayer  MilitaryLayer  MaritimeLayer   │  │
-│  │  EarthquakeLayer  WeatherLayer  GPSJamLayer  TrafficLayer      │  │
-│  └──────┬────────────────────────────────────────────────────────┘  │
-│         │                                                            │
-│  ┌──────▼──────────────────────────────────────────────────────┐    │
-│  │  Zustand Store (useAppStore)                                 │    │
-│  │  layers, filters, selectedId, visualPreset, replayState      │    │
-│  └──────┬──────────────────────────────────────────────────────┘    │
-│         │                                                            │
-│  ┌──────▼───────────────┐  ┌────────────────────────────────────┐   │
-│  │  Web Workers         │  │  ReplayEngine                      │   │
-│  │  propagation.worker  │  │  (snapshot buffer, clock binding)   │   │
-│  │  traffic.worker      │  │                                    │   │
-│  └──────────────────────┘  └────────────────────────────────────┘   │
-└───────────────────────────────────┬─────────────────────────────────┘
-                                    │ HTTP REST
-┌───────────────────────────────────▼─────────────────────────────────┐
-│                         FastAPI (Backend)                            │
-│  routes_satellites  routes_aircraft  routes_military  routes_ships   │
-│  routes_earthquakes  routes_osint    routes_replay    routes_health  │
-└───────────┬──────────────┬───────────────────────────┬──────────────┘
-            │              │                           │
-┌───────────▼───┐  ┌───────▼───────────┐  ┌───────────▼──────────────┐
-│  PostgreSQL   │  │     Redis          │  │  RQ Workers               │
-│  + PostGIS    │  │  (cache + queue)   │  │  ingest_military          │
-│  satellites   │  │                   │  │  ingest_ships              │
-│  aircraft     │  │                   │  │  ingest_earthquakes        │
-│  military     │  │                   │  │  snapshot_recorder         │
-│  ships        │  └───────────────────┘  │  osint_correlator          │
-│  earthquakes  │                         └──────────────────────────┘
-│  snapshots    │
-│  osint_events │
-└───────────────┘
-
-External Sources (fetched directly by frontend):
-  gpsjam.org daily CSV  →  CesiumJS ImageryLayer (heatmap tiles)
-  NOAA NEXRAD WMS       →  CesiumJS WebMapServiceImageryProvider
-  USGS GeoJSON feed     →  frontend fetch + CesiumJS PointPrimitive
-
-External Sources (proxied through backend):
-  ADSB Exchange API     →  RQ worker  →  military table
-  aisstream.io WS       →  RQ worker  →  ships table
-  OSM Overpass API      →  one-time fetch + cache  →  traffic.worker
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         React DOM Layer (fixed positioned)               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌────────────┐  ┌──────────────────────┐  │
+│  │LeftSidebar│ │RightDrawer│ │  PlaybackBar│  │  CinematicHUD / LNav │  │
+│  │ z:50-85  │ │  z:100   │ │   z:79      │  │      z:80-90         │  │
+│  └──────────┘  └──────────┘  └────────────┘  └──────────────────────┘  │
+│  ┌──────────────────┐   ┌────────────────────────────────────────────┐  │
+│  │  PostProcessPanel │   │  NEW: CameraControlWidget  z:82  right     │  │
+│  │      z:75        │   └────────────────────────────────────────────┘  │
+│  └──────────────────┘                                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                       CesiumJS Viewer (canvas fills 100vw/100vh)         │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Primitives API (scene.primitives stack — render order = add order)      │
+│                                                                         │
+│  ┌─────────────────────┐  ┌────────────────────────────────────────┐   │
+│  │ PointPrimitiveColls │  │ BillboardCollections (NEW, per layer)   │   │
+│  │  (existing — hidden │  │ Satellites: ~5,000 billboards           │   │
+│  │   during transition)│  │ Aircraft:   ~few hundred billboards     │   │
+│  │  Satellites         │  │ Military:   ~few hundred billboards     │   │
+│  │  Aircraft           │  │ Ships:      ~few thousand billboards    │   │
+│  │  Military           │  └────────────────────────────────────────┘   │
+│  │  Ships              │                                               │
+│  └─────────────────────┘                                               │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ PolylineCollections (orbits, trails, overpass arcs) — unchanged   │  │
+│  │ GroundPrimitive (GPS jamming H3) — unchanged                      │  │
+│  │ PointPrimitiveCollection (AOI marker) — unchanged                 │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                     ScreenSpaceEventHandler layer                        │
+│  Existing: LEFT_CLICK (AircraftLayer) + RIGHT_CLICK (SatelliteLayer)    │
+│  NEW:      LEFT_DOUBLE_CLICK (GlobeView)                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                   Zustand Store (useAppStore)                            │
+│  Existing slices: layers, selected*, replay, visualPreset, cleanUI      │
+│  NEW slice: sidebarSections (collapse state per section)                 │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Type |
-|-----------|----------------|------|
-| `PostProcessEngine` | Manages `scene.postProcessStages`, exposes uniform setters | New React component |
-| `CinematicHUD` | Floating React overlay, MGRS coords, classification banner, telemetry | New React component |
-| `VisualPresetPanel` | UI controls for preset selection + slider values, writes to store | New React component |
-| `MilitaryLayer` | PointPrimitiveCollection for military aircraft, polls `/api/military` | New layer component |
-| `MaritimeLayer` | PointPrimitiveCollection for AIS vessels, polls `/api/ships` | New layer component |
-| `EarthquakeLayer` | PointPrimitive per quake sized by magnitude, direct USGS fetch | New layer component |
-| `WeatherLayer` | `WebMapServiceImageryProvider` draping NEXRAD on globe | New layer component |
-| `GPSJamLayer` | Daily CSV → custom heatmap `ImageryLayer` or `GroundPrimitive` | New layer component |
-| `TrafficLayer` | OSM road segment particle simulation via `traffic.worker` | New layer component |
-| `LandmarkPanel` | Curated JSON list, keyboard shortcut handler, `viewer.camera.flyTo` | New frontend component |
-| `ReplayEngine` | Snapshot buffer, `viewer.clock` binding, playback state machine | New class / hook |
-| `TimelinePanel` | React scrubber UI, speed controls, event markers on timeline | New React component |
-| `OSINTEventLayer` | OSINT event markers, satellite overpass lines, filter UI | New layer component |
-| `useAppStore` | Extend with: visualPreset, postProcessUniforms, replayState, new layers | Modified existing |
-| `GlobeView` | Expose `viewer` ref for PostProcessEngine; unchanged otherwise | Minimally modified |
-| `AircraftLayer` | Extend click dispatcher to handle military/ship primitive IDs | Modified existing |
-| `routes_aircraft.py` | No changes needed | Unchanged |
-| `routes_satellites.py` | No changes needed | Unchanged |
-| `routes_military.py` | `GET /api/military` — list with bbox filter | New router |
-| `routes_ships.py` | `GET /api/ships` — list with bbox filter | New router |
-| `routes_earthquakes.py` | `GET /api/earthquakes` — proxy or pass-through | New router (optional) |
-| `routes_osint.py` | CRUD for OSINT events, overpass query endpoint | New router |
-| `routes_replay.py` | `GET /api/replay/snapshots?start&end&layers` | New router |
-| `ingest_military.py` | RQ task: ADSB Exchange API → military table | New worker task |
-| `ingest_ships.py` | RQ task: aisstream.io WS consumer → ships table | New worker task |
-| `snapshot_recorder.py` | RQ task: periodic snapshot archival for replay | New worker task |
-| `models/military.py` | SQLAlchemy model for military flight positions | New model |
-| `models/ship.py` | SQLAlchemy model for AIS vessel positions | New model |
-| `models/snapshot.py` | Time-partitioned snapshot table (all layer positions) | New model |
-| `models/osint_event.py` | OSINT event with spatial point and tag list | New model |
-| `traffic.worker.ts` | OSM road segments → particle positions per frame | New Web Worker |
+| Component | Responsibility | Status for v3.0 |
+|-----------|----------------|-----------------|
+| `GlobeView.tsx` | CesiumJS viewer init, wheel zoom handler | EXISTS — add LEFT_DOUBLE_CLICK here |
+| `AircraftLayer.tsx` | LEFT_CLICK unified dispatcher for all entity types | EXISTS — add billboard collection, extend lerp loop |
+| `SatelliteLayer.tsx` | PointPrimitiveCollection for satellites + RIGHT_CLICK AOI | EXISTS — add billboard collection, update POSITIONS handler |
+| `ShipLayer.tsx` | PointPrimitiveCollection for ships | EXISTS — add billboard collection (simplest start) |
+| `MilitaryAircraftLayer.tsx` | PointPrimitiveCollection for military | EXISTS — add billboard collection |
+| `LeftSidebar.tsx` | Hamburger + layer toggles + sliding panel | EXISTS — add collapsible sections + radar styling |
+| `PostProcessPanel.tsx` | Visual preset buttons and sliders | EXISTS — add radar styling |
+| `CinematicHUD.tsx` | MGRS + classification + REC timestamp | EXISTS — radar styling only |
+| `LandmarkNav.tsx` | Quick-jump buttons + search, zIndex 90 right side | EXISTS — unchanged |
+| `PlaybackBar.tsx` | LIVE/PLAYBACK timeline scrubber | EXISTS — unchanged |
+| `RightDrawer.tsx` | Entity detail panel, zIndex 100, right at top:120px | EXISTS — radar styling |
+| `useAppStore.ts` | Zustand global state | EXISTS — add sidebarSections slice |
+| `viewerRegistry.ts` | Singleton viewer ref + flyTo helpers | EXISTS — add pitchBy, zoomStep helpers |
+| `CameraControlWidget.tsx` | Tilt/pitch buttons + zoom buttons | NEW component |
 
 ---
 
-## Feature Integration Analysis
+## Recommended Project Structure
 
-### Feature 1: Visual Style Presets (NVG/CRT/FLIR/Noir)
+```
+frontend/src/
+├── components/
+│   ├── GlobeView.tsx              # Add LEFT_DOUBLE_CLICK handler in initViewer()
+│   ├── LeftSidebar.tsx            # Collapsible sections + radar styling refactor
+│   ├── CameraControlWidget.tsx    # NEW — tilt/pitch/zoom overlay widget
+│   ├── SatelliteLayer.tsx         # Add parallel BillboardCollection + scaleByDistance
+│   ├── AircraftLayer.tsx          # Add parallel BillboardCollection + update lerp loop
+│   ├── MilitaryAircraftLayer.tsx  # Add parallel BillboardCollection
+│   ├── ShipLayer.tsx              # Add parallel BillboardCollection (start here)
+│   └── ... (all others unchanged structurally)
+├── lib/
+│   └── viewerRegistry.ts          # Add pitchBy(), zoomStep()
+├── store/
+│   └── useAppStore.ts             # Add sidebarSections slice
+└── assets/icons/                  # NEW — SVG source strings per entity type
+    ├── satellite.svg
+    ├── aircraft.svg
+    ├── military.svg
+    └── ship.svg
+```
 
-**Integration tier:** Tier 1 — Frontend-only
-**Approach:** CesiumJS `PostProcessStage` with custom GLSL fragment shaders.
+### Structure Rationale
 
-CesiumJS exposes `scene.postProcessStages` (a `PostProcessStageCollection`). Each custom stage takes a fragment shader that reads from the scene texture via `czm_framebufferTexture` (or a custom uniform) and outputs modified color. Stages can be composed with `PostProcessStageComposite`.
-
-The four presets map to distinct shader profiles:
-
-| Preset | Shader Effect | Key Uniforms |
-|--------|---------------|--------------|
-| NVG (Night Vision) | Desaturate → green channel boost, scanline overlay, vignette | `u_greenBoost: float`, `u_scanlineIntensity: float` |
-| CRT | Scanlines + barrel distortion + phosphor glow + chromatic aberration | `u_scanlineCount: float`, `u_distortion: float` |
-| FLIR (Thermal) | Luminance to false-color gradient (black-body: black→red→orange→white) | `u_heatMap: sampler2D` (gradient texture) |
-| Noir | Desaturate + high contrast + grain + vignette | `u_contrast: float`, `u_grainIntensity: float` |
-
-**Architecture pattern:** One `PostProcessStage` per preset, swapped by enable/disable. Do not create/destroy stages on preset change — create all four on init, enable only the active one. This avoids GPU pipeline recompilation overhead.
-
-**New components:**
-- `PostProcessEngine.tsx` — singleton managing stage lifecycle, exposes `setPreset(name)` and `setUniform(preset, key, value)`
-- Store additions: `visualPreset: 'normal' | 'nvg' | 'crt' | 'flir' | 'noir'`, `postProcessUniforms: Record<string, number>`
-
-**Modified components:**
-- `GlobeView.tsx` — call `onViewerReady` before `PostProcessEngine` mounts so stages attach to live viewer
-- `useAppStore.ts` — add `visualPreset`, `postProcessUniforms`, setters
-
-**No backend changes.**
+- **assets/icons/**: Centralized SVG icon definitions. Rendered to HTMLCanvasElement once at layer mount time. The canvas is passed as the `image` property to every billboard in the collection — CesiumJS shares the GPU texture for identical canvas references.
+- **CameraControlWidget.tsx**: Standalone fixed-position overlay. Does not receive viewer as a prop — calls pitchBy()/zoomStep() from viewerRegistry, consistent with LandmarkNav pattern.
+- **GlobeView.tsx for double-click**: GlobeView owns viewer creation and already owns the custom wheel handler. It is the correct boundary for all non-entity navigation input.
 
 ---
 
-### Feature 2: Post-Processing Sliders (Bloom, Sharpen, Gain, Scanlines, Pixelation)
+## Architectural Patterns
 
-**Integration tier:** Tier 1 — Frontend-only
-**Approach:** Mix of CesiumJS built-in stages and custom stages.
+### Pattern 1: BillboardCollection as Parallel to PointPrimitiveCollection
 
-CesiumJS `scene.postProcessStages.bloom` is a built-in `PostProcessStage`. Its key uniforms:
-- `bloom.uniforms.contrast` (default: 128.0, range: -255 to 255)
-- `bloom.uniforms.brightness` (default: -0.3)
-- `bloom.uniforms.glowOnly` (boolean)
-- `bloom.enabled` (boolean)
+**What:** For each existing *Layer.tsx that owns a PointPrimitiveCollection, initialize a parallel BillboardCollection in the same Effect 1. The existing point primitives are hidden (point.show = false) after billboards are added, not removed. This preserves the existing ID system and all pick dispatch logic without change.
 
-Sharpen, Gain, Scanlines, Pixelation require custom `PostProcessStage` with GLSL:
-- **Sharpen:** Convolution kernel applied to texture
-- **Gain:** Scalar multiply on RGB channels
-- **Scanlines:** Horizontal line pattern at configurable frequency
-- **Pixelation:** Floor UV coordinates to `floor(uv * resolution / pixelSize) * pixelSize / resolution`
+**When to use:** All four entity layer components (SatelliteLayer, AircraftLayer, MilitaryAircraftLayer, ShipLayer).
 
-**Key insight:** Scanlines and pixelation need to be managed inside the preset stages (not as separate stages) when a preset is active, otherwise they compound with preset effects incorrectly. `PostProcessEngine` should detect active preset and route slider values to the correct stage.
+**Trade-offs:**
+- Two collections per layer exist in memory simultaneously during the transition phase. At v3.0 entity counts (5,000 satellites, ~1,000 aircraft, ~1,000 ships, ~few hundred military) this is within CesiumJS safe performance range. The Cesium performance blog confirms problems begin at 50,000+ billboards; 5,000 is fine.
+- The same `id` value is used on each billboard as on the original point primitive. The unified LEFT_CLICK dispatcher in AircraftLayer.tsx reads `picked.id` — since billboard and point share the same id, the dispatcher requires zero changes.
+- Keep PointPrimitiveCollection until all billboard layers are validated. This gives a hard rollback path — flip show flags to revert.
 
-**New components:** Extends `PostProcessEngine` (above), new `PostProcessPanel.tsx` React UI
-
-**No backend changes.**
-
----
-
-### Feature 3: Cinematic HUD Overlay
-
-**Integration tier:** Tier 1 — Frontend-only
-**Approach:** Absolute-positioned React `<div>` layered over the CesiumJS canvas. CSS `pointer-events: none` on the overlay so globe interaction passes through.
-
-The HUD displays:
-- Classification banner (top bar, hardcoded text like "UNCLASSIFIED // OSINT")
-- MGRS / lat-lon readout — subscribe to `viewer.camera.moveEnd` event, compute from `viewer.camera.positionCartographic`
-- Selected entity telemetry — read from Zustand `selectedSatelliteId` / `selectedAircraftId` and render inline
-- Timestamp clock (UTC) — `setInterval` driving React state
-
-**Architecture note:** HUD components should read from Zustand store only, never from Cesium viewer directly. This keeps HUD testable without a live viewer.
-
-**New components:** `CinematicHUD.tsx`, `MGRSReadout.tsx`, `TelemetryPanel.tsx`
-**No backend changes.**
-
----
-
-### Feature 4: Military Flights Layer (ADSB Exchange)
-
-**Integration tier:** Tier 3 — New backend pipeline + new frontend layer
-
-**Data flow:**
-```
-ADSB Exchange API (RapidAPI personal use tier)
-    ↓ (RQ task, every 60s — rate limited)
-ingest_military RQ worker
-    ↓
-military_aircraft PostgreSQL table
-    ↓
-GET /api/military?bbox=...
-    ↓
-MilitaryLayer.tsx (PointPrimitiveCollection, distinct color)
-```
-
-**API details (MEDIUM confidence — from official ADSB Exchange docs):**
-- RapidAPI personal/non-commercial tier available
-- Endpoint pattern: `GET /v2/lat/{lat}/lon/{lon}/dist/{dist}/` returns aircraft JSON array
-- Military flag available in response: field `mil` = 1 for military, FAA block-listed, or VIP aircraft
-- Alternative: query `GET /v2/mil/` for military-only aircraft globally
-
-**New backend:**
-- `models/military.py` — `MilitaryAircraft` table: `icao24, callsign, registration, type, latitude, longitude, altitude, velocity, heading, mil_flag, updated_at`
-- `tasks/ingest_military.py` — RQ task, self-re-enqueue pattern (same as existing `ingest_aircraft.py`), 60s interval
-- `api/routes_military.py` — `GET /api/military` with bbox param, Redis cache (30s TTL)
-
-**New frontend:**
-- `MilitaryLayer.tsx` — identical structure to `AircraftLayer.tsx`, orange-red color `#FF4500`
-- Store: add `layers.military: boolean` to `useAppStore`
-
-**Modified:**
-- `AircraftLayer.tsx` click dispatcher — extend to recognize military primitive IDs (distinct ID namespace needed, e.g., prefix `"mil_"` + icao24)
-- `main.py` — include `routes_military_router`
-
----
-
-### Feature 5: GPS Jamming Heatmap (gpsjam.org)
-
-**Integration tier:** Tier 2 — External data source → CesiumJS ImageryLayer
-
-**Data source analysis (LOW confidence — no official API found):**
-gpsjam.org has no documented public API. The site is a simple Express app serving daily CSV files. The GitHub repo at `guofengji/gpsjam.org` confirms "each day of data is in one CSV file." The CSV contains H3 hexagon cell IDs + jamming percentage per cell.
-
-**Recommended approach:** Fetch today's CSV from the known URL pattern, convert H3 hex cells to GeoJSON polygons in a Web Worker, render as `GroundPrimitive` polygon collection in CesiumJS (colored by jamming severity: green/yellow/red).
-
-**Fallback approach if CSV URL is inaccessible:** Recompute jamming heatmap by fetching ADSB Exchange aircraft with low navigation accuracy (NACp < 7 in ADS-B) and aggregating over H3 cells client-side. This mirrors what gpsjam.org does and requires only the existing ADSB Exchange API key.
-
-**Architecture pattern:**
-```
-gpsjam.org/geo/all-{YYYY-MM-DD}.csv (fetched from frontend)
-    ↓
-gps_jam.worker.ts (Web Worker)
-  - Parse CSV
-  - Decode H3 cell IDs to polygon boundaries (h3-js library)
-  - Compute color by percentage
-    ↓ transferable polygon data
-GPSJamLayer.tsx
-  - GroundPrimitiveCollection
-  - ColorGeometryInstanceAttribute per polygon
-```
-
-**New components:**
-- `gps_jam.worker.ts` — H3 decode + color mapping
-- `GPSJamLayer.tsx` — `GroundPrimitive` collection
-
-**New dependency:** `h3-js` npm package (Uber's H3 library, browser-compatible)
-
-**No backend changes required** (though a backend cache proxy is a valid option if CORS blocks the CSV fetch).
-
----
-
-### Feature 6: Maritime Traffic (AIS)
-
-**Integration tier:** Tier 3 — New backend pipeline + new frontend layer
-
-**Data source:** aisstream.io — free API, WebSocket only, requires API key (GitHub OAuth login), returns global vessel positions with bbox filtering.
-
-**Critical architecture constraint:** aisstream.io is WebSocket-only (no REST). The API key cannot be exposed in browser JavaScript. Therefore maritime data **must** be proxied through the FastAPI backend. The backend worker maintains the WebSocket connection and writes positions to PostgreSQL. The frontend polls FastAPI REST endpoints.
-
-**Data flow:**
-```
-aisstream.io WebSocket (wss://stream.aisstream.io/v0/stream)
-    ↓ (persistent WS connection in ingest_ships worker)
-ingest_ships RQ worker
-  - Maintains asyncio WebSocket connection
-  - Receives PositionReport messages (lat, lon, SOG, COG, MMSI, vessel name)
-  - Upsert ships table (last known position, updated_at)
-    ↓
-ships PostgreSQL table
-    ↓
-GET /api/ships?bbox=...
-    ↓ (Redis cache, 30s TTL)
-MaritimeLayer.tsx (PointPrimitiveCollection, cyan color #00CED1)
-```
-
-**New backend:**
-- `models/ship.py` — `Ship` table: `mmsi (PK), vessel_name, ship_type, latitude, longitude, sog, cog, heading, updated_at`
-- `workers/ingest_ships.py` — asyncio WebSocket consumer (not RQ task loop, but a long-running process in the worker container). Alternatively, use a threading approach with a background thread inside an RQ task that runs indefinitely.
-- `api/routes_ships.py` — `GET /api/ships?bbox=minLon,minLat,maxLon,maxLat`
-
-**New frontend:**
-- `MaritimeLayer.tsx` — same pattern as `AircraftLayer.tsx`, cyan color
-- Store: add `layers.ships: boolean`
-
-**Modified:**
-- `docker-compose.yml` — ships worker may need its own service entry if using a persistent WS connection model
-- `main.py` — include ships router
-
----
-
-### Feature 7: Earthquake Layer (USGS GeoJSON)
-
-**Integration tier:** Tier 2 / Tier 3 — can be frontend-direct or backend-proxied
-
-**Data source:** USGS GeoJSON Feed — free, no API key, no rate limits documented, updates every minute.
-- URL pattern: `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson`
-- Returns `FeatureCollection` with earthquake features: `mag`, `place`, `time`, `depth`, `coordinates [lon, lat, depth_km]`
-
-**Recommended approach: frontend-direct** (no backend proxy needed). The USGS feed is public, CORS-enabled, and lightweight (~50-200 features for all_day).
-
-**Architecture:**
-```
-EarthquakeLayer.tsx
-  - useEffect: fetch USGS URL every 5 minutes
-  - Map features to PointPrimitive per earthquake
-  - pixelSize = clamp(mag * 4, 4, 20)  — magnitude-scaled size
-  - color: mag < 4 = #FFD700 (yellow), mag 4-6 = #FF8C00 (orange), mag > 6 = #FF0000 (red)
-  - id: earthquake feature id string (for click-to-inspect)
-```
-
-**New components:** `EarthquakeLayer.tsx`, `EarthquakeDetailPanel.tsx`
-**No backend changes required.** Backend proxy optional for caching if desired.
-
----
-
-### Feature 8: Weather Radar Overlay (NOAA NEXRAD)
-
-**Integration tier:** Tier 2 — External WMS → CesiumJS ImageryLayer
-
-**Data source:** Iowa Environmental Mesonet NEXRAD WMS (HIGH confidence):
-- Base reflectivity (n0r): `https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi`
-- Time-aware variant: `https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r-t.cgi`
-- Layer name: `nexrad-n0r`
-
-**CesiumJS integration:**
+**Key implementation:**
 ```typescript
-new WebMapServiceImageryProvider({
-  url: 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi',
-  layers: 'nexrad-n0r',
-  parameters: {
-    transparent: true,
-    format: 'image/png',
-  },
-})
-```
-Draping on the globe via `viewer.imageryLayers.addImageryProvider(...)`. Alpha control via `imageryLayer.alpha = 0.6`.
+// In *Layer.tsx Effect 1 — initialize alongside existing collection
+const billboardColl = viewer.scene.primitives.add(new BillboardCollection());
+billboardCollRef.current = billboardColl;
 
-**New components:** `WeatherLayer.tsx` — manages `ImageryLayer` lifecycle, toggleable via store
-**No backend changes.**
-
----
-
-### Feature 9: Street Traffic Particle Simulation (OSM)
-
-**Integration tier:** Tier 3 — Heavy computation, new Web Worker
-
-**Data source:** OpenStreetMap Overpass API — fetch highway road segments for visible bbox.
-- Query: `[out:json];way["highway"~"^(motorway|trunk|primary|secondary)$"](bbox);out geom;`
-- Returns way geometry (node lat/lon arrays)
-- One-time fetch per bbox, cached for session duration
-
-**Architecture:**
-```
-OSM Overpass API
-    ↓ (fetch on first load or bbox change > threshold)
-GlobeView bbox → fetch road segments GeoJSON
-    ↓
-traffic.worker.ts (Web Worker)
-  - Store road segment polylines as Float32Array of [lon, lat] pairs
-  - Maintain particle state: N particles per major road segment
-  - Each frame: advance particle position along road by speed * dt
-  - Wrap particle at end of segment
-  - Output Float32Array of [x, y, z] ECEF positions (transferable)
-    ↓ (transferable Float32Array, zero-copy)
-TrafficLayer.tsx
-  - PointPrimitiveCollection, white/amber points
-  - Update positions from worker output each frame
+// When adding a billboard (same id as existing point primitive):
+billboardColl.add({
+  position: pos,
+  image: iconCanvas,           // shared canvas, pre-rendered once
+  id: `mmsi:${ship.mmsi}`,     // identical to existing point id — pick dispatcher unchanged
+  scaleByDistance: new NearFarScalar(1.5e4, 1.5, 8.0e6, 0.3),
+  show: layerVisible,
+});
+// Hide corresponding point
+shipPointsByMmsi.get(ship.mmsi).show = false;
 ```
 
-**Key constraint:** Road network data can be large (100k+ nodes for a metro area). Fetch only for bboxes below a zoom threshold (camera altitude < 500 km). Above that, hide the layer entirely.
+### Pattern 2: SVG to Canvas Pre-rendering at Layer Init
 
-**New components:**
-- `traffic.worker.ts` — particle simulation worker
-- `TrafficLayer.tsx` — PointPrimitiveCollection for traffic particles
+**What:** SVG icon strings are converted to HTMLCanvasElement once when each layer mounts. The resulting canvas element is stored in a module-level const (not recreated on re-renders) and passed as the `image` property to BillboardCollection.add(). Because all billboards in a collection share the same canvas reference, CesiumJS creates one TextureAtlas entry for the entire layer.
 
-**New dependency:** None required; Overpass API is CORS-enabled. `osmtogeojson` npm package optional for parsing OSM JSON to GeoJSON.
+**When to use:** Always. Never pass SVG strings or SVG data URLs directly to billboard.image — CesiumJS has a known bug with embedded `<image>` tags in SVG (GitHub issue #8002), and creating a new canvas per entity exhausts TextureAtlas limits at scale.
 
-**No backend changes.**
+**Trade-offs:** One async init step at layer mount (imperceptible). Requires using a Promise to wait for the canvas to be drawn before adding billboards.
 
----
-
-### Feature 10: Landmark Navigation Presets
-
-**Integration tier:** Tier 1 — Frontend-only
-
-**Architecture:** Static JSON file (`landmarks.json`) bundled with the frontend. No fetch required.
-
+**Key implementation:**
 ```typescript
-interface Landmark {
-  id: string;
-  name: string;
-  shortcut: string;       // e.g. "1" for first landmark
-  latitude: number;
-  longitude: number;
-  altitude: number;       // camera altitude in meters
-  heading?: number;       // optional camera heading
-  pitch?: number;
+// Module-level — computed once, stable reference
+let iconCanvas: HTMLCanvasElement | null = null;
+
+async function getIconCanvas(svgString: string, size: number): Promise<HTMLCanvasElement> {
+  if (iconCanvas) return iconCanvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const blob = new Blob([svgString], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  await new Promise<void>((resolve) => {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, size, size); URL.revokeObjectURL(url); resolve(); };
+    img.src = url;
+  });
+  iconCanvas = canvas;
+  return canvas;
 }
 ```
 
-Navigation uses `viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(...), duration: 1.5 })`.
+### Pattern 3: LEFT_DOUBLE_CLICK Override in GlobeView
 
-**New components:**
-- `landmarks.json` — bundled data file
-- `LandmarkPanel.tsx` — dropdown/list UI
-- `useLandmarkShortcuts.ts` — `keydown` listener hook
+**What:** CesiumJS has a built-in LEFT_DOUBLE_CLICK handler that locks the camera to a picked entity. Override it by registering a new ScreenSpaceEventHandler on the canvas with LEFT_DOUBLE_CLICK inside GlobeView's `initViewer()` function. The override fires instead of the default because it sets `viewer.trackedEntity = undefined` first.
 
-**No backend changes.**
+**When to use:** The double-click zoom must live in GlobeView because:
+1. GlobeView owns the viewer lifecycle and already registers the custom wheel handler.
+2. Navigation-level input (not entity selection) belongs at the viewer-init boundary, not in layer components.
+3. Timing is guaranteed — the handler registers after the viewer is fully constructed, inside the same async function.
+
+**Critical pitfall:** `scene.pickPosition()` returns undefined on sky clicks and may return imprecise results at very low camera altitude. Guard with `Cesium.defined(earthPos)`.
+
+**Key implementation:**
+```typescript
+// Inside initViewer() in GlobeView.tsx, after viewer is constructed:
+const dblClickHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+dblClickHandler.setInputAction((click: { position: Cartesian2 }) => {
+  viewer.trackedEntity = undefined;  // cancel default entity-lock behavior
+  const earthPos = viewer.scene.pickPosition(click.position);
+  if (!defined(earthPos)) return;
+  const currentHeight = viewer.camera.positionCartographic.height;
+  const targetHeight = currentHeight * 0.4;  // zoom ~60% closer each double-click
+  viewer.camera.flyTo({
+    destination: new Cartesian3(earthPos.x, earthPos.y, earthPos.z * (targetHeight / currentHeight)),
+    duration: 0.6,
+  });
+}, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+// Register in _cleanup alongside wheel handler
+(viewer as unknown as { _cleanup?: () => void })._cleanup = () => {
+  container.removeEventListener('wheel', onWheel);
+  dblClickHandler.destroy();
+  cancelAnimationFrame(rafId);
+};
+```
+
+### Pattern 4: CameraControlWidget — Pure React, viewerRegistry Bridge
+
+**What:** CameraControlWidget is a fixed-position React overlay with tilt step buttons (+15°/-15°), a top-down reset, and zoom in/out buttons. It calls imperative camera functions from viewerRegistry on button click — no Cesium state is read reactively, no viewer prop is passed.
+
+**When to use:** Any camera control that is purely imperative (fire-and-forget, no reactive feedback). This matches the existing LandmarkNav pattern which calls flyToLandmark() from viewerRegistry without a viewer prop.
+
+**Trade-offs:** No live pitch/heading readout in the widget (non-reactive). Acceptable for v3.0. Add requestAnimationFrame-based readback in v3.1 if live angle display is needed.
+
+**viewerRegistry additions:**
+```typescript
+export function pitchBy(deltaDeg: number): void {
+  const v = getViewer();
+  if (!v || v.isDestroyed()) return;
+  const newPitch = Math.max(
+    CesiumMath.toRadians(-90),
+    Math.min(0, v.camera.pitch + CesiumMath.toRadians(deltaDeg))
+  );
+  v.camera.setView({
+    orientation: { heading: v.camera.heading, pitch: newPitch, roll: v.camera.roll },
+  });
+}
+
+export function zoomStep(factor: number): void {
+  const v = getViewer();
+  if (!v || v.isDestroyed()) return;
+  const h = v.camera.positionCartographic.height;
+  if (factor < 1) v.camera.zoomIn(h * (1 - factor));
+  else v.camera.zoomOut(h * (factor - 1));
+}
+```
+
+### Pattern 5: Collapsible Sidebar Sections — Zustand Slice (Not Local State)
+
+**What:** Each section in LeftSidebar (SEARCH, FILTERS, LAYERS, VISUAL ENGINE) gets its own expanded/collapsed boolean in a new `sidebarSections` slice in useAppStore.
+
+**When to use:** Always for sidebar section state. The key reason for Zustand over useState: when `sidebarOpen` becomes false (sidebar slides closed) and then true again, local state resets — all sections re-expand. Zustand persists across open/close cycles.
+
+**Trade-offs:** Minor increase in store surface area. Completely worth avoiding the disorienting re-expand behavior.
+
+**Store slice:**
+```typescript
+sidebarSections: {
+  search: true,
+  filters: true,
+  layers: true,
+  visual: false,  // collapsed by default — advanced/secondary feature
+};
+setSidebarSection: (section: keyof AppState['sidebarSections'], open: boolean) => void;
+```
 
 ---
 
-### Feature 11: 4D Historical Replay
+## Data Flow
 
-**Integration tier:** Tier 4 — New backend storage architecture + frontend engine
-
-This is the most architecturally complex feature. It requires:
-1. A snapshot recorder that archives positions for all active layers at regular intervals
-2. A replay API that returns time-bounded snapshot chunks
-3. A frontend playback engine that buffers, interpolates, and drives `viewer.clock`
-
-#### 11a. Backend: Snapshot Recorder
-
-**New table: `layer_snapshots`**
-```sql
-CREATE TABLE layer_snapshots (
-  id          BIGSERIAL PRIMARY KEY,
-  layer       VARCHAR(32) NOT NULL,   -- 'satellites', 'aircraft', 'military', 'ships'
-  entity_id   VARCHAR(64) NOT NULL,   -- norad_id, icao24, mmsi
-  timestamp   TIMESTAMPTZ NOT NULL,
-  latitude    DOUBLE PRECISION,
-  longitude   DOUBLE PRECISION,
-  altitude    DOUBLE PRECISION,
-  metadata    JSONB                   -- velocity, heading, callsign, etc.
-);
-
-CREATE INDEX idx_snapshots_layer_time ON layer_snapshots(layer, timestamp);
-CREATE INDEX idx_snapshots_entity_time ON layer_snapshots(entity_id, timestamp);
-```
-
-**RQ task `snapshot_recorder.py`:**
-- Runs every 60 seconds
-- Queries current state from `aircraft`, `military`, `ships` tables
-- For satellites: runs SGP4 propagation for all TLEs at current timestamp (batch)
-- Inserts snapshot rows (bulk INSERT, not upsert)
-- Data retention: 7 days rolling window (daily cleanup task)
-
-**New router `routes_replay.py`:**
-```
-GET /api/replay/snapshots?start={ISO8601}&end={ISO8601}&layers={csv}&resolution={60s}
-  → Returns time-bucketed snapshots, one position per entity per bucket
-  → Paginated: returns first 10-minute chunk, frontend requests subsequent chunks
-
-GET /api/replay/events?start={ISO8601}&end={ISO8601}
-  → Returns OSINT events and earthquake events within time window
-```
-
-#### 11b. Frontend: ReplayEngine
-
-**Architecture:**
+### Billboard Integration Flow
 
 ```
-TimelinePanel.tsx (React UI)
-  ↓ dispatch actions
-useReplayStore (Zustand slice)
-  ↓
-ReplayEngine (class or hook)
-  - State machine: IDLE | LOADING | PLAYING | PAUSED | SCRUBBING
-  - fetchChunk(start, end) → buffer snapshots
-  - bindToClock(viewer.clock) → drive viewer.clock.currentTime
-  - interpolatePositions(t) → compute lerped positions between snapshots
-    ↓ positions per layer
-All Layer components subscribe to replay positions override
-  - When replayState.active === true, layer reads from replayPositions not live data
-  - When replayState.active === false, layer reads from normal live hooks
-```
-
-**State flow diagram:**
-
-```
-User drags scrubber to T
+Layer mounts
     ↓
-useReplayStore.seekTo(T)
+getIconCanvas(svgString) — async, one canvas per entity type
     ↓
-ReplayEngine.fetchChunk(T - buffer, T + buffer)
-    ↓ FastAPI /api/replay/snapshots
-    ↓ JSON chunk arrives
-ReplayEngine.bufferChunk(chunk)
+BillboardCollection.add({ image: canvas, id: entityId, scaleByDistance: NearFarScalar })
+    ↓ (data update)
+Update billboard.position (same as existing point.position update — same code path)
+    ↓ (pick event — LEFT_CLICK)
+viewer.scene.pick() → picked.id (same string/number as before billboard introduction)
     ↓
-viewer.clock.currentTime = T (CesiumJS JulianDate)
+AircraftLayer unified LEFT_CLICK dispatcher (ZERO changes required)
     ↓
-All layers: interpolatePositions(T) → Cartesian3 positions
-    ↓
-viewer.scene.requestRender()
+useAppStore.setSelected*() (unchanged)
 ```
 
-**Key CesiumJS integration:** Use `viewer.clock.onTick` event (not `requestAnimationFrame`) to drive playback when playing. This keeps replay synchronized with CesiumJS's own time system.
+### Double-Click Zoom Flow
 
-**New components:**
-- `TimelinePanel.tsx` — scrubber, play/pause, speed selector (0.1x, 1x, 5x, 60x)
-- `ReplayEngine.ts` — class (not React component) managing buffer and state machine
-- `useReplayStore.ts` — Zustand slice for replay state (separate from main store for clarity)
-- Alembic migration for `layer_snapshots` table
+```
+User double-clicks globe canvas
+    ↓
+GlobeView ScreenSpaceEventHandler (LEFT_DOUBLE_CLICK)
+    ↓
+viewer.trackedEntity = undefined  (cancel CesiumJS default entity-lock)
+    ↓
+viewer.scene.pickPosition(click.position) → Cartesian3 | undefined
+    ↓ (if defined)
+viewer.camera.flyTo({ destination: zoomedPos, duration: 0.6 })
+```
 
-**Modified components:**
-- `SatelliteLayer.tsx` — check `replayState.active`, use propagated positions OR replay positions
-- `AircraftLayer.tsx` — same pattern
-- `MilitaryLayer.tsx`, `MaritimeLayer.tsx` — same pattern
-- `useAppStore.ts` — add `replayActive: boolean` flag
+### Camera Tilt Widget Flow
+
+```
+User clicks tilt/zoom button in CameraControlWidget
+    ↓
+pitchBy(±15) or zoomStep(0.5) from viewerRegistry
+    ↓
+viewer.camera.setView({ orientation: ... }) / zoomIn() / zoomOut()
+    (purely imperative — no React state change, no re-render)
+```
+
+### Sidebar Collapse Flow
+
+```
+User clicks section header in LeftSidebar
+    ↓
+useAppStore.setSidebarSection(section, !current)
+    ↓
+Zustand update → LeftSidebar re-renders
+    ↓
+Section content collapses (height: 0) or expands (height: auto)
+    (CSS transition on maxHeight for animation)
+```
 
 ---
 
-### Feature 12: OSINT Event Correlation
+## Integration Points
 
-**Integration tier:** Tier 4 — New event storage + correlation computation
+### BillboardCollection Alongside Existing PointPrimitiveCollections
 
-**Architecture:**
+| Boundary | Communication | Impact |
+|----------|---------------|--------|
+| Billboard ↔ pick dispatcher | Same `id` on billboard as on point | AircraftLayer dispatcher: ZERO changes |
+| Billboard ↔ replay interpolation | Set `billboard.position` same as `point.position` | Existing replay effects work without modification |
+| Billboard ↔ layer visibility | `billboard.show = layerVisible` (identical pattern) | No store changes |
+| Billboard ↔ filter effects | Set per-billboard `show` flag in same filter useEffect | Billboard loop replaces point loop — one-for-one |
 
-Events are manually entered by the user (paste coordinates, timestamp, description, tags) or imported from a JSON file. The system then computes which satellites had line-of-sight over the event location at the event time.
+### Event Handler Coexistence
 
-**New table `osint_events`:**
-```sql
-CREATE TABLE osint_events (
-  id          SERIAL PRIMARY KEY,
-  title       VARCHAR(256) NOT NULL,
-  description TEXT,
-  latitude    DOUBLE PRECISION NOT NULL,
-  longitude   DOUBLE PRECISION NOT NULL,
-  event_time  TIMESTAMPTZ NOT NULL,
-  tags        TEXT[],                -- e.g. ['explosion', 'military', 'ukraine']
-  source_url  VARCHAR(512),
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-```
+| Handler | Owner | Event Type | Canvas |
+|---------|-------|------------|--------|
+| Unified entity click | AircraftLayer.tsx | LEFT_CLICK | viewer.scene.canvas |
+| AOI setter | SatelliteLayer.tsx | RIGHT_CLICK | viewer.scene.canvas |
+| Double-click zoom (NEW) | GlobeView.tsx | LEFT_DOUBLE_CLICK | viewer.scene.canvas |
 
-**Satellite overpass computation:**
-For a given event (lat, lon, time), compute which satellites were visible (elevation > 5°) at that time. This is SGP4 propagation in reverse — propagate all TLEs to `event_time`, compute azimuth/elevation from event location to each satellite, filter by elevation > threshold.
+Multiple ScreenSpaceEventHandler instances on the same canvas are explicitly supported by CesiumJS. Each handler only fires for its registered event type. LEFT_DOUBLE_CLICK and LEFT_CLICK are distinct — no interference. The CesiumJS default LEFT_DOUBLE_CLICK entity-tracking behavior is neutralized by setting `viewer.trackedEntity = undefined` at the start of the new handler.
 
-This computation belongs in the backend (FastAPI route or RQ task) because:
-1. It requires all TLEs (available in PostgreSQL)
-2. It is CPU-intensive (5,000+ satellites × 1 SGP4 propagation each)
-3. The result can be cached by (event_id, satellite_set_version)
+### CameraControlWidget ↔ viewerRegistry
 
-**New router `routes_osint.py`:**
-```
-POST /api/osint/events        — Create event
-GET  /api/osint/events        — List events with filter by tags
-GET  /api/osint/events/{id}   — Get event + computed overpasses
-POST /api/osint/events/{id}/compute-overpasses  — Trigger overpass computation
-```
+| Function | Adds To | Used By |
+|----------|---------|---------|
+| `pitchBy(deltaDeg)` | viewerRegistry.ts | CameraControlWidget.tsx |
+| `zoomStep(factor)` | viewerRegistry.ts | CameraControlWidget.tsx |
+| `flyToLandmark()` (existing) | viewerRegistry.ts | LandmarkNav.tsx |
+| `flyToCartesian()` (existing) | viewerRegistry.ts | SatelliteLayer.tsx |
 
-**Frontend `OSINTEventLayer.tsx`:**
-- Renders event markers as `BillboardCollection` icons
-- On event selection: fetch overpass data from API, render satellite overpass lines as `PolylineCollection` (great-circle arcs from event location to satellite ECEF position at event time)
-- Filter panel by tags (Zustand-driven)
+No prop drilling required — CameraControlWidget is a leaf component that uses the module singleton.
 
-**New components:**
-- `OSINTEventLayer.tsx`
-- `OSINTEventPanel.tsx` — event entry form and list
-- `routes_osint.py`
-- `models/osint_event.py`
-- Alembic migration
+### Z-Index Allocation
 
----
+| Component | Z-Index | Position |
+|-----------|---------|----------|
+| CesiumJS canvas | 0 (implicit) | full viewport |
+| Sidebar panel | 50 | fixed left:0 top:0 |
+| Layer toggle strip | 60 | fixed bottom-left |
+| PostProcessPanel | 75 | fixed top:84 left:12 |
+| PlaybackBar | 79 | fixed bottom |
+| CinematicHUD | 80 | fixed top |
+| TLE stale warning | 80 | fixed bottom-center |
+| **NEW: CameraControlWidget** | **82** | **fixed right:12 top:~200px** |
+| Hamburger button | 85 | fixed top:32 left:12 |
+| LandmarkNav | 90 | fixed top right |
+| OsintEventPanel | 90 | fixed right |
+| RightDrawer | 100 | fixed top:120 right:12 |
+| Error overlay | 999 | fixed inset:0 |
 
-## Recommended Build Order
+CameraControlWidget at z:82 sits above HUD (80) and below LandmarkNav (90). Positioning at right:12px, top:~200px avoids overlap with RightDrawer (top:120px, 240px wide, height auto max 320px) and LandmarkNav (which is also on the right at top:~70px based on its structure).
 
-Dependencies drive the order. Tier 1 and Tier 2 have zero backend dependencies and can ship immediately. Tier 4 has a time dependency — the snapshot recorder must run for several days before replay data is useful.
+### LeftSidebar ↔ useAppStore Changes
 
-### Phase 1: Visual Engine (Tier 1 + Tier 2, no backend) — 1 week
-
-**Build:**
-1. `PostProcessEngine.tsx` + four preset GLSL shaders (NVG, CRT, FLIR, Noir)
-2. `PostProcessPanel.tsx` — preset selector + sliders (bloom, sharpen, gain, scanlines, pixelation)
-3. `CinematicHUD.tsx` + `MGRSReadout.tsx` — coordinate overlay
-4. `LandmarkPanel.tsx` + `landmarks.json` + keyboard shortcuts
-5. `useAppStore` extensions: visualPreset, postProcessUniforms, new layer flags
-
-**Why first:** Zero backend risk, instant visual payoff, demonstrates the platform aesthetic. All work is isolated to frontend.
-
-**Dependency:** Existing `GlobeView.tsx` + viewer pattern already works.
-
-### Phase 2: Tile Overlays (Tier 2) — 0.5 weeks
-
-**Build:**
-6. `WeatherLayer.tsx` — NOAA NEXRAD WMS ImageryProvider
-7. `GPSJamLayer.tsx` — gpsjam CSV fetch + H3 decode + GroundPrimitive polygons
-8. `EarthquakeLayer.tsx` — USGS direct fetch + magnitude-scaled points
-
-**Why second:** No backend changes. Leverages CesiumJS ImageryLayer and PointPrimitive patterns already understood. Adds three visual layers in days.
-
-### Phase 3: New Data Pipelines (Tier 3) — 2 weeks
-
-**Build:**
-9. Military flights backend: `models/military.py` + `ingest_military.py` + `routes_military.py` + Alembic migration
-10. `MilitaryLayer.tsx` frontend
-11. Ships backend: `models/ship.py` + `workers/ingest_ships.py` + `routes_ships.py` + Alembic migration
-12. `MaritimeLayer.tsx` frontend
-13. `TrafficLayer.tsx` + `traffic.worker.ts` — OSM particle simulation
-
-**Why third:** Backend work needed but follows established patterns from v1.0 (same RQ worker model, same route structure). Military and ships are independent of each other — can be parallelized.
-
-### Phase 4: Snapshot Infrastructure (Tier 4 foundation) — 1 week
-
-**Build:**
-14. `models/snapshot.py` + `snapshot_recorder.py` RQ task + Alembic migration
-15. `routes_replay.py` (read-only endpoints, data starts accumulating)
-16. Start recording snapshots — **let it run for 24-48h before building replay UI**
-
-**Why fourth:** The snapshot recorder must be running before replay is useful. Build and deploy it early, let data accumulate while building the replay UI.
-
-### Phase 5: Replay Engine (Tier 4 playback) — 1.5 weeks
-
-**Build:**
-17. `ReplayEngine.ts` — buffer management, interpolation, clock binding
-18. `useReplayStore.ts` — Zustand slice
-19. `TimelinePanel.tsx` — scrubber UI, speed controls
-20. Modify all layer components to respect `replayActive` flag
-
-**Why fifth:** Requires snapshot data (Phase 4 must have been running). The most complex frontend work.
-
-### Phase 6: OSINT Event Correlation (Tier 4 events) — 1 week
-
-**Build:**
-21. `models/osint_event.py` + `routes_osint.py` + overpass computation endpoint
-22. `OSINTEventLayer.tsx` + `OSINTEventPanel.tsx`
-
-**Why sixth:** Depends on satellite data (already in DB). Independent from replay but benefits from being built after the platform is visually complete — it's the "intelligence analyst" feature.
+| Existing Slice | v3.0 Addition |
+|----------------|---------------|
+| `sidebarOpen: boolean` | `sidebarSections: { search: boolean; filters: boolean; layers: boolean; visual: boolean }` |
+| `setSidebarOpen()` | `setSidebarSection(key, value)` |
 
 ---
 
-## Data Flow Diagrams
+## Build Order for Minimal Regression Risk
 
-### Post-Processing Pipeline
+Each step either adds net-new components or makes isolated modifications to one existing file. Steps that touch the most-critical files (AircraftLayer.tsx contains the unified click dispatcher, useAppStore.ts is consumed everywhere) are kept late when patterns are proven.
 
-```
-viewer.scene.render() (CesiumJS internal)
-    ↓
-Raw scene framebuffer (WebGL texture)
-    ↓
-PostProcessStageCollection (ordered pipeline)
-    ├── Stage: preset (NVG/CRT/FLIR/Noir) — if enabled
-    │     fragment shader reads czm_framebufferTexture
-    │     outputs modified color
-    │
-    ├── Stage: bloom (built-in) — enabled/disabled by slider
-    │     uniforms.contrast, uniforms.brightness
-    │
-    ├── Stage: sharpen (custom) — enabled/disabled by slider
-    │
-    ├── Stage: scanlines (custom) — if not already in preset
-    │
-    └── Stage: FXAA (built-in, always last)
-          ↓
-Final composited frame → canvas display
-```
+### Step 1 — Radar Styling + Collapsible Sidebar (CSS/React Only)
 
-**Key constraint:** Preset stages that include scanlines must disable the standalone scanlines stage to avoid double-application. `PostProcessEngine` manages this mutual exclusion.
+**Files:** LeftSidebar.tsx (collapsible sections + radar brackets), useAppStore.ts (add sidebarSections slice), RightDrawer.tsx (radar styling), CinematicHUD.tsx (angular decorations), PostProcessPanel.tsx (styling)
+**Risk:** LOW. Purely visual/layout changes. useAppStore addition is additive — existing slices untouched.
+**Regression surface:** Visual rendering only. No CesiumJS primitives touched. No event handlers touched.
 
-### Replay Data Flow
+### Step 2 — CameraControlWidget + viewerRegistry Helpers
 
-```
-User interaction: drag scrubber to time T
-    ↓
-useReplayStore.seekTo(T)
-    ↓
-ReplayEngine.getPositionsAt(T)?
-  ├── YES (buffer hit) → interpolate between surrounding snapshots
-  └── NO (buffer miss) → fetchChunk(T - 5min, T + 5min) from FastAPI
-                              ↓
-                         GET /api/replay/snapshots?start&end&layers
-                              ↓
-                         SQL: SELECT * FROM layer_snapshots
-                              WHERE layer = ANY(layers)
-                              AND timestamp BETWEEN start AND end
-                              ORDER BY entity_id, timestamp
-                              ↓
-                         JSON response (array of snapshot rows)
-                              ↓
-                         ReplayEngine.bufferChunk(rows)
-    ↓ (either path)
-positions: Map<entity_id, Cartesian3> at time T
-    ↓ (pushed to each layer via replayPositions prop or store slice)
-SatelliteLayer / AircraftLayer / MilitaryLayer / MaritimeLayer
-    ↓
-viewer.scene.primitives — update each point position
-    ↓
-viewer.scene.requestRender()
-```
+**Files:** viewerRegistry.ts (add pitchBy, zoomStep), new CameraControlWidget.tsx, App.tsx (mount in !cleanUI block)
+**Risk:** LOW. viewerRegistry additions are purely additive functions. CameraControlWidget is a new leaf component. App.tsx change is one mount line inside existing !cleanUI block at an unoccupied z-index slot.
+**Regression surface:** Camera movement only. No primitives, no event handlers, no store changes.
 
-### Maritime AIS Proxy Flow
+### Step 3 — Double-Click Zoom in GlobeView
 
-```
-aisstream.io WS server (wss://stream.aisstream.io/v0/stream)
-    ↓ persistent connection
-ingest_ships.py (Python asyncio WebSocket client, runs in worker container)
-    ↓ receives PositionReport messages
-ships PostgreSQL table (upsert on mmsi, update lat/lon/sog/cog/updated_at)
-    ↓
-Redis cache (ships:bbox:{hash}, TTL 30s)
-    ↓
-GET /api/ships?bbox=...
-    ↓ HTTP poll every 30s
-MaritimeLayer.tsx
-    ↓
-PointPrimitiveCollection — update positions
-```
+**Files:** GlobeView.tsx only
+**Risk:** LOW-MEDIUM. Modifies a critical init file but change is additive — registers a new ScreenSpaceEventHandler after viewer construction, inside the same initViewer() async closure. Follows the established _cleanup pattern for the wheel handler. LEFT_DOUBLE_CLICK is a distinct event type and does not fire on single-click entity picks.
+**Regression surface:** Camera navigation. Verify no conflict with LEFT_CLICK entity selection (different event type).
 
-**Why proxy is required:** aisstream.io requires an API key. Browser JS cannot securely hold an API key. The backend is the correct secret holder.
+### Step 4 — BillboardCollection for Ships
+
+**Files:** ShipLayer.tsx only
+**Risk:** MEDIUM. First BillboardCollection introduction. Ships are the simplest layer: no lerp, no worker, no trail, slow-moving. Validate: billboards appear, pick IDs match, layer toggle works, replay interpolation works.
+**Strategy:** Parallel collections — keep PointPrimitiveCollection with show=false. Rollback = flip show flags.
+**Regression surface:** Ship click → detail panel → replay.
+
+### Step 5 — BillboardCollection for Military Aircraft
+
+**Files:** MilitaryAircraftLayer.tsx only
+**Risk:** MEDIUM. Identical pattern to Step 4 (no lerp, no trail). Pattern now validated from Step 4.
+**Regression surface:** Military click → detail panel → replay.
+
+### Step 6 — BillboardCollection for Aircraft
+
+**Files:** AircraftLayer.tsx only
+**Risk:** MEDIUM-HIGH. Most complex layer: lerp animation loop, trail polyline, replay interpolation, AND the unified LEFT_CLICK dispatcher. Billboard position must be updated inside the rAF lerp loop (same frame as point.position).
+**Strategy:** Update both point.position and billboard.position in the lerp loop simultaneously until validated. After validation, remove point updates. The click dispatcher is not touched — it reads picked.id which is the same for both billboard and point.
+**Regression surface:** Lerp animation smoothness, trail rendering, aircraft click → detail panel, replay interpolation. The click dispatcher — the riskiest component in the codebase.
+
+### Step 7 — BillboardCollection for Satellites
+
+**Files:** SatelliteLayer.tsx only
+**Risk:** MEDIUM. Largest entity count (~5,000). The POSITIONS worker message handler writes to every point per frame — must also write to every billboard per frame. scaleByDistance is most important here (satellites are viewed from very high altitude). At 5,000 entities BillboardCollection is safe (Cesium docs confirm problems begin at 50,000+).
+**Regression surface:** Satellite rendering at full load, filter effects, orbit display, overpass arcs, replay.
+
+### Step 8 — Remove PointPrimitiveCollections
+
+**Files:** All four *Layer.tsx files
+**Risk:** LOW (at this point). After all billboard layers are validated across all regression checks, remove the now-hidden PointPrimitiveCollections and their update loops. Clean build, single collection per layer.
+**Regression surface:** Full layer regression.
 
 ---
 
-## New vs Modified Components Summary
+## Anti-Patterns
 
-### New Frontend Components
+### Anti-Pattern 1: Registering Double-Click in AircraftLayer
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| PostProcessEngine | `components/PostProcessEngine.tsx` | Manages CesiumJS PostProcessStage lifecycle |
-| PostProcessPanel | `components/PostProcessPanel.tsx` | Preset selector + sliders UI |
-| CinematicHUD | `components/CinematicHUD.tsx` | Tactical overlay (classification, coords, telemetry) |
-| MGRSReadout | `components/MGRSReadout.tsx` | Camera position in MGRS / lat-lon |
-| MilitaryLayer | `components/MilitaryLayer.tsx` | Military aircraft primitives |
-| MaritimeLayer | `components/MaritimeLayer.tsx` | AIS vessel primitives |
-| EarthquakeLayer | `components/EarthquakeLayer.tsx` | USGS earthquake points |
-| WeatherLayer | `components/WeatherLayer.tsx` | NOAA NEXRAD ImageryLayer |
-| GPSJamLayer | `components/GPSJamLayer.tsx` | GPS jamming heatmap polygons |
-| TrafficLayer | `components/TrafficLayer.tsx` | OSM road particle simulation |
-| LandmarkPanel | `components/LandmarkPanel.tsx` | City/landmark navigation UI |
-| TimelinePanel | `components/TimelinePanel.tsx` | 4D replay scrubber + controls |
-| OSINTEventLayer | `components/OSINTEventLayer.tsx` | OSINT event markers + overpass lines |
-| OSINTEventPanel | `components/OSINTEventPanel.tsx` | Event entry form and list |
-| ReplayEngine | `lib/ReplayEngine.ts` | Snapshot buffer + playback state machine |
-| useReplayStore | `store/useReplayStore.ts` | Zustand slice for replay state |
-| landmarks.json | `data/landmarks.json` | Curated landmark coordinates |
+**What people do:** Add LEFT_DOUBLE_CLICK to the existing ScreenSpaceEventHandler in AircraftLayer because it already handles all clicks.
+**Why it's wrong:** AircraftLayer is a render-null component with a `viewer` prop dependency. Navigation input (zoom toward cursor) is viewer-level, not entity-selection-level. Mixing navigation and entity selection in the same handler conflates two distinct concerns. GlobeView already owns the custom wheel handler — double-click belongs alongside it.
+**Do this instead:** Add double-click handler in GlobeView.tsx initViewer() alongside the wheel handler.
 
-### New Web Workers
+### Anti-Pattern 2: One Canvas Per Billboard
 
-| Worker | File | Purpose |
-|--------|------|---------|
-| GPS Jam decoder | `workers/gps_jam.worker.ts` | H3 hex decode + color mapping |
-| Traffic particle | `workers/traffic.worker.ts` | OSM road particle simulation |
+**What people do:** Generate a new `document.createElement('canvas')` or `URL.createObjectURL(blob)` per entity on each data update.
+**Why it's wrong:** BillboardCollection shares GPU textures only for billboards with identical `image` references. A new canvas per entity forces a new TextureAtlas entry per entity — at 5,000 satellites this exhausts the TextureAtlas size limit, causing GPU allocation failures.
+**Do this instead:** Create one canvas per entity type at layer mount time in a module-scope variable. Pass the same canvas reference to every billboard.add() call.
 
-### Modified Frontend Components
+### Anti-Pattern 3: Removing PointPrimitiveCollections Before Billboard Validation
 
-| Component | Change |
-|-----------|--------|
-| `useAppStore.ts` | Add `visualPreset`, `postProcessUniforms`, `layers.military/ships/earthquakes/weather/gpsJam/traffic`, `replayActive` |
-| `App.tsx` | Mount new layer components, HUD, PostProcessEngine, TimelinePanel |
-| `AircraftLayer.tsx` | Extend click dispatcher for military + ship primitive ID namespaces; add replay position override |
-| `SatelliteLayer.tsx` | Add replay position override (when `replayActive`, use snapshot positions instead of worker propagation) |
+**What people do:** Remove PointPrimitiveCollection in the same commit as adding BillboardCollection.
+**Why it's wrong:** If billboard rendering, picking, or replay has a bug, there is no rollback path without reverting commits. The PointPrimitiveCollection removal is irreversible within a running session.
+**Do this instead:** Keep both collections in parallel with points hidden. Validate fully across all regression scenarios. Remove points in a separate step.
 
-### New Backend Files
+### Anti-Pattern 4: Viewer Prop on CameraControlWidget
 
-| File | Purpose |
-|------|---------|
-| `models/military.py` | MilitaryAircraft SQLAlchemy model |
-| `models/ship.py` | Ship SQLAlchemy model |
-| `models/snapshot.py` | LayerSnapshot time-series model |
-| `models/osint_event.py` | OSINTEvent SQLAlchemy model |
-| `api/routes_military.py` | Military aircraft API endpoints |
-| `api/routes_ships.py` | Ships API endpoints |
-| `api/routes_replay.py` | Replay snapshot query endpoints |
-| `api/routes_osint.py` | OSINT event CRUD + overpass computation |
-| `tasks/ingest_military.py` | ADSB Exchange ingestion RQ task |
-| `workers/ingest_ships.py` | AISstream WebSocket consumer |
-| `tasks/snapshot_recorder.py` | Periodic snapshot archival RQ task |
+**What people do:** `<CameraControlWidget viewer={cesiumViewer} />` because cesiumViewer state lives in App.tsx.
+**Why it's wrong:** The codebase already has a standard pattern for components that make imperative camera calls: use viewerRegistry. LandmarkNav calls flyToLandmark() without a viewer prop. Inconsistency confuses future developers about which pattern to follow.
+**Do this instead:** CameraControlWidget calls pitchBy()/zoomStep() from viewerRegistry — no prop required.
 
-### Modified Backend Files
+### Anti-Pattern 5: Sidebar Section State as Local useState
 
-| File | Change |
-|------|--------|
-| `app/main.py` | Register four new routers |
-| `alembic/versions/` | New migration: military, ships, snapshots, osint_events tables |
+**What people do:** Track section collapse state with `useState` inside LeftSidebar.
+**Why it's wrong:** When `sidebarOpen` becomes false (sidebar closes) and then true again, local state resets — all sections re-expand. Users who collapsed FILTERS will see it forcibly re-expanded on every sidebar toggle.
+**Do this instead:** Put sidebarSections in useAppStore. Collapsed state persists across sidebar open/close cycles.
+
+### Anti-Pattern 6: Using setView() on Camera Without Preserving Position
+
+**What people do:** `camera.setView({ orientation: { heading, pitch, roll } })` expecting it only rotates the camera.
+**Why it's wrong:** `setView()` without a `destination` moves the camera to `undefined` behavior — it can relocate the camera to the origin or to the last set destination.
+**Do this instead:** In pitchBy(), explicitly pass the current camera position as destination along with the new orientation, or use `camera.rotate*` methods that modify orientation without changing position.
 
 ---
 
-## Anti-Patterns to Avoid
+## Scaling Considerations
 
-### Anti-Pattern 1: Creating PostProcessStage Objects on Preset Switch
-
-**What people do:** Destroy and recreate `PostProcessStage` objects every time the user changes presets.
-**Why it's wrong:** CesiumJS must recompile GLSL shaders on stage creation. This causes a visible frame drop (50-200ms stall) on each preset switch.
-**Do this instead:** Create all preset stages at init time, set `stage.enabled = false` on all, then enable only the active one. Switching presets is then just two boolean assignments.
-
-### Anti-Pattern 2: Running SGP4 Propagation in the Main Thread for Replay
-
-**What people do:** On replay scrub, propagate all 5,000 satellite TLEs on the main thread at the target timestamp.
-**Why it's wrong:** 5,000 SGP4 propagations take ~50ms on main thread, causing visible jank.
-**Do this instead:** Replay for satellites uses pre-recorded snapshots from `layer_snapshots` table (taken every 60s by `snapshot_recorder`). The accuracy tradeoff (60s granularity vs real-time) is acceptable for OSINT replay.
-
-### Anti-Pattern 3: Frontend Direct WebSocket to aisstream.io
-
-**What people do:** Connect the browser directly to `wss://stream.aisstream.io/v0/stream` with the API key in JavaScript source.
-**Why it's wrong:** API key is exposed in browser DevTools, violating aisstream.io terms and security requirements.
-**Do this instead:** Backend worker maintains the WS connection, stores vessel positions in PostgreSQL, frontend polls the backend REST API.
-
-### Anti-Pattern 4: Fetching the Full OSM Road Network Globally
-
-**What people do:** Fetch all highways globally from Overpass API on app init.
-**Why it's wrong:** Overpass API times out on large queries; global highway data is gigabytes.
-**Do this instead:** Fetch only when camera altitude is below ~500km threshold, fetch only the visible bbox, cache the result for the session. Show an empty layer at high zoom.
-
-### Anti-Pattern 5: Storing Snapshot Rows for Every Frame
-
-**What people do:** Record snapshots at 1 Hz to get smooth replay.
-**Why it's wrong:** At 60s intervals, 5,000 satellites + 3,000 aircraft generates ~480,000 rows/day. At 1 Hz that is 7-day storage of 2.88 billion rows — PostgreSQL table bloat, query degrades.
-**Do this instead:** 60s snapshot interval (interpolation between snapshots handles smooth playback). For replay, lerp positions between consecutive snapshots. This gives acceptable visual quality with manageable storage.
-
-### Anti-Pattern 6: Stacking Multiple ScreenSpaceEventHandlers for New Layers
-
-**What people do:** Add a new `ScreenSpaceEventHandler` for each new layer (MilitaryLayer, MaritimeLayer) to handle clicks.
-**Why it's wrong:** v1.0 learned this lesson — dual handlers cause race conditions where both handlers call `scene.pick()` independently and both handle the same click.
-**Do this instead:** The existing unified click dispatcher in `AircraftLayer.tsx` already handles this correctly. Extend it to recognize military (`"mil_" + icao24`) and ship (`"ship_" + mmsi`) ID namespaces.
-
----
-
-## Integration Points Summary
-
-### External Services
-
-| Service | Integration Pattern | Frontend/Backend | Notes |
-|---------|---------------------|-----------------|-------|
-| ADSB Exchange API | RQ worker polls REST every 60s | Backend proxy (API key hidden) | RapidAPI personal tier; military flag in response |
-| aisstream.io | Backend asyncio WS consumer | Backend proxy (API key hidden) | WebSocket-only, bbox subscription |
-| USGS Earthquake GeoJSON | Frontend direct fetch every 5 min | Frontend-direct | CORS enabled, no auth required |
-| NOAA NEXRAD WMS | CesiumJS `WebMapServiceImageryProvider` | Frontend-direct | Iowa Environmental Mesonet proxy |
-| gpsjam.org CSV | Frontend direct fetch (daily) | Frontend-direct | No official API; CSV from known URL pattern |
-| OpenStreetMap Overpass | Frontend direct fetch on viewport change | Frontend-direct | CORS enabled, bbox-scoped queries only |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| PostProcessEngine ↔ GlobeView | `viewer` ref passed as prop | Engine reads `viewer.scene.postProcessStages` |
-| ReplayEngine ↔ Layer components | Zustand `replayActive` + `replayPositions` store slice | Layers poll store, not direct coupling |
-| traffic.worker ↔ TrafficLayer | `postMessage` with transferable `Float64Array` | Same zero-copy pattern as propagation.worker |
-| gps_jam.worker ↔ GPSJamLayer | `postMessage` with polygon coordinate arrays | Worker outputs GroundPrimitive-ready data |
-| ingest_ships ↔ PostgreSQL | SQLAlchemy async session in worker process | Ships table upsert on MMSI |
-| snapshot_recorder ↔ all models | Direct async DB queries inside RQ task | Reads aircraft/military/ships tables, writes snapshots |
+| Scenario | Architecture Adjustment |
+|----------|------------------------|
+| Current counts (5K sats, 1K aircraft) | BillboardCollection fully viable; one canvas per type avoids TextureAtlas overflow |
+| Satellite count grows to 50K | Switch satellites back to PointPrimitiveCollection for that layer; keep billboards for aircraft/ships/military |
+| Complex SVG icons needed | Keep SVGs simple — no `<image>` tags, no `<filter>` elements (CesiumJS bug #8002 affects embedded images); use Canvas 2D paths as fallback |
+| Mobile/tablet viewport | CameraControlWidget and collapsible sidebar sizing already uses `min(280px, calc(100vw - 24px))` pattern from LeftSidebar — follow same responsive approach |
 
 ---
 
 ## Sources
 
-### High Confidence (Official Documentation)
-
-- [CesiumJS PostProcessStage](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStage.html)
-- [CesiumJS PostProcessStageCollection](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageCollection.html)
-- [CesiumJS PostProcessStageLibrary](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageLibrary.html)
-- [CesiumJS WebMapServiceImageryProvider](https://cesium.com/learn/ion-sdk/ref-doc/WebMapServiceImageryProvider.html)
-- [USGS GeoJSON Earthquake Feed Format](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php)
-- [Iowa Environmental Mesonet NEXRAD WMS](https://mesonet.agron.iastate.edu/docs/nexrad_mosaic/)
-- [aisstream.io WebSocket API Documentation](https://aisstream.io/documentation)
-
-### Medium Confidence (Community-Verified Patterns)
-
-- [ADSB Exchange Data Page](https://www.adsbexchange.com/data/) — military flag availability confirmed
-- [gpsjam.org FAQ](https://gpsjam.org/faq) — no official API; CSV-per-day structure confirmed via GitHub repo
-- [gpsjam.org GitHub (guofengji)](https://github.com/guofengji/gpsjam.org) — "each day of data is in one CSV file"
-- [OpenStreetMap Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) — bbox highway query pattern
-- [h3-js library](https://github.com/uber/h3-js) — H3 cell decode for GPS jam visualization
-
-### Low Confidence (Requires Validation)
-
-- gpsjam.org CSV URL format (`/geo/all-{YYYY-MM-DD}.csv`) — **inferred from Express app structure, not documented. Validate by inspecting browser network tab at gpsjam.org before coding.**
-- ADSB Exchange `/v2/mil/` endpoint for military-only global query — verify against current RapidAPI docs before use; pricing implications unknown.
+- [CesiumJS Billboard API](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html) — image property accepts canvas, scaleByDistance/NearFarScalar confirmed (HIGH confidence)
+- [CesiumJS BillboardCollection API](https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Documentation/BillboardCollection.html) — texture sharing, performance guidance (HIGH confidence)
+- [CesiumJS Performance Tips for Points](https://cesium.com/blog/2016/03/02/performance-tips-for-points/) — PointPrimitive vs BillboardCollection benchmarks: BillboardCollection problems begin at ~50K entities (MEDIUM confidence — 2016, still referenced as authoritative)
+- [CesiumJS Camera API](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html) — pitch/heading/roll via setView, camera.pitch readable property, rotateUp/Down methods (HIGH confidence)
+- [CesiumJS ScreenSpaceEventHandler](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — setInputAction, LEFT_DOUBLE_CLICK override pattern (HIGH confidence)
+- [CesiumJS community: double-click zoom like Google Earth](https://community.cesium.com/t/zoom-in-on-left-double-click-like-google-earth/7111) — pickPosition + flyTo pattern, trackedEntity = undefined override (MEDIUM confidence)
+- [CesiumJS SVG billboard bug #8002](https://github.com/CesiumGS/cesium/issues/8002) — embedded image tags in SVG fail silently (HIGH confidence)
+- Direct codebase analysis: GlobeView.tsx, AircraftLayer.tsx, SatelliteLayer.tsx, ShipLayer.tsx, MilitaryAircraftLayer.tsx, LeftSidebar.tsx, App.tsx, useAppStore.ts, viewerRegistry.ts (HIGH confidence — authoritative)
 
 ---
 
-*Architecture research for: OpenSignal Globe v2.0 WorldView Parity*
-*Researched: 2026-03-11*
-*Confidence: HIGH for CesiumJS integration patterns, MEDIUM for external data source formats, LOW for undocumented endpoints (gpsjam.org CSV URL, ADSB Exchange military endpoint)*
+*Architecture research for: Intelligence Globe v3.0 UI Refinement*
+*Researched: 2026-03-12*

@@ -1,268 +1,198 @@
 # Pitfalls Research
 
-**Domain:** CesiumJS/FastAPI geospatial intelligence platform — v2.0 WorldView Parity feature additions to an existing system
-**Researched:** 2026-03-11
-**Confidence:** HIGH (CesiumJS rendering pipeline, PostgreSQL partitioning, AIS/USGS APIs), MEDIUM (ADSB Exchange auth change, gpsjam.org data access method), LOW (NOAA nowcoast rate limits — no published SLA found)
+**Domain:** CesiumJS/React geospatial intelligence platform — v3.0 UI Refinement additions to existing Primitive API renderer
+**Researched:** 2026-03-12
+**Confidence:** HIGH (CesiumJS rendering pipeline, ScreenSpaceEventHandler behavior, CSS animation performance), MEDIUM (billboard selection pick behavior with mixed collection types), LOW (tilt widget z-index conflicts — no authoritative CesiumJS documentation found for custom widget positioning guarantees)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Post-Processing Stages Apply to the Entire Scene — Including All Existing v1.0 Primitives
+### Pitfall 1: PointPrimitive-to-Billboard Migration Breaks Existing Unified Click Handler
 
 **What goes wrong:**
-CesiumJS post-processing (`PostProcessStageCollection`) operates on the final composited frame texture — not on individual layers or primitives. Adding an NVG green-tint or CRT scanline stage immediately desaturates or tints the entire scene: ESRI World Imagery, satellite points, aircraft trails, atmosphere, and the skybox all get the same effect. There is no built-in mechanism to apply a post-process stage to a subset of the scene. The `selected` array on `PostProcessStage` has documented limitations and partial implementation in the official GitHub tracker.
+The existing `AircraftLayer.tsx` implements a single unified `ScreenSpaceEventHandler` on `LEFT_CLICK` that dispatches across all entity types (satellites, aircraft, military, ships) by inspecting the `picked.id` string prefix (`mmsi:`, `mil:`, bare ICAO24, numeric NORAD). When `PointPrimitiveCollection` entries are replaced with `BillboardCollection` entries, `scene.pick()` returns a different object shape. For `PointPrimitive`, `picked.id` is a bare string or number. For `Billboard`, the same `id` field is returned — but the pick result also includes a `primitive` property pointing to the `Billboard` instance rather than the `PointPrimitive`. Code that pattern-matches on `typeof picked.id === 'number'` for satellites or `picked.id.startsWith('mmsi:')` for ships continues working because billboard `.id` is set identically. However, if any billboard shares an id with any point in a partially-migrated scene (during incremental migration where some layers are points and some are billboards), two primitives with the same `id` value will cause the wrong detail panel to open on click.
 
-Additionally, CesiumJS 1.121 (September 2024) changed the default tonemapper from ACES to PBR Neutral Tonemap and enabled 4x MSAA by default. If the project bundles an older CesiumJS version, enabling HDR stages will interact with the old ACES tonemapper and produce incorrect luminance. If the project is already on 1.121+, the new tonemapper interacts with custom bloom in ways that override the `exposure` property unless it is explicitly re-set.
+The more dangerous failure: if the new `BillboardCollection` is added to `viewer.scene.primitives` but the old `PointPrimitiveCollection` for the same layer is not removed, both will be visible and both will be pickable. A click on a co-located ship position will hit the topmost primitive (billboard), but the old point is still underneath and may be picked during drillPick operations or in edge-case overlay situations.
 
 **Why it happens:**
-Developers assume post-processing can be scoped per-layer or per-layer-type. It cannot. The v1.0 codebase never needed post-processing, so there is no abstraction layer for it in `GlobeView.tsx`.
+Billboard migration is done incrementally — one layer at a time. The old collection is not immediately removed because developers want a visual comparison. The unified handler in `AircraftLayer.tsx` was written to handle point-only primitives and is not tested against mixed collections.
 
 **How to avoid:**
-- Build a `PostProcessManager` singleton before writing any preset code. It owns all stage instances and exposes `setPreset(name)` as the only public interface.
-- Implement each preset as a `PostProcessStageComposite` with named uniform functions evaluated per-frame (not stale closures). Swap presets atomically by enabling one composite and disabling the others.
-- Explicitly query and store the viewer's pre-existing HDR/tonemapper state on init and restore it when switching to the "Normal" preset.
-- Disable the built-in FXAA (`viewer.scene.postProcessStages.fxaa.enabled = false`) before enabling custom anti-aliasing to prevent double-pass aliasing.
-- Test every preset on the live v1.0 scene (5,000+ satellites + aircraft + ESRI imagery) — not on an empty sandcastle demo.
+- Remove the `PointPrimitiveCollection` from `viewer.scene.primitives` in the same effect that adds the `BillboardCollection`. Never let both exist simultaneously for the same layer.
+- After adding billboard support, verify the unified click handler in `AircraftLayer.tsx` against all four id schemes (`mmsi:`, `mil:`, bare ICAO24, numeric NORAD) using billboards — not just points.
+- Use the existing id-prefix convention unchanged. Billboard `.id` should be set to exactly the same string as the point `.id` it replaces.
+- Add a guard: if `collectionRef.current instanceof PointPrimitiveCollection`, destroy it before creating `BillboardCollection`. Do not store both in the same ref.
 
 **Warning signs:**
-- Globe imagery appears monochromatic or tinted after adding any preset (scope bleed).
-- Satellite points lose their color accent (BlendOption.OPAQUE interaction with color-matrix stages).
-- Frame rate drops from 60 to 30 immediately on preset switch (too many concurrent active stages).
-- Switching presets in quick succession leaves orphan stages visible.
+- Clicking an aircraft opens a ship detail panel, or vice versa.
+- Clicking an entity opens no panel despite the click landing visibly on an icon.
+- `viewer.scene.primitives.length` unexpectedly doubles after the migration step.
+- Two icons are visible at the same lat/lon for the same entity during the transition.
 
-**Phase to address:** Visual Style Presets (VIS-01 to VIS-05). This must be the first v2.0 feature phase so all subsequent layers are built and tested within an established post-processing context.
+**Phase to address:** Custom SVG Billboard Icons (ICONS-01 through ICONS-04). Each layer migration must be a single atomic commit that removes the old collection and adds the new one. Migration must not be left in a "both exist" state across commits.
 
 ---
 
-### Pitfall 2: Post-Processing Uniform Functions Capture Stale State
+### Pitfall 2: BillboardCollection Texture Atlas Exceeds GPU Limit When SVG Images Are Unique Per Entity
 
 **What goes wrong:**
-CesiumJS evaluates `PostProcessStage` `uniforms` as either a constant value or a function called once per frame. If the uniform is set as a direct property value (not a function), it captures the value at the time of stage creation and does not reflect slider changes. The effect appears in place but is permanently frozen at the initial value, making all sliders non-functional despite correct React state updates.
+CesiumJS `BillboardCollection` maintains a single shared `TextureAtlas` that packs all billboard images into one GPU texture. The atlas grows as unique images are added. If each billboard uses a different SVG (e.g., SVGs that embed the aircraft callsign as text, or SVGs that change color per entity), the atlas accumulates one unique entry per entity and never reclaims space for removed billboards. With 5,000+ satellites or 2,000+ ships, the atlas exceeds the maximum texture size (16,384 pixels wide on most WebGL implementations) and CesiumJS throws `DeveloperError: Width must be less than or equal to the maximum texture size`, causing all billboards to stop rendering.
+
+Even with a fixed set of 4 icon types (satellite, aircraft, military, ship), if SVG strings are generated dynamically per entity (e.g., `billboard.image = buildSvg(entity.callsign)` called on every data refresh), the atlas accumulates new entries on every update cycle because the image URL or data URI string is treated as a new unique entry on each refresh.
 
 **Why it happens:**
-The CesiumJS documentation shows both constant and function-style uniforms. Developers naturally write `uniforms: { intensity: sliderValue }` where `sliderValue` is a variable, not realizing this is evaluated once at object creation, not per-frame.
+Developers write per-entity SVG generation thinking it provides rich entity-specific icons. The TextureAtlas caches by image identifier (the string passed to `billboard.image`). A new string = a new atlas entry, even if the rendered SVG looks identical to a previous one.
 
 **How to avoid:**
-Uniforms for controllable effects must be functions that read from a shared mutable ref or store at call time:
-```
-uniforms: {
-  intensity: () => storeRef.current.bloomIntensity,
-}
-```
-Keep a single `uniformsRef` object per stage and update its properties directly — do not recreate the stage when slider values change.
+- Use a small, fixed set of icon types (4 icons maximum: satellite, aircraft, military, ship). Pre-load these as named image IDs before adding any billboards. Do not generate per-entity SVG strings.
+- Set `billboard.image` once at creation time to a stable URL or data URI (e.g., `'icons/satellite.svg'`). Never update `billboard.image` on data refresh — only update `billboard.position`, `billboard.show`, and `billboard.scale`.
+- If icon states differ (selected vs. unselected), use `billboard.color` tinting with a fixed base image rather than switching to a different image.
+- Use `billboard.id` for identity, not `billboard.image`. The image must be stable.
+- If icon variants are unavoidable, pre-register all variants with `billboardCollection._textureAtlas` before adding any billboards.
 
 **Warning signs:**
-- Slider moves in UI but visual effect does not change.
-- The effect changes once on first slider move, then stops responding.
-- `uniforms` is assigned with a non-function value that reads a React state variable.
+- `DeveloperError: Width must be less than or equal to the maximum texture size` in the browser console.
+- Memory usage growing continuously as the app runs.
+- `billboard.image` is being set in any code path that runs more than once per billboard lifetime.
+- SVG string construction in a data-refresh `useEffect`.
 
-**Phase to address:** Post-Processing Parameter Sliders (VIS-05).
+**Phase to address:** Custom SVG Billboard Icons (ICONS-01 through ICONS-04). Icon design must be finalized as a static set before implementation starts. No per-entity SVG generation.
 
 ---
 
-### Pitfall 3: Snapshot Storage for 4D Replay Grows Unboundedly and Kills the PostgreSQL Instance
+### Pitfall 3: Double-Click Zoom Fires the Existing LEFT_CLICK Entity Selection Handler
 
 **What goes wrong:**
-A naive replay implementation stores one row per tracked entity per polling cycle. With satellites (5,000+), aircraft (hundreds), ships (thousands in coastal AIS coverage zones), earthquakes, and weather polling at 10–300 second intervals, the snapshot table can accumulate 100M+ rows within 1–2 weeks on a homelab VPS. A single un-partitioned `snapshots` table causes sequential scans on replay queries ("give me all entities at time T"), autovacuum falls behind on dead-tuple cleanup from continuous upserts, and the entire PostgreSQL instance eventually becomes unresponsive.
+CesiumJS fires both `LEFT_CLICK` and `LEFT_DOUBLE_CLICK` events when a user double-clicks. The existing unified click handler in `AircraftLayer.tsx` is registered on `ScreenSpaceEventType.LEFT_CLICK`. When the user double-clicks to trigger the new "zoom toward cursor" behavior (NAV-01), the `LEFT_CLICK` handler fires first (selecting whatever entity is under the cursor), then `LEFT_DOUBLE_CLICK` fires for the zoom action. The result: double-clicking the globe to zoom also opens a ship/aircraft/satellite detail panel for whatever is under the cursor.
 
-The failure mode is insidious: the app works fine for the first few days of development, then replay queries start timing out at week two, then the whole DB becomes sluggish. Retroactively partitioning a live production table requires taking the app offline.
+This is a confirmed CesiumJS behavior documented in GitHub issue #1171. It is not a bug that will be fixed — it is an intentional design where double-click is composed of two single clicks at the platform event level.
+
+Additionally, CesiumJS has a built-in default `LEFT_DOUBLE_CLICK` handler registered on `viewer.cesiumWidget.screenSpaceEventHandler` that calls `viewer.zoomTo()` on the picked entity if one exists. If a custom `LEFT_DOUBLE_CLICK` handler is added to a separate `ScreenSpaceEventHandler`, both will fire — the custom zoom and the built-in entity-tracking zoom. The camera will animate in two conflicting directions.
 
 **Why it happens:**
-Each new data layer added multiplies snapshot row generation. A schema designed for one layer does not account for five simultaneous ones. Developers focus on getting data flowing first and defer storage architecture decisions.
+CesiumJS `ScreenSpaceEventHandler.setInputAction` can only register one handler per event type per handler instance. Developers create a second handler for `LEFT_DOUBLE_CLICK` without removing the built-in one on `viewer.cesiumWidget.screenSpaceEventHandler`. The LEFT_CLICK/LEFT_DOUBLE_CLICK co-firing is a platform-level behavior that persists regardless of how many handlers are added.
 
 **How to avoid:**
-- Use **range-partitioned tables** by `snapshot_time` with daily partitions from the start. Dropping a partition (`DROP TABLE snapshots_2026_03_10`) is instant and lock-free versus deleting millions of rows.
-- Implement a **retention RQ job** that drops partitions older than a configurable number of days per layer (earthquake data has different useful life than aircraft position data).
-- Store **layer-specific snapshot tables** (`snapshots_aircraft`, `snapshots_ships`, etc.) rather than a polymorphic `snapshots` table — simpler queries, independent retention, and smaller per-layer indexes.
-- Use **delta snapshots** for high-frequency entities: only write changed fields between cycles, not full state.
-- Index on `(entity_id, snapshot_time)` and `(snapshot_time)` separately; avoid composite indexes that prevent partition pruning.
+- Remove the built-in double-click handler before adding a custom one:
+  `viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOUBLE_CLICK);`
+- To prevent LEFT_CLICK from firing during a double-click: implement a debounce/delay on the LEFT_CLICK handler. A 200–250ms delay before acting on a single click is long enough to detect if a second click arrives (converting to double-click). If a second click arrives within the delay, cancel the single-click action.
+- Alternatively, track a `lastClickTime` timestamp in a ref and skip single-click action if it was within 250ms of the previous click.
+- The debounce introduces a 200ms single-click latency — acceptable for entity selection (selection is not time-critical), unacceptable for rapid rapid successive selections. Choose the tradeoff explicitly.
 
 **Warning signs:**
-- `pg_database_size()` growing faster than 500 MB/day.
-- `SELECT count(*) FROM snapshots` takes more than 200ms.
-- `autovacuum_count` on the snapshots table is consistently high in `pg_stat_user_tables`.
-- Replay query "what was at T" takes more than 1 second.
+- Double-clicking the globe zooms in but also opens a detail panel.
+- Double-clicking near an entity triggers both zoom and panel open.
+- Camera zooms to entity and camera zooms toward cursor both animate simultaneously.
+- `viewer.cesiumWidget.screenSpaceEventHandler` has an active `LEFT_DOUBLE_CLICK` action alongside a custom handler.
 
-**Phase to address:** 4D Historical Replay (REP-01). Partition schema must be designed before any snapshot data starts flowing — retrofitting is painful and requires downtime.
+**Phase to address:** Double-Click Zoom (NAV-01). The LEFT_CLICK debounce and the removal of the built-in double-click handler must be implemented as a single unit. Do not add LEFT_DOUBLE_CLICK without addressing the co-fire.
 
 ---
 
-### Pitfall 4: ADSB Exchange Is Now Fully Paid via RapidAPI With a Tight Monthly Request Budget
+### Pitfall 4: Billboard scaleByDistance NearFarScalar Causes Visible Size Jump at Altitude Boundaries
 
 **What goes wrong:**
-ADS-B Exchange discontinued its freemium RapidAPI service in March 2025. Access now requires a paid RapidAPI subscription: the Basic plan is $10/month with 10,000 requests/month (approximately 333/day or one request every 4.3 minutes maximum). The authentication pattern is an `X-RapidAPI-Key` header with a UUID — entirely different from the existing OpenSky OAuth2 Bearer token pattern already in the v1.0 codebase. Any test code that makes rapid debugging requests or polls at less than 5-minute intervals will exhaust the monthly budget within days of development.
+CesiumJS `Billboard.scaleByDistance` accepts a `NearFarScalar(nearDistance, nearValue, farDistance, farValue)`. The billboard scale is clamped to `nearValue` for distances below `nearDistance` and clamped to `farValue` for distances above `farDistance`. When the camera altitude crosses either boundary during continuous zoom, the billboard scale snaps discontinuously — a visible "pop" in icon size rather than a smooth transition. This is documented in GitHub issue #8196 and #10522; the interpolation is not linear, and the clamping behavior at boundaries is abrupt.
 
-Additionally, the old "ADSBx Flight Sim Traffic API" endpoint referenced in pre-2025 community posts and gists is discontinued. Code using those endpoint URLs will receive 404 or redirect responses.
+With 5,000+ satellites all using the same `scaleByDistance`, every entity simultaneously pops at the same altitude. The visual effect is a whole-scene size flash that appears broken to the user.
 
 **Why it happens:**
-Pre-2025 GitHub examples and forum posts reference the old free endpoint. The RapidAPI migration happened during active development of other v1.0 features. The different auth pattern surprises developers expecting OpenSky-style OAuth2.
+The `NearFarScalar` near/far boundaries are set as absolute camera distances in meters. Developers set these based on intuition or small test scenes without testing continuous zoom from 20,000 km (full globe) down to 500 km (regional). The abrupt clamp is not visible in sandcastle demos that don't zoom continuously.
 
 **How to avoid:**
-- Register for RapidAPI and obtain the key before writing any ADSB Exchange code.
-- Build a `MilitaryFlightSource` abstraction in the backend (separate from `AircraftSource`) so the data source can be swapped without touching the scheduler.
-- Cache all ADSB Exchange responses in Redis with a minimum 300-second TTL (5 minutes).
-- Log the daily request count in the poller. Emit a warning when within 50 requests of the daily budget.
-- Keep ADSB Exchange credentials in `ADSB_EXCHANGE_API_KEY` env var, never in application code.
+- Set `nearDistance` and `farDistance` to span the full practical altitude range in one smooth region (e.g., `nearDistance: 1e5` at 100 km, `farDistance: 2e7` at 20,000 km). Avoid a narrow transition band that the camera crosses quickly during normal zoom gestures.
+- Use `nearValue` and `farValue` that are close in ratio (e.g., `1.0` to `0.3`) rather than extreme ranges (e.g., `2.0` to `0.05`) to minimize the visual impact when boundaries are crossed.
+- As an alternative, compute scale as a JavaScript function in the per-frame loop using `viewer.camera.positionCartographic.height` rather than relying on the built-in `scaleByDistance`. This gives full control over the interpolation curve and eliminates clamping artifacts.
+- Test zoom from maximum globe altitude (20,000 km) to minimum street-level altitude (500 m) in a single continuous gesture before finalizing scale parameters.
 
 **Warning signs:**
-- HTTP 429 responses from `adsbexchange-com1.p.rapidapi.com`.
-- "ADSBx Flight Sim Traffic API" in any URL string in the codebase.
-- Daily request count exceeds 280.
-- Auth code uses Bearer token format instead of `X-RapidAPI-Key` header.
+- Visible "pop" or flash when zooming through specific altitude thresholds.
+- All icons simultaneously resize instead of gradually changing.
+- `nearDistance` and `farDistance` span less than one order of magnitude in camera altitude.
+- `scaleByDistance` using extreme ratio between near and far values.
 
-**Phase to address:** Military Flights layer (LAY-01).
+**Phase to address:** Entity Icon Altitude Scaling (ICONS-05). Scale parameters must be validated against continuous zoom tests before the phase is marked complete.
 
 ---
 
-### Pitfall 5: gpsjam.org Has No Public API — The Heatmap Must Be Independently Replicated
+### Pitfall 5: CSS Height Animation on Sidebar Sections Triggers Layout Reflow Every Frame
 
 **What goes wrong:**
-There is no public API or data download from gpsjam.org. The site updates once per day (shortly after midnight UTC) and is intended for human viewing only. Developers who plan to "integrate the gpsjam.org feed" will find nothing to integrate. Scraping the site returns HTML with no machine-readable data embedded.
+The planned collapsible sidebar sections (LAYOUT-01) need expand/collapse animation. The intuitive implementation is transitioning `height` from `0` to `auto` with CSS `transition: height 300ms ease`. This does not work: CSS cannot interpolate to `height: auto` — the element snaps to full height immediately with no animation. The common workaround is transitioning `max-height` from `0` to an estimated maximum value (e.g., `max-height: 0` to `max-height: 500px`). This does animate, but animates at an irregular rate because the visible content height changes quickly while the `max-height` changes slowly at first (the easing starts from 0, not from the content height), creating a "curtain delay" before the content appears.
 
-gpsjam.org itself derives its hexagonal heatmap from the ADS-B Exchange dataset by reading per-aircraft `nic` (Navigation Integrity Category) and `nacp` (Navigation Accuracy Category for Position) fields. GPS degradation appears as anomalously low NIC/NACp values across a geographic cluster of aircraft.
+The alternative of animating `height` with a JavaScript-calculated pixel value (reading `scrollHeight` on each frame) causes forced synchronous layout reflow every animation frame. `element.scrollHeight` forces the browser to recalculate layout before returning a value. If called inside a `requestAnimationFrame` loop alongside CesiumJS's own render loop, this creates two forced layouts per frame, cutting frame rate in half (30 FPS from 60 FPS) for the duration of the animation.
 
 **Why it happens:**
-The project requirements list "GPS Jamming heatmap (gpsjam.org data)" implying gpsjam.org is a data source. It is a visual product, not a data API.
+Developers use `element.scrollHeight` because it solves the `height: auto` problem. The layout reflow cost is invisible in small apps without a heavy concurrent render loop, but becomes critical when CesiumJS is rendering 5,000+ primitives at 60 FPS on the same thread.
 
 **How to avoid:**
-- Query the ADSB Exchange API for NIC and NACp values per aircraft position.
-- Aggregate degraded-accuracy reports (NIC < 7 or NACp < 7) into H3 or hex-bin cells over the current viewport.
-- Render the resulting grid as a heatmap using a `GroundPrimitive` with a Fabric `ColorMaterialProperty` rather than an `ImageryLayer` (avoids texture sampler budget pressure).
-- Label the layer clearly: "GPS Degradation Heatmap — inferred from aircraft navigation accuracy reports. Not a precise jammer location."
-- The heatmap can only be as fresh as the ADSB Exchange polling interval (5 minutes minimum given rate limits).
+- Use CSS `grid-template-rows` transition: animate from `grid-template-rows: 0fr` to `grid-template-rows: 1fr`. The grid item's overflow is hidden when `0fr` and natural when `1fr`. This is hardware-accelerated and does not trigger layout reflow.
+- Alternatively, animate `transform: scaleY(0)` to `transform: scaleY(1)` on the container with a counter-scale on the content to prevent content compression. Only `transform` and `opacity` are guaranteed compositor-only (no layout, no paint).
+- Do not read `scrollHeight` or any layout property inside any animation loop.
+- Avoid animating `height`, `max-height`, `width`, `padding`, or `margin` — all trigger layout.
 
 **Warning signs:**
-- Any code attempting to fetch from `gpsjam.org` programmatically.
-- Plans to scrape the gpsjam.org map image.
-- Assumptions that gpsjam.org updates in real-time.
+- `element.scrollHeight` read inside a `requestAnimationFrame` callback or `useEffect` with animation dependency.
+- `max-height` transitioning between `0` and a large pixel value.
+- Frame rate drops to 30 FPS during sidebar open/close animation.
+- Layout thrashing visible in Chrome DevTools Performance panel (purple "Recalculate Style" blocks during animation).
 
-**Phase to address:** GPS Jamming Heatmap (LAY-02). The approach must be documented as NIC/NACp aggregation from ADSB Exchange, not a data feed.
+**Phase to address:** Collapsible Sidebar Sections (LAYOUT-01). Animation implementation must be reviewed for layout property transitions before the phase is merged.
 
 ---
 
-### Pitfall 6: AISstream.io Is Beta, Disconnects Every 2 Minutes, and Has No SLA
+### Pitfall 6: Tilt Control Widget Overlaps Bottom-Left Layer Toggle Strip
 
 **What goes wrong:**
-aisstream.io — the most accessible free global AIS WebSocket feed — is explicitly BETA with no uptime guarantees. It sends server-initiated disconnect messages approximately every 2 minutes. It also requires the subscription filter message to be sent within 3 seconds of WebSocket connection establishment or forcibly closes the connection. A backend AIS consumer written as a simple `async for message in ws` loop without reconnection logic will silently stop updating after the first disconnect. The maritime layer will then freeze indefinitely with no error visible to the user.
+The existing `LeftSidebar.tsx` places a persistent layer toggle strip at `position: fixed; bottom: 40px; left: 12px` with `zIndex: 60`. The planned tilt/pitch control widget and on-screen zoom buttons (NAV-02, NAV-03) are natural candidates for placement in the bottom-right corner. However, the `BottomStatusBar.tsx` component occupies the bottom of the screen. If the tilt widget is placed at `bottom: 40px; right: 12px`, it will be visually clear. But if it is instead placed in the bottom-left area (to be near zoom controls), it will overlap the layer toggle strip.
 
-Additionally, aisstream.io uses terrestrial AIS stations only — no satellite AIS coverage. Coverage is reliable in ports and coastal waters but drops to zero beyond 50–75 nautical miles offshore. Displaying ship icons in open ocean implies global real-time coverage that does not exist.
+The deeper pitfall: CesiumJS renders its own UI elements (the credit display) in the bottom-right corner of the canvas container. Custom React widgets placed at `bottom: 0; right: 0` will overlap the CesiumJS credit attribution text, creating a legal/ToS issue with ESRI World Imagery attribution.
+
+Additionally, the `CinematicHUD.tsx` and `PostProcessPanel.tsx` use absolute/fixed positioning throughout. Adding a tilt widget to the DOM without auditing all existing `zIndex` values risks the widget appearing behind other panels.
 
 **Why it happens:**
-WebSocket consumer code written for stable server connections does not handle server-initiated disconnects. The 3-second subscription window requirement is not prominently documented and only surfaces during connection drop recovery.
+Each component in the existing codebase uses independent `zIndex` values (60, 75, 85, etc.) without a shared z-index scale. A new widget added without consulting the full layout will use an arbitrary z-index that may render behind or in front of unintended elements.
 
 **How to avoid:**
-- Implement exponential backoff reconnection with a maximum 30-second retry delay in the AIS consumer.
-- Send the subscription message immediately on `open` — before awaiting any messages.
-- Cache the last known position of each vessel in Redis with a `stale_at` timestamp. Serve stale positions to the frontend rather than no positions during reconnect.
-- Add an AIS connection status indicator to the bottom status bar (connected / reconnecting / offline).
-- Cap the number of tracked MMSIs per bounding box subscription to avoid backpressure that triggers forced disconnects.
-- Add a UI tooltip explaining terrestrial-only AIS coverage with a link to the coverage map.
+- Before placing the tilt widget, document all existing fixed-position elements and their z-index values. This project currently uses: layer toggles (60), sidebar panel (50), hamburger button (85), HUD elements (various). Use a higher z-index than 85 only if the tilt widget must appear above the sidebar.
+- Place navigation controls (tilt/zoom) in the bottom-right, not bottom-left, to avoid the layer toggle strip.
+- Preserve a minimum 32px margin above the bottom status bar and a minimum 64px clearance from the CesiumJS credit display (bottom-right).
+- Apply `pointer-events: none` to the widget container element, `pointer-events: auto` to individual buttons only. This prevents the widget frame from intercepting globe clicks in unused areas.
 
 **Warning signs:**
-- Maritime layer freezes for more than 5 minutes with no error surfaced.
-- Backend logs show no AIS messages received but no reconnect attempt.
-- `connection closed` in WebSocket consumer logs not followed by a reconnect log line.
+- Tilt widget visually overlapping the layer toggle strip.
+- CesiumJS credit attribution text obscured.
+- Globe pan stops working in the region where the widget container is positioned (pointer-events not set to none on container).
+- Widget appears behind the sidebar panel when the sidebar is open.
 
-**Phase to address:** Maritime Traffic layer (LAY-03).
+**Phase to address:** Tilt Widget and Zoom Buttons (NAV-02, NAV-03). Layout audit of existing fixed-position elements must precede widget placement decisions.
 
 ---
 
-### Pitfall 7: React HUD Overlay Blocks CesiumJS Canvas Pointer Events
+### Pitfall 7: BillboardCollection Performance Is Significantly Worse Than PointPrimitiveCollection for 5000+ Entities
 
 **What goes wrong:**
-The cinematic HUD is a React DOM element positioned `absolute` over the CesiumJS `<div>` container. Any element with a non-`none` `pointer-events` CSS value that overlaps the canvas will intercept mouse and touch events that CesiumJS uses for camera control (pan, zoom, click-pick). The existing v1.0 codebase attaches a wheel event listener directly to the canvas container for zoom control; HUD elements sized to overlap the canvas edges will intercept this. On mobile, HTML overlays with higher `z-index` values intercept touch events, potentially breaking pan and pinch-zoom entirely.
+The v1.0 decision to use `PointPrimitiveCollection` over the Entity API was validated at 5,000+ entities. Billboards are not equivalent in performance to points. CesiumJS documentation explicitly states: "For best performance at scale, prefer PointPrimitive over Billboard when only a colored dot is needed." The difference is material: billboards require texture sampling per fragment during rendering; points are rendered as hardware-accelerated GL_POINTS with a single color uniform. At 5,000 entities, the satellite layer currently achieves 60 FPS with `PointPrimitiveCollection` and `BlendOption.OPAQUE`. Replacing all 5,000 satellite points with billboards — even small SVG icons — will increase fragment shader workload and potentially drop below 60 FPS on the target homelab GPU.
 
-CesiumJS also has its own `ScreenSpaceEventHandler` for entity/primitive picking. A HUD element covering the center of the screen will cause all click-picks to return `undefined`.
-
-**Why it happens:**
-React component authors set positioning and sizing purely for layout appearance without considering that the CesiumJS canvas handles its own input capture at the DOM level. The issue only manifests in specific screen regions where HUD elements overlap the interactive globe area.
-
-**How to avoid:**
-- Apply `pointer-events: none` as the default to the HUD root container element.
-- Selectively re-enable `pointer-events: auto` only on interactive sub-elements (buttons, sliders, close icons).
-- Keep non-interactive HUD elements (classification markings, MGRS readout, telemetry text) in the screen corners (< 120px from edges), minimizing overlap with the central globe interaction zone.
-- After adding each HUD element, manually verify camera pan, scroll-zoom, and a click-pick all work correctly.
-
-**Warning signs:**
-- Camera panning stops working when cursor is near the top of the screen.
-- Scroll-to-zoom stops in regions covered by HUD labels or classification text.
-- Click-pick returns `undefined` when HUD element covers the clicked area.
-
-**Phase to address:** Cinematic HUD Overlay (VIS-06).
-
----
-
-### Pitfall 8: Multiple Simultaneous ImageryLayers Hit WebGL Fragment Shader Texture Sampler Limits
-
-**What goes wrong:**
-CesiumJS composites `ImageryLayer` instances per visible globe tile using WebGL texture samplers in a fragment shader. The base ESRI World Imagery layer, a NEXRAD radar overlay, and a GPS degradation grid simultaneously = 3+ active `ImageryLayer` instances. WebGL 1.0 hardware (common on homelab machines with integrated graphics) limits texture samplers to 8–16 per fragment shader draw call. CesiumJS hits this limit during per-tile compositing and either silently renders some tiles as solid black rectangles or throws `WEBGL: INVALID_OPERATION: bindTexture` errors that are not surfaced to the user.
+The community has documented cases where 50,000 billboards cause Cesium to hang during rendering. At 5,000 entities the risk is lower but real, especially when multiple billboard collections (satellites + aircraft + military + ships) are active simultaneously.
 
 **Why it happens:**
-The failure only occurs on integrated GPU hardware that is below the WebGL limits common on discrete GPUs. A developer on a gaming workstation will never see this; a user on an Intel NUC homelab machine or a VPS with software WebGL will.
+The requirement is "custom SVG icons for all entity types," which developers read as "replace all points with billboards." The performance regression is not visible during development with small test datasets or on high-end workstations.
 
 **How to avoid:**
-- Limit simultaneous active `ImageryLayer` instances to 3 (base + 2 overlays) at any time.
-- Use `imageryLayer.show = false` to hide layers (rather than removing them) when toggled off — this does not release the GPU texture slot, but avoids costly re-creation on re-enable. Track total active layers in a ref.
-- For the GPS degradation heatmap, use a `GroundPrimitive` with a Fabric `ColorMaterialProperty` instead of an `ImageryLayer` — this bypasses the texture sampler budget entirely.
-- Explicitly test with all intended layers enabled simultaneously on a machine with integrated Intel/AMD graphics before marking any layer phase complete.
+- Do not migrate the satellite layer (`SatelliteLayer.tsx`) from points to billboards. With 5,000+ satellites, the point renderer is the correct choice. The satellite visual can be improved with `pixelSize`, `color`, `outlineColor`, and `outlineWidth` — all supported by `PointPrimitive` without moving to `BillboardCollection`.
+- Migrate only the lower-count layers to billboards: aircraft (hundreds), military (dozens to hundreds), ships (hundreds in typical AIS window). These have entity counts where billboard overhead is acceptable.
+- Set `blendOption: BlendOption.TRANSLUCENT` on billboard collections because SVG icons with transparent backgrounds require alpha blending. Do not set `OPAQUE` — this causes alpha channel areas to render as opaque black or white.
+- After migration, run a frame rate comparison with all layers enabled at full entity counts. Target: 60 FPS on a machine with integrated GPU.
 
 **Warning signs:**
-- Black rectangular tile patches visible on the globe at specific zoom levels when multiple layers are enabled.
-- `WebGL: INVALID_OPERATION: bindTexture` in the browser console.
-- Performance drops significantly when a third overlay is enabled.
+- Frame rate drops below 50 FPS when the satellite layer is visible with billboard icons.
+- `BillboardCollection` created for the satellite layer with 5,000+ entries.
+- `BlendOption.OPAQUE` set on a billboard collection using SVG icons with transparent areas (produces opaque black fill where transparency is expected).
+- Performance test run only on developer's high-end workstation, not on target homelab hardware.
 
-**Phase to address:** GPS Jamming Heatmap (LAY-02) and Weather Radar (LAY-05). Both phases must determine their rendering approach (ImageryLayer vs. Primitive) based on the total budget available.
-
----
-
-### Pitfall 9: Street Traffic Particle Simulation on the Main Thread Collapses Frame Rate
-
-**What goes wrong:**
-CesiumJS `ParticleSystem` works well for point-source effects (rocket exhaust, explosions) but is not designed for thousands of simultaneously active road-following particles. Creating one `ParticleSystem` per road segment with even 100 road segments produces 100 separate WebGL draw calls per frame (each ParticleSystem is its own primitive). On a scene already rendering 5,000+ satellites and multiple aircraft, this pushes the frame budget over 16ms. Main-thread CPU for particle position math further compounds the issue.
-
-**Why it happens:**
-`ParticleSystem` is the obvious CesiumJS primitive for "particles." Its single-source design is not apparent until scale is attempted.
-
-**How to avoid:**
-- Do not use `ParticleSystem` for road traffic. Use a single `BillboardCollection` or `PointPrimitiveCollection` where each particle is one billboard/point.
-- Run particle position updates in a Web Worker (the existing `propagation.worker.ts` pattern can be extended or a new `trafficWorker.ts` can be created using the same zero-copy Float32Array transfer approach).
-- Limit the simulation to the current viewport extent — fetch OSM road geometry only for the visible bounding box via the Overpass API, not for the whole world.
-- Cap the total particle count (e.g., 5,000 particles maximum) and dynamically adjust density based on current zoom level.
-
-**Warning signs:**
-- One `ParticleSystem` instance per road segment in the code.
-- Particle position calculation running in `requestAnimationFrame` on the main thread.
-- Frame rate drops to < 20 FPS when the traffic layer is enabled.
-- The Overpass API query requests more road data than the current viewport bbox.
-
-**Phase to address:** Street Traffic Particles (LAY-06).
-
----
-
-### Pitfall 10: OSM Road Network Data Cannot Be Downloaded Globally for a Homelab System
-
-**What goes wrong:**
-The full OpenStreetMap planet extract is approximately 100 GB compressed (2 TB uncompressed). Downloading and processing this on a homelab VPS is infeasible. Routing databases like OSRM or Valhalla that work with the full planet require 128+ GB RAM for processing. Even regional extracts require significant preprocessing pipeline complexity.
-
-Additionally, the Overpass API (the most accessible method for on-demand road queries) has per-query data limits (~512 MB) and will time out on large bounding box requests. Queries for a continent-scale viewport will fail.
-
-**Why it happens:**
-OSM is the most-referenced free road data source. Its size constraints for full-planet use are not obvious when looking at it from a "fetch road network" perspective.
-
-**How to avoid:**
-- Use the **Overpass API with a viewport bounding box** scoped to the current camera extent. Attach the query to `viewer.camera.moveEnd` events so road data refreshes as the user navigates.
-- Limit road network requests to zoom levels where individual roads are meaningful (roughly below ~200 km altitude).
-- Cache Overpass responses in Redis by bbox hash with a 24-hour TTL — road networks do not change hourly.
-- Gracefully degrade at zoom levels too broad for Overpass: show a "Zoom in to view traffic simulation" message.
-- Do not attempt to run a local OSRM or PostGIS routing engine for this use case — the traffic simulation is visual only, not navigational.
-
-**Warning signs:**
-- Any code that attempts to download a full country or region OSM extract.
-- Overpass queries without a bounding box constraint.
-- No zoom-level gating on road network fetching.
-
-**Phase to address:** Street Traffic Particles (LAY-06).
+**Phase to address:** Custom SVG Billboard Icons (ICONS-01 through ICONS-04). Satellite layer must explicitly remain `PointPrimitiveCollection`. Performance must be validated on representative hardware before any billboard collection is marked complete.
 
 ---
 
@@ -270,14 +200,12 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Single polymorphic `snapshots` table for all replay layers | Faster to implement | Table bloat, slow replay queries, downtime required to partition retroactively | Never — partition by layer and time from day one |
-| Inline `viewer.scene.postProcessStages.add()` in each component | Simpler component code | Duplicate stages accumulate on React re-renders; frame rate degrades silently | Never — use a singleton `PostProcessManager` |
-| Polling USGS earthquake feed every 30 seconds | More "live" feel | USGS caches the feed for 60 seconds; polling faster wastes bandwidth and risks 429 | Poll at 5-minute intervals and respect the `Expires` header |
-| Storing AIS ship positions directly in PostgreSQL at stream ingestion rate | Familiar persistence pattern | AIS produces hundreds of messages/second in dense shipping areas; DB becomes a write bottleneck | Buffer in Redis per MMSI; flush to PostgreSQL every 30 seconds |
-| Using CesiumJS Entity API for earthquake markers (fastest first pass) | Quick to implement | Entity API degrades at 1,000+ objects; v1.0 already proved Primitive API is mandatory | Never for layers expected to exceed 100 simultaneous objects |
-| Fetching full OSM planet extract for road network | No Overpass dependency | 100 GB+ download; unprocessable on homelab VPS; no tooling in current stack | Never — use Overpass API with viewport bbox |
-| One CesiumJS `ParticleSystem` per road segment | Maps cleanly to the ParticleSystem abstraction | One draw call per road segment; collapses to < 10 FPS at 200+ segments | Never — use a single batched PointPrimitiveCollection |
-| Hardcoding the ADSB Exchange RapidAPI key in env file | Avoids secrets management complexity | Exposed in git history if `.env` is committed; exposed in Docker image layers if used as build arg | Only if `.env` is gitignored and Docker images are private |
+| Per-entity SVG generation (embedding callsign, color in SVG string) | Rich, unique icons per entity | TextureAtlas accumulates one entry per unique SVG string; atlas hits GPU texture size limit; all billboards crash | Never — use a fixed icon set with `billboard.color` tinting for variants |
+| Leaving both PointPrimitiveCollection and BillboardCollection for the same layer during migration | Visual comparison during dev | Two pickable primitives per entity; click handler selects wrong entity; frame rate regression | Never — remove the old collection atomically when adding the new one |
+| Using `max-height` transition for sidebar collapse animation | Works visually, easy to implement | Easing curve is relative to max-height, not content height; the visible delay before content appears feels broken | Only as a temporary placeholder; replace with grid-row or transform before shipping |
+| Registering LEFT_DOUBLE_CLICK without removing the built-in CesiumJS double-click handler | Avoids touching `viewer.cesiumWidget` internals | Built-in and custom handlers both fire; camera zooms in two conflicting directions simultaneously | Never — always remove `viewer.cesiumWidget.screenSpaceEventHandler`'s `LEFT_DOUBLE_CLICK` first |
+| Migrating satellite layer to billboards to match the other layers | Uniform code pattern | Frame rate regression at 5,000+ satellites; billboards are slower than points per fragment | Never — satellite layer stays as PointPrimitiveCollection |
+| Using `element.scrollHeight` in a rAF loop for height animation | Solves `height: auto` transition | Forces synchronous layout reflow every frame; halves frame rate during animation on a CesiumJS page | Never — use `grid-template-rows` or `transform: scaleY` instead |
 
 ---
 
@@ -285,16 +213,12 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| ADSB Exchange (RapidAPI) | Using pre-2025 direct `adsbexchange.com` endpoint URLs | Use `adsbexchange-com1.p.rapidapi.com` with `X-RapidAPI-Key` and `X-RapidAPI-Host` headers |
-| ADSB Exchange (RapidAPI) | Treating auth as OpenSky-equivalent OAuth2 Bearer | Entirely different auth: UUID header via RapidAPI gateway, not Bearer token |
-| gpsjam.org | Attempting to fetch or scrape gpsjam.org programmatically | No public API exists. Replicate the heatmap by aggregating NIC/NACp fields from ADSB Exchange positions |
-| aisstream.io | Sending subscription filter message after receiving the first message | Subscription must be sent within 3 seconds of WebSocket open, before any messages arrive |
-| USGS Earthquake Feed | Polling the summary GeoJSON more than once per minute | The feed is cached for 60 seconds; respect the `Expires` response header; poll every 5 minutes at minimum |
-| NOAA nowcoast WMS | Adding the NEXRAD layer as a standard `WebMapServiceImageryProvider` without a `TIME` parameter | NEXRAD layer is time-enabled; without `TIME` you get the latest mosaic with no temporal control; pass `TIME=<iso8601>` in GetMap |
-| NOAA nowcoast WMS | Assuming the WMS endpoint URL is permanent | NOAA restructures ArcGIS REST endpoints during upgrades; pin the full GetCapabilities URL and verify the layer name on each deployment |
-| OpenStreetMap Overpass API | Querying road network for the entire visible globe at all zoom levels | Overpass has ~512 MB per-query limits; gate fetches to zoom levels where individual roads are visible and constrain to viewport bbox |
-| CesiumJS PostProcessStage | Calling `viewer.scene.postProcessStages.add()` on each React render | Stages accumulate — create once, then toggle `stage.enabled = true/false` |
-| AIS (any source) | Treating offshore absence as "no ships present" | Terrestrial AIS coverage ends at 50–75 nm from shore; offshore gaps are coverage gaps, not empty ocean |
+| CesiumJS ScreenSpaceEventHandler | Adding LEFT_DOUBLE_CLICK on a new handler while built-in handler on `viewer.cesiumWidget.screenSpaceEventHandler` still active | Remove built-in: `viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOUBLE_CLICK)` before adding custom |
+| CesiumJS ScreenSpaceEventHandler | Registering two handlers for LEFT_CLICK (existing unified handler + new double-click debounce) | `setInputAction` replaces the previous action on the same handler instance; use a single handler instance that routes all click types |
+| CesiumJS BillboardCollection | Setting `billboard.image` to a dynamically generated SVG string on every data refresh | Set `billboard.image` once at creation; use `billboard.color` for per-entity tinting; never update the image after creation |
+| CesiumJS camera.zoomIn/zoomOut | Calling `camera.zoomIn(amount)` for double-click zoom toward cursor — this zooms toward the camera center, not the cursor | Pick the globe surface at cursor position using `scene.globe.pick` or `camera.pickEllipsoid`, then use `camera.flyTo` with the picked position as destination |
+| React + CesiumJS z-index | Adding fixed-position React widgets without auditing existing z-index values | Document all z-index values before adding any new widget; use a shared constants file for z-index values |
+| CesiumJS BlendOption on BillboardCollection | Using `BlendOption.OPAQUE` for SVG icons with transparent backgrounds | SVG billboards require `BlendOption.TRANSLUCENT`; OPAQUE renders transparent areas as solid opaque color |
 
 ---
 
@@ -302,26 +226,18 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| One CesiumJS `ParticleSystem` per road segment | Frame rate < 15 FPS with traffic layer on; GPU draw calls spike | Use a single `PointPrimitiveCollection`; update positions from Web Worker Float32Array | At ~200 road segments |
-| Multiple simultaneous active post-processing stages (5+) | Each stage is a full-screen fragment shader pass; 5 stages = 5× GPU fill cost | Combine into a `PostProcessStageComposite`; never leave disabled stages in the collection (remove, don't disable) | At 4+ concurrent stages on mid-range integrated GPU |
-| Snapshot replay loading all layer positions for a time window in a single query | Browser receives 50+ MB JSON; frontend freezes | Paginate by time chunks; stream via Server-Sent Events; limit to entities in current camera frustum | At 10+ minutes of replay data with 5+ layers enabled |
-| AIS WebSocket message queue growing without backpressure | RQ worker memory exhausts in high-traffic maritime regions (English Channel, Singapore Strait) | Process only the most recent position per MMSI; discard intermediate messages if ingestion queue depth exceeds threshold | In any major strait or port approach |
-| GPS jamming heatmap rendered as GeoJSON FeatureCollection (one polygon per hex cell) | CesiumJS GeoJSON loader freezes for 6–10 seconds loading 10,000+ polygons | Render as a Fabric material on a `GroundPrimitive` or as a raster PNG/WebP overlay; never GeoJSON for dense grids | At > 500 grid cells |
-| Satellite overpass lines computed for all 5,000 satellites simultaneously | Propagation for 24 hours × 5,000 satellites blocks main thread or Web Worker for seconds | Compute overpass lines only for selected satellites or those within the current viewport bounding box | Immediately if attempted on main thread |
-| React `useEffect` adding new `ImageryLayer` instances on every re-render | Imagery layers silently accumulate; GPU texture memory grows; eventually hits sampler limit | Guard layer creation with a `useRef` flag; move all imagery layer management outside React's render cycle to an imperative manager class | After 3–4 hot-reloads in development StrictMode |
-| NOAA WMS tile requests proxied through FastAPI on every client render tick | NOAA server rate-limits the VPS IP; all sessions lose radar overlay simultaneously | Cache WMS tile responses in Redis or on-disk; set cache TTL to match NOAA's 4-minute mosaic update interval | When more than 1–2 browser sessions are active simultaneously |
+| Satellite layer migrated to BillboardCollection | Frame rate drops from 60 to 30–40 FPS at full satellite count | Keep SatelliteLayer on PointPrimitiveCollection; only migrate aircraft/military/ship | At 3,000+ billboard entities on integrated GPU |
+| Unique SVG per entity accumulating in TextureAtlas | `DeveloperError: Width must be less than or equal to maximum texture size`; all billboards disappear | Use fixed icon set; never set `billboard.image` post-creation | After ~1,000 unique SVG strings (exact limit depends on SVG pixel dimensions) |
+| `element.scrollHeight` read during animation loop | Frame rate drops 40–50% during sidebar animate; CesiumJS frame budget exceeded | Use `grid-template-rows: 0fr → 1fr` or `transform: scaleY` for collapse | Immediately — any `scrollHeight` read in rAF is a reflow |
+| Mixed PointPrimitive and Billboard collections for same layer | Doubled draw calls; entity picked at wrong type | Remove old collection before adding new one atomically | Immediately on any layer with both collection types active |
+| LEFT_DOUBLE_CLICK + LEFT_CLICK both firing on double-click | Entity panel opens on zoom gesture; detail panels open unexpectedly | Debounce LEFT_CLICK handler (200ms delay); remove built-in double-click entity-track handler | Every double-click if not addressed |
+| Tilt widget container without `pointer-events: none` | Globe pan stops working in widget area even between buttons | Set `pointer-events: none` on container div; `pointer-events: auto` on buttons only | Immediately in any region the container element occupies |
 
 ---
 
 ## Security Mistakes
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| ADSB Exchange RapidAPI key in `.env` committed to git | Billing hijacked; monthly budget exhausted by third parties | Verify `.env` is gitignored (already done for v1.0 OpenSky secret); add `ADSB_EXCHANGE_API_KEY` to `.env.example` with placeholder value |
-| Serving GPS degradation layer without inference disclaimer | Users treat inferred NIC/NACp anomalies as confirmed jammer coordinates — potentially actionable intelligence that is not accurate | Every GPS jamming cell must be labeled "Inferred from aircraft navigation accuracy reports — not a precise jammer location" per the project's stated honesty constraint |
-| Displaying ADSB Exchange "military flights" as confirmed military aircraft | MLAT/ADS-B shows aircraft that broadcast; genuine military combat aircraft suppress their transponders | Label the layer "Unfiltered ADS-B — includes military transport; excludes suppressed/stealth aircraft" with a visible disclaimer |
-| Proxying NOAA WMS without caching, exposing the VPS IP to rate limits | NOAA silently rate-limits the IP; all users lose weather radar with no error message | Cache WMS tiles; rotate through a user-agent pool only if absolutely necessary and NOAA's ToS permits |
-| Storing ship AIS positions including full MMSI + vessel name logs long-term | Vessel operator tracking data may have privacy/legal implications in some jurisdictions | Log only position aggregates for replay purposes; do not log vessel identity in application logs |
+No new security surface is introduced by UI Refinement features (no new external API calls, no new auth patterns, no new data stored). The existing security model from v2.0 applies. No new entries required.
 
 ---
 
@@ -329,30 +245,31 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| All new v2.0 layers enabled by default | Globe becomes unreadable at first load; frame rate drops immediately | Default all new layers to OFF; the existing layer toggle pattern from v1.0 should apply to all new layers |
-| Post-processing preset switch causes a full-frame black flash | Disorienting; looks like a crash | Cross-fade presets by interpolating uniform values over 300ms rather than atomically swapping stages |
-| Timeline scrubber resets to "now" when user stops scrubbing | User loses the historical moment they were studying | Implement `viewer.clock.shouldAnimate = false` while scrubbing so the globe is frozen at the scrubbed time, not drifting back to real-time |
-| "Landmark navigation" flyTo has a fixed 2-second duration for all destinations | Pan from San Francisco to Singapore in 2 seconds causes disorienting motion; pan within a city also takes 2 seconds (too slow) | Compute `duration` proportional to camera distance to target; clamp between 0.5s (local) and 3.5s (global) |
-| GPS jamming hexagons have no magnitude legend | User cannot distinguish mild navigation accuracy degradation from severe GPS denial | Use a color ramp (green → yellow → red) with a visible legend explaining the NIC/NACp degradation scale |
-| Ship positions shown as "live" when stale (AIS stream disconnected or offshore) | User makes incorrect situational awareness judgments | Display data age badge on each ship marker; grey out markers older than 10 minutes |
-| Earthquake layer refreshes and all points flicker | Jarring at 5-minute poll interval | Diff incoming events against current collection; only add/remove changed events |
+| Double-click zoom opens detail panel AND zooms | User tries to zoom in, accidentally selects an entity they didn't intend to inspect | Debounce single-click by 200ms; on double-click cancel the pending single-click action before acting |
+| Sidebar collapse animation using `max-height` with large value | Content appears to fade in from the bottom up with a delay, then snap to full height | Use `grid-template-rows: 0fr → 1fr` which animates relative to actual content height |
+| All sidebar sections expanded by default after adding collapsible sections | Sidebar is taller than the screen; sections scroll off; user can't see filters | Default sections to collapsed except the most commonly used one (Search); persist collapse state to localStorage |
+| Billboard icon size too large at high zoom levels | Icons overlap neighboring entities at city scale; impossible to click specific entity | Validate `scaleByDistance` parameters at street-level altitude (< 50 km) as well as global altitude |
+| Billboard icon size too small at low zoom levels (global view) | Icons are smaller than 2px and invisible; pointless to show; confuses users who expect to see aircraft | Set `minification_filter` or use `translucencyByDistance` to hide entities below a minimum visible threshold rather than rendering sub-pixel icons |
+| Tilt widget allows pitching to below-horizon camera angles | Globe disappears from view; scene shows only the underside of the terrain; disorienting | Clamp pitch control to the range `[0°, 85°]` — never allow a camera pitch that would result in looking upward from below the ellipsoid |
+| Radar aesthetic brackets and decorations added with CSS `::before`/`::after` on panels | These elements are positioned relative to the panel and move/clip during collapse animation | Apply decorative elements as non-collapsing wrappers outside the animated content element to prevent clipping |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **NVG/CRT/FLIR presets:** Visually correct on an empty globe — verify the effect looks correct with 5,000 satellite points, aircraft trails, and ESRI World Imagery active simultaneously.
-- [ ] **Post-processing sliders:** Slider moves and the effect appears to change — verify the `PostProcessStage` `uniforms` functions return current store values per-frame (not stale captured values from initial creation).
-- [ ] **Military flights layer:** Aircraft icons appear on the globe — verify each rendered position has a non-null `lat`/`lon` (MLAT-only aircraft without position are common in ADSB Exchange responses and must be filtered).
-- [ ] **GPS jamming heatmap:** Hex cells render — verify the heatmap is derived from current NIC/NACp fields and that stale hex data from the previous polling cycle is replaced (not appended to) on each refresh.
-- [ ] **Maritime layer:** Ships appear — verify the WebSocket reconnection logic fires on a server-initiated disconnect, not only on a failed initial connection attempt.
-- [ ] **Earthquake layer:** Events render — verify the USGS feed parser uses the `updated` timestamp to skip re-rendering unchanged events on every poll cycle.
-- [ ] **NEXRAD weather radar:** Tiles render — verify the `TIME` WMS parameter is included in the GetMap request and that the displayed mosaic matches the correct UTC time window (not a blank or placeholder tile).
-- [ ] **Street traffic particles:** Particles are visible and moving — verify particle position updates are running in the Web Worker (check Chrome DevTools Performance panel; main thread CPU must be < 30% with particles active).
-- [ ] **Landmark navigation:** Camera flies to the correct city — verify that rapid successive hotkey presses do not produce a "camera was changed during flyTo" CesiumJS error (second flyTo must cancel the first).
-- [ ] **4D Replay scrubber:** Scrubbing backward shows historical positions — verify this triggers a database query for the historical state, not rewinding an in-memory buffer that will be empty on page reload.
-- [ ] **OSINT event correlation (satellite overpasses):** Overpass lines appear at correct times — verify the overpass computation uses TLEs with a `fetched_at` within 7 days; fail visibly if TLEs are stale (SGP4 position error grows to kilometers beyond 7 days).
-- [ ] **Post-processing stage accumulation:** Switching presets N times in React StrictMode — verify `viewer.scene.postProcessStages._stages.length` remains stable and does not grow with each switch.
+- [ ] **Billboard migration:** Icons appear on the globe — verify the old `PointPrimitiveCollection` for that layer has been removed from `viewer.scene.primitives` and its reference cleared.
+- [ ] **Billboard click selection:** Clicking a billboard icon opens the correct detail panel — verify all four entity types (satellite, aircraft, military, ship) are still selectable via the unified click handler after migration.
+- [ ] **Billboard icon image stability:** Icons display correctly — verify `billboard.image` is never updated in any `useEffect` that runs on data refresh (only position, show, and scale should update after creation).
+- [ ] **Double-click zoom:** Camera zooms toward cursor on double-click — verify that the built-in `viewer.cesiumWidget.screenSpaceEventHandler` `LEFT_DOUBLE_CLICK` action has been removed.
+- [ ] **Double-click zoom:** Camera zooms toward cursor — verify the zoom destination is the globe surface point under the cursor, not the camera center (use `scene.globe.pick` or `camera.pickEllipsoid` for the destination).
+- [ ] **Single-click after double-click:** Double-clicking does not open a detail panel — verify the LEFT_CLICK debounce cancels the pending single-click action when a second click arrives within 250ms.
+- [ ] **Sidebar collapse animation:** Sections animate smoothly — verify no `scrollHeight` read inside any animation callback; verify `grid-template-rows` or `transform: scaleY` is the animation mechanism.
+- [ ] **Sidebar collapse animation:** Frame rate remains 60 FPS during open/close — profile in Chrome DevTools with the full scene loaded; assert no layout reflow in the Performance trace during animation.
+- [ ] **Icon altitude scaling:** Icons scale smoothly — zoom continuously from 20,000 km to 500 m altitude and verify no visible size pop at any altitude boundary.
+- [ ] **Tilt widget placement:** Widget is visible and clickable — verify the widget container has `pointer-events: none` and globe pan works in the region the widget occupies.
+- [ ] **Tilt widget placement:** Widget does not overlap the layer toggle strip (bottom-left, z-index 60) or CesiumJS credit display (bottom-right).
+- [ ] **Radar aesthetic decorations:** Angular brackets and scan decorations do not clip during panel collapse animation — verify decorative pseudo-elements are not children of the animated height container.
+- [ ] **Performance with all billboard layers active:** Frame rate is 60 FPS with satellites (points), aircraft (billboards), military (billboards), and ships (billboards) all visible simultaneously — test on integrated GPU hardware.
 
 ---
 
@@ -360,13 +277,13 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Post-processing stages accumulated on re-renders | MEDIUM | Audit `viewer.scene.postProcessStages` in console; manually remove duplicate stages; refactor to `PostProcessManager` singleton before further development |
-| Snapshot table bloated before partitioning | HIGH | `pg_dump` the data; recreate table as range-partitioned; re-import. Expect 2–4 hours of downtime on a large table. Cannot be avoided if delayed. |
-| ADSB Exchange monthly request budget exhausted during development | LOW | Rate limit resets monthly. Implement Redis cache immediately; reduce polling interval to 10 minutes until reset; consider `adsb.fi` as a free fallback for non-military data |
-| AIS layer silently stopped updating | LOW | Restart the AIS consumer RQ job; no data is lost (last known ship positions are in Redis cache) |
-| WebGL context lost on low-VRAM homelab machine | MEDIUM | Reduce active simultaneous layers; disable post-processing stages; CesiumJS does not auto-recover from context loss — page reload required. Document minimum GPU VRAM (4 GB) in deployment notes. |
-| OSM Overpass API query timeout on large viewport | LOW | Reduce viewport bounding box scope; add zoom-level gating; show "Zoom in to enable traffic simulation" message |
-| NOAA WMS endpoint URL changed after a NOAA infrastructure update | LOW | Re-run GetCapabilities against the base `nowcoast.noaa.gov` URL; update the layer name constant in the WMS configuration; NOAA typically maintains old endpoints for 6+ months during transitions |
+| Old PointPrimitiveCollection not removed after billboard migration | LOW | `viewer.scene.primitives.remove(oldCollection)` from browser console; refactor affected layer to remove in same effect that adds billboard collection |
+| TextureAtlas overflow from dynamic SVG generation | MEDIUM | Replace per-entity SVG with fixed icon set; recreate `BillboardCollection` (required to reset the atlas — it cannot be cleared in-place); reload page |
+| Double-click fires both zoom and entity selection | LOW | Add 200ms debounce to LEFT_CLICK handler; remove built-in LEFT_DOUBLE_CLICK from `viewer.cesiumWidget.screenSpaceEventHandler` |
+| Sidebar animation causing layout reflow + frame drop | LOW | Replace `scrollHeight`-based or `max-height`-based animation with `grid-template-rows: 0fr → 1fr` transition |
+| Icon size pop at altitude boundary | LOW | Widen the NearFarScalar transition range to span two orders of magnitude in altitude; re-test continuous zoom |
+| Tilt widget blocking globe interaction | LOW | Add `pointer-events: none` to widget container element; re-test globe pan in all screen regions |
+| Billboard performance regression on satellite layer | MEDIUM | Revert satellite layer to `PointPrimitiveCollection`; satellite points do not need icon shapes — color + outline is sufficient |
 
 ---
 
@@ -374,47 +291,38 @@ OSM is the most-referenced free road data source. Its size constraints for full-
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Post-processing applies to entire scene (scope bleed) | Visual Style Presets (VIS-01 to VIS-05) — first phase | Run v1.0 integration test with each preset; confirm satellite point colors and imagery are preserved |
-| Post-processing uniform stale closure | Post-Processing Sliders (VIS-05) | Move each slider full range; confirm visual effect tracks slider position in real-time |
-| React HUD blocks CesiumJS pointer events | Cinematic HUD Overlay (VIS-06) | Manual test: pan, zoom, and click-pick while all HUD elements are visible at full scene load |
-| ADSB Exchange paid API / wrong auth | Military Flights (LAY-01) | HTTP 200 response rate > 95% over 7 days; daily request count logged and < 280/day |
-| gpsjam.org has no API — must replicate via NIC/NACp | GPS Jamming Heatmap (LAY-02) | Heatmap cells match expected degradation regions from a reference gpsjam.org visual check |
-| WebGL texture sampler limit with multiple ImageryLayers | GPS Jamming Heatmap (LAY-02) and Weather Radar (LAY-05) | Enable all layers simultaneously on an integrated-GPU machine; assert zero black tile patches |
-| AISstream.io disconnects silently | Maritime Traffic (LAY-03) | Simulate WebSocket disconnect in test; assert reconnection fires within 10 seconds and ship positions resume |
-| USGS feed over-polling / rate limits | Earthquake Layer (LAY-04) | Confirm polling interval is 5 minutes; verify `Expires` header is respected in the poller |
-| NOAA WMS TIME parameter missing | Weather Radar (LAY-05) | Inspect outgoing WMS GetMap request in Network tab; confirm `TIME` parameter is present and correct |
-| Particle simulation on main thread | Street Traffic Particles (LAY-06) | Chrome DevTools Performance: main thread CPU < 30% with particles running; worker thread carries the load |
-| OSM Overpass global download infeasibility | Street Traffic Particles (LAY-06) | Confirm Overpass queries include a bbox constraint; confirm gating kicks in at zoom levels above the road-visibility threshold |
-| Snapshot table unbounded growth | 4D Historical Replay (REP-01) | Run `pg_database_size()` after 48h of all-layers data collection; assert growth rate < 500 MB/day |
-| SGP4 overpass accuracy with stale TLEs | OSINT Event Correlation (REP-05, REP-06) | Assert TLE age is checked before overpass computation; test fails visibly if TLE age > 7 days |
-| Post-processing stages accumulate on React re-renders | Visual Style Presets (VIS-01 to VIS-05) | In StrictMode, switch presets 5 times; assert `postProcessStages._stages.length` is stable |
+| Billboard migration breaks unified click handler | ICONS-01 to ICONS-04 (each layer) | After each layer migration: click-test all four entity types open correct panels |
+| TextureAtlas overflow from unique SVG per entity | ICONS-01 (icon design finalization) | Run for 30 minutes with all billboard layers active; assert no DeveloperError in console |
+| Double-click fires LEFT_CLICK handler | NAV-01 (Double-click zoom) | Double-click globe 10 times; assert zero detail panels open during zoom gestures |
+| Built-in CesiumJS double-click entity-track conflict | NAV-01 (Double-click zoom) | Verify `viewer.cesiumWidget.screenSpaceEventHandler` has no `LEFT_DOUBLE_CLICK` action after implementation |
+| scaleByDistance altitude boundary pop | ICONS-05 (altitude scaling) | Continuous zoom test from 20,000 km to 500 m; assert no visible size flash |
+| CSS height animation reflow | LAYOUT-01 (collapsible sidebar) | Chrome DevTools Performance trace during open/close; assert no layout recalculation in rAF |
+| Tilt widget overlapping existing UI | NAV-02/NAV-03 (tilt widget, zoom buttons) | Visual audit with sidebar open; verify layer toggles and globe pan are unobstructed |
+| Satellite billboard performance regression | ICONS-01 to ICONS-04 | Frame rate test with all layers at full entity count on integrated GPU; assert 60 FPS |
+| BlendOption.OPAQUE on SVG billboards | ICONS-01 to ICONS-04 | Visual check for opaque black fill where icon transparency is expected |
 
 ---
 
 ## Sources
 
-- [CesiumJS PostProcessStageCollection documentation](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageCollection.html) — HIGH confidence
-- [CesiumJS: Shaders and selected primitives in PostProcessStage](https://community.cesium.com/t/shaders-and-selected-primitives-in-postprocessstage/8904) — HIGH confidence
-- [CesiumJS issue: Postprocessing initially disabled, fails if re-enabled](https://github.com/CesiumGS/cesium/issues/9204) — HIGH confidence
-- [CesiumJS 1.121 — MSAA default on, PBR Neutral tonemapper (September 2024)](https://cesium.com/blog/2024/09/04/cesium-releases-in-september-2024/) — HIGH confidence
-- [CesiumJS issue: Too many ImageryLayer texture samplers](https://github.com/CesiumGS/cesium/issues/3857) — HIGH confidence
-- [CesiumJS WebGL context loss — community thread](https://community.cesium.com/t/webgl-context-lost-errors-at-random-times/25674) — HIGH confidence
-- [CesiumJS HTML overlay touch gesture / pointer event blocking](https://community.cesium.com/t/html-overlay-touch-gestures-problem/9987) — HIGH confidence
-- [CesiumJS ParticleSystem documentation](https://cesium.com/learn/cesiumjs/ref-doc/ParticleSystem.html) — HIGH confidence
-- [ADSB Exchange API Lite — RapidAPI subscription and March 2025 change](https://www.adsbexchange.com/api-lite/) — HIGH confidence
-- [ADSB Exchange API Lite forum — discontinued flight sim API](https://adsbx.discourse.group/t/api-lite-information/984) — HIGH confidence
-- [gpsjam.org FAQ — derived from ADSB Exchange NIC/NACp; no public API](https://gpsjam.org/faq) — HIGH confidence
-- [aisstream.io — free global AIS WebSocket, beta status, no SLA](https://aisstream.io/) — HIGH confidence
-- [aisstream.io GitHub — 3-second subscription window, disconnect behavior](https://github.com/aisstream/aisstream) — HIGH confidence
-- [AISHub API — 1-minute minimum polling interval policy](https://www.aishub.net/api) — HIGH confidence
-- [USGS Earthquake Feed — 60-second cache, 429 rate limiting policy](https://geohazards.usgs.gov/pipermail/realtime-feeds/2022-January/000028.html) — HIGH confidence
-- [NOAA nowcoast NEXRAD WMS — time-enabled service GetCapabilities](https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer?request=GetCapabilities&service=WMS) — MEDIUM confidence (endpoint verified; rate limit policy not published)
-- [OpenStreetMap download limitations — 100 GB planet, Overpass API constraints](https://wiki.openstreetmap.org/wiki/Downloading_data) — HIGH confidence
-- [PostgreSQL snapshot table partitioning case study](https://medium.com/@mbhatt2018/how-we-supercharged-our-snapshot-table-with-postgresql-partitioning-saved-big-on-infrastructure-2d9c10d23254) — MEDIUM confidence
-- [SGP4 accuracy degradation with TLE age](https://github.com/skyfielders/python-skyfield/discussions/929) — MEDIUM confidence
-- [FastAPI async memory fragmentation under concurrent load](https://build.betterup.com/chasing-a-memory-leak-in-our-async-fastapi-service-how-jemalloc-fixed-our-rss-creep/) — MEDIUM confidence
-- [CRT scanline shader resolution dependence and non-integer scaling artifacts](https://forums.libretro.com/t/crt-shaders-unwanted-scanlines-when-scaling-an-image/48445) — MEDIUM confidence
+- [CesiumJS ScreenSpaceEventHandler documentation — setInputAction replaces previous](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — HIGH confidence
+- [CesiumJS GitHub issue #1171 — double click generates click (LEFT_CLICK fires on LEFT_DOUBLE_CLICK)](https://github.com/CesiumGS/cesium/issues/1171) — HIGH confidence
+- [CesiumJS community — how to register multiple handlers for same ScreenSpaceEventHandler](https://community.cesium.com/t/how-to-register-multiple-handlers-for-same-screenspaceeventhandler/4967) — HIGH confidence
+- [CesiumJS community — remove default double click behavior](https://blog.webiks.com/remove-default-double-click-behavior-in-cesium/) — HIGH confidence
+- [CesiumJS community — disable camera zooming on double-click entity](https://community.cesium.com/t/how-to-disable-camera-zooming-when-double-click-on-an-entity/2859) — HIGH confidence
+- [CesiumJS GitHub issue #8196 — scaleByDistance unexpected jump near edge of NearFarScalar range](https://github.com/CesiumGS/cesium/issues/8196) — HIGH confidence
+- [CesiumJS GitHub issue #10522 — Billboard.scaleByDistance does not scale linearly](https://github.com/CesiumGS/cesium/issues/10522) — HIGH confidence
+- [CesiumJS community — Dynamic SVG Billboard makes TextureAtlas exceed maximumTextureSize](https://community.cesium.com/t/dynamic-svg-billboard-makes-textureatlas-to-exceed-its-maximumtexturesize-limit/4091) — HIGH confidence
+- [CesiumJS community — Dynamically updating Billboard textures memory leak](https://community.cesium.com/t/dynamically-updating-billboard-textures-memory-leak/1674) — HIGH confidence
+- [CesiumJS Performance Tips for Visualizing Lots of Points — points vs billboards at scale](https://cesium.com/blog/2016/03/02/performance-tips-for-points/) — HIGH confidence
+- [CesiumJS community — Adding 50,000 Billboards causes Cesium to hang](https://groups.google.com/g/cesium-dev/c/O5IN6ge7VbU) — MEDIUM confidence
+- [CesiumJS BillboardCollection documentation — BlendOption performance impact](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html) — HIGH confidence
+- [Chrome for Developers — Building performant expand/collapse animations](https://developer.chrome.com/blog/performant-expand-and-collapse) — HIGH confidence
+- [web.dev — Avoid large, complex layouts and layout thrashing](https://web.dev/articles/avoid-large-complex-layouts-and-layout-thrashing) — HIGH confidence
+- [CSS-Tricks — Building performant expand/collapse animations (grid-template-rows technique)](https://css-tricks.com/building-performant-expand-collapse-animations/) — HIGH confidence
+- [Paul Irish — What forces layout/reflow (scrollHeight reference)](https://gist.github.com/paulirish/5d52fb081b3570c81e3a) — HIGH confidence
+- [CesiumJS community — zoom in to mouse point (pickEllipsoid pattern)](https://community.cesium.com/t/zoom-in-to-mouse-point/2614) — MEDIUM confidence
 
 ---
-*Pitfalls research for: CesiumJS/FastAPI geospatial intelligence platform — v2.0 WorldView Parity additions to existing system*
-*Researched: 2026-03-11*
+*Pitfalls research for: CesiumJS/React geospatial intelligence platform — v3.0 UI Refinement additions to existing Primitive API renderer*
+*Researched: 2026-03-12*

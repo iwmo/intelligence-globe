@@ -1,157 +1,133 @@
-# Feature Research: v2.0 WorldView Parity
+# Feature Research: v3.0 UI Refinement
 
-**Domain:** Geospatial Intelligence Globe — v2.0 New Features Only
-**Researched:** 2026-03-11
-**Confidence:** HIGH (core features), MEDIUM (data source availability for some layers)
+**Domain:** Geospatial Intelligence Globe — UI Refinement (Radar Aesthetic, Panel Layout, Globe Interaction)
+**Researched:** 2026-03-12
+**Confidence:** HIGH (CesiumJS APIs verified), MEDIUM (radar UI conventions from community patterns), HIGH (collapsible panel patterns)
 
 ---
 
 ## Scope
 
-This document covers ONLY the 12 new v2.0 features. v1.0 features (satellite tracking, aircraft tracking, layer toggles, click-to-inspect, search, filters, dark theme, Docker deployment, FastAPI + PostgreSQL backend) are already built and are not re-researched here.
+This document covers ONLY the 5 new v3.0 feature areas. All v1.0/v2.0 features (globe, layers, presets, HUD, replay, OSINT) are already built and are not re-researched here.
+
+The existing architecture that these features must integrate with:
+- **CesiumJS Primitive API** (not Entity API) — BillboardCollection primitives used for all entity icons
+- **React + TypeScript** frontend with Vite
+- **LeftSidebar.tsx** — hamburger toggle sidebar containing layer toggles, SearchBar, FilterPanel
+- **RightDrawer.tsx** — visual presets and PostProcessPanel
+- **PlaybackBar.tsx** at bottom — timeline scrubber, LIVE/PLAYBACK toggle
+- **GlobeView.tsx** — CesiumJS Viewer root, owns camera and ScreenSpaceEventHandler
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These in a WorldView-Class Tool)
+### Table Stakes (Users Expect These in a Polished v3 UI)
 
-Features that users of operational intelligence platforms assume exist. Missing them makes v2.0 feel like a fancy v1.0 patch rather than a new capability tier.
+Features that any serious v3 UI upgrade must deliver. Missing them makes the refinement feel cosmetic-only, not architectural.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Landmark / city preset navigation** | Every mapping tool has saved places. WorldView/Google Earth have this. Users need fast camera jumps to crisis zones, capitals, conflict areas. | LOW | Camera flyTo() via CesiumJS is trivial. The value is in the curated list, not the code. Keyboard shortcuts (Q/W/E/R/T) over 5 slots is the WorldView pattern. |
-| **Maritime traffic layer** | Ships are the third domain of geospatial intelligence (after satellites and aircraft). Any "situational awareness" tool without ships is incomplete. | MEDIUM | Free AIS: AISHub (registration required, free tier). aisstream.io WebSocket stream. MarineTraffic/Kpler are commercial. Open-source: aisstream.io or self-hosted OpenCPN server. Icons must be clearly distinct from aircraft (ship silhouette, heading indicator, different color). |
-| **Earthquake layer** | Real-time natural events are a standard layer in all geo-intelligence tools. Required to contextualize anomalies near seismic zones. | LOW | USGS GeoJSON feed: `earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson`. Free, no auth, returns GeoJSON `FeatureCollection`. Update every 1-5 minutes. Magnitude-scaled markers are standard — circle radius proportional to magnitude. Color by magnitude tier (green < 3, yellow 3-5, orange 5-6, red > 6). 24h rolling window. Click-to-inspect shows magnitude, depth, location, time. |
-| **Military flights layer** | ADSB Exchange is the only unfiltered tracker. "Military" filter is the primary reason OSINT researchers use ADSB Exchange over FlightRadar24 or OpenSky. Users expect this. | MEDIUM | ADSB Exchange REST API: `/api/mil` returns military ICAO24 registrations. ADSB.lol offers a compatible v2 API format for easy switch. Icons must visually differ from commercial — different shape (diamond vs circle), distinct color (amber/orange). Separate toggle from commercial aircraft layer. |
-| **Weather radar overlay** | Operational context for aircraft diversions, maritime hazards, crisis response. Standard in every professional mapping tool. | MEDIUM | Iowa State Mesonet NEXRAD WMS: `https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi`, layer `nexrad-n0r-900913`. Free, no auth, WMS GetMap calls. CesiumJS `WebMapServiceImageryProvider` handles WMS natively. CONUS only — international data requires EUMETSAT or similar. Refresh every 5 minutes. Transparency slider is expected. |
+| **Collapsible sidebar sections** | Every modern data-dense UI (VSCode, Figma, geospatial tools) groups controls into expandable sections. A flat list of toggles breaks down when more than ~6 layers exist. | LOW-MEDIUM | CSS height transition from `0` to `auto` is the standard pattern, but `height: auto` cannot be animated directly in CSS. Use `max-height` trick (0 to a clamped max) or measure element height with ResizeObserver then set explicit px height. Framer Motion `AnimatePresence` with `initial={false}` is the cleanest React solution — avoids the max-height clamping artifacts. Section header acts as the toggle trigger. Chevron icon rotates 90deg on expand/collapse. |
+| **No panel overlap** | Current sidebar and right drawer likely have z-index conflicts at certain viewport sizes. Any professional UI must handle this. | LOW | Define clear z-index stacking context. Sidebar (z: 80), RightDrawer (z: 80), PlaybackBar (z: 70), CinematicHUD (z: 90), SearchBar (z: 95). Panels must not overlap each other's interactive regions. |
+| **Entity icons that read at all zoom levels** | At ISS orbital altitude (~400km), a 1px dot is invisible. At street level (~2km), a 32px icon is enormous and occludes terrain. Users need icons that remain legible throughout the zoom range. | MEDIUM | CesiumJS BillboardCollection supports `scaleByDistance: new Cesium.NearFarScalar(nearDist, nearScale, farDist, farScale)`. This is the canonical API. Applies per-billboard. Since existing code uses Primitive API (BillboardCollection), this is a property addition to each billboard's config object, not an architectural change. `distanceDisplayCondition` can hide icons beyond a threshold. Example values: `new Cesium.NearFarScalar(1.5e3, 1.5, 1.5e8, 0.4)` scales from 1.5× at 1500m to 0.4× at 150Mm. |
+| **Double-click zoom toward cursor** | This is the universal expectation from Google Earth, FlightRadar24 3D, and Bing Maps 3D. Single-click already selects entities; double-click should zoom. Users naturally double-click on areas of interest expecting zoom behavior. | MEDIUM | CesiumJS since v1.11 (July 2015) provides `camera.getPickRay(position)` to get the ray from camera through screen position, then `camera.move(direction, amount)` along that ray. The scene pick ray approach: `const ray = viewer.camera.getPickRay(event.position); const point = viewer.scene.globe.pick(ray, viewer.scene);` then `viewer.camera.flyTo({ destination: Cartesian3 at 50% distance toward picked point })`. Must override default double-click using `viewer.screenSpaceEventHandler.setInputAction(() => {}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)` first to disable the default entity-focus behavior. |
+| **Zoom in/out control buttons** | On-screen +/- buttons are standard in all map UIs (Google Maps, Mapbox, Leaflet, OpenLayers). Users on touchpads or non-scroll-wheel input expect them. | LOW | CesiumJS has no built-in zoom buttons. Implement as React component absolutely positioned top-right or bottom-right of globe. Calls `viewer.camera.zoomIn(zoomAmount)` and `viewer.camera.zoomOut(zoomAmount)`. Amount should scale with current altitude to feel consistent (zoom 10% of current altitude). |
+| **Tilt/pitch control** | Standard in Google Earth (the tilt slider), HERE WeGo (tilt toggle), and every 3D map tool. Users expect a way to switch between top-down (2D map feel) and oblique (3D perspective) views. | LOW-MEDIUM | CesiumJS camera pitch is set via `viewer.camera.setView({ orientation: { pitch: Cesium.Math.toRadians(degrees) } })` or animated via `viewer.camera.flyTo({ orientation: { pitch } })`. Standard UX is a vertical slider or discrete buttons: Top-down (90°), 45° oblique, Horizon (0°). A persistent indicator showing current tilt angle is the Mapbox pattern. React state tracks current pitch, buttons trigger flyTo with same position but new pitch. |
 
-### Differentiators (Competitive Advantage)
+### Differentiators (Competitive Advantage for v3)
 
-Features that no single OSINT platform combines in one view. These are what make v2.0 a WorldView-class product rather than a tracker aggregator.
+Features that elevate this beyond a map tool with a dark theme.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Visual style presets (NVG / CRT / FLIR / Noir)** | No other open-source globe tool has switchable tactical visual modes. This alone makes the tool feel operational, not hobbyist. | MEDIUM | CesiumJS has a built-in `NightVision.glsl` PostProcessStage. CRT scanlines and FLIR thermal colormap are custom GLSL full-screen quad shaders added via `viewer.scene.postProcessStages.add(new Cesium.PostProcessStage({fragmentShader}))`. All presets are screen-space — they apply to the rendered frame buffer, not individual objects. NVG: desaturate + boost green channel + slight noise. CRT: horizontal scanline bands + phosphor green tint + barrel distortion. FLIR: grayscale + hot-cold colormap (blue-cold/white-hot). Noir: desaturate + boost contrast + vignette. Switching presets = disable previous stage, enable new one. |
-| **Post-processing parameter controls** | User-adjustable Bloom, Sharpen, Gain, Scanline spacing/opacity, Pixelation sliders give the tool a "mission control operator" feel. No other OSINT visualization exposes this. | LOW-MEDIUM | CesiumJS `PostProcessStageLibrary` exposes `bloomIntensity`, `bloomContrast`, `bloomBrightness` as uniform floats bindable to slider inputs. Custom GLSL uniforms (scanline density, pixelation level) are passed as `uniforms` object to `PostProcessStage`. React sliders update uniform values in real-time via `viewer.scene.postProcessStages` refs. Each slider debounced at ~16ms to maintain 60 FPS. |
-| **Cinematic HUD overlay** | Transforms the UI from "web app" to "intelligence terminal." Classification banners, MGRS readout, satellite telemetry ticker, REC timestamp — these exist in WorldView-style UIs and are instantly recognizable. | MEDIUM | This is a pure CSS/React overlay — NOT CesiumJS. Position: fixed, full viewport, pointer-events: none so mouse events pass through to the globe. Classification banner: red bar at top "TOP SECRET // SI-TK // NOFORN" in Courier/monospace. MGRS: computed from cursor lat/lon using `mgrs-js` (NGA library, MIT license) or `proj4js/mgrs`. Updated on `viewer.camera.changed` event. Satellite telemetry: live readouts for selected satellite (ORB, PASS, GSD, ALT, SUN angle, EL). REC timestamp: animated blinking "REC" indicator + ISO timestamp. GSD (Ground Sample Distance) can be estimated from altitude assuming a notional sensor. |
-| **GPS Jamming heatmap** | The only public OSINT layer for GPS/GNSS interference inference. gpsjam.org is the only widely-known source. WorldView has nothing equivalent. Builds on v1.0's GNSS anomaly detection concept but with external data. | MEDIUM | gpsjam.org publishes daily hexagonal heatmaps (H3 hex grid) from ADSB-derived accuracy reports. Color coding: green > 98% good, yellow 2-10% degraded, red > 10% degraded. Data format: the site does not expose a clean public API — options are: (a) scrape the published daily GeoJSON files they host, (b) build own inference layer from ADSB Exchange NACp/NACv fields, or (c) use SkAI Data Services API. Recommended: self-build from ADSB Exchange `nic` and `nacp` fields, aggregate into H3 hexagons, store in PostGIS. Label honestly as inference, not geolocation. |
-| **4D Historical replay** | Time is the most powerful intelligence dimension. FlightRadar24 Gold charges premium for this. No open-source globe has it. LIVE/PLAYBACK toggle, event dots on timeline, speed multipliers (1×, 3×, 5×, 15×, 3600×) are the expected pattern. | HIGH | This is the highest-complexity feature. Requires: (1) snapshot storage — periodic DB snapshots of all layer states (satellite positions, aircraft positions, events). (2) Timeline UI — custom scrubber bar NOT CesiumJS default widget. Event dots on timeline (color-coded by category: Kinetic, Airspace Closure, Maritime, Seismic, etc.). (3) Playback engine — `setInterval` or `requestAnimationFrame` loop advancing a virtual clock, fetching snapshots at each speed step, re-rendering all layers. (4) CesiumJS Clock API — `viewer.clock.multiplier` and `viewer.clock.currentTime` control playback speed and position. CZML can animate time-dynamic entities natively if positions are stored as sampled properties. Speed tiers: 1m/s (real-time review), 3m/s (fast review), 5m/s (rapid scan), 15m/s (coarse), 1h/s (strategic). |
-| **OSINT event correlation** | Satellite overpass lines connecting ISR-capable satellites to ground areas of interest is a unique intelligence visualization. No other open tool does this. OSINT tags at bottom (Kinetic, Maritime, Airspace) add analytical framing. | HIGH | Two components: (a) Overpass lines — use satellite.js to compute which satellites have LOS (line of sight) to a selected ground point of interest at the current time. Draw polyline from satellite to ground. Animate as satellite moves. (b) Event filter tags — bottom bar with clickable tag chips (Kinetic, Airspace Closure, Maritime, Seismic) that filter the event/replay layer. Dependencies: satellite tracking (v1.0, already built), event data model (new), timeline (REP-01 to 04). |
-| **Street traffic particle simulation** | Moving dot particles on the road network give a "city alive" feel at street zoom levels. DeckGL and Mapbox GL have this. No CesiumJS tool has it. | HIGH | Two sub-problems: (a) Road network data — OSM Overpass API for road geometries in the current view bbox. Cache aggressively. (b) Particle system — custom CesiumJS Primitive or WebGL overlay. Particles travel along road line segments at simulated speeds, randomly distributed. No real traffic data — this is a synthetic visual simulation. Density is zoom-dependent (fewer particles at high altitude, more at street level). Color by road class (motorway: bright white, arterial: cyan, local: dim). Interaction model: appears automatically when zoom level crosses ~500m altitude threshold. Toggle in layer controls. This is purely aesthetic — do NOT present as real traffic data. |
+| **Radar-style UI visual language** | No open-source geospatial tool uses authentic radar/SIGINT terminal aesthetics — angular corner brackets, scan animation on active panels, pulsing active indicators. This is the visual signature that makes the tool feel operational, not hobbyist. | MEDIUM | The pattern: panel borders replaced with CSS corner-only bracket decorations (4 `::before`/`::after` pseudo-elements, or 4 absolutely-positioned `<span>` divs). Angular clip-path on panel headers (`clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)`). Pulsing dot via CSS keyframe animation on `box-shadow`. Scan line sweep via `@keyframes` on a linear-gradient overlay `transform: translateY(-100%)` to `translateY(100%)`. Color palette: `#00d4ff` (primary cyan), `#00ff88` (active/green), `#ff4444` (alert/red), `#ffaa00` (warning/amber) on near-black backgrounds. All these are pure CSS — zero JavaScript, zero performance impact. |
+| **Custom SVG billboard icons per entity type** | Generic dots or built-in CesiumJS pin markers do not convey entity type at a glance. Custom SVG icons (satellite with solar panels, aircraft silhouette, ship outline, military diamond) are the FlightRadar24 standard. | MEDIUM | SVGs can be rendered to a Canvas at runtime and passed as CesiumJS billboard image via `canvas.toDataURL()` or a data URL. Alternatively, bake icons as PNG sprites at 2–3 sizes and select by zoom level. CesiumJS BillboardCollection `image` property accepts a data URL or canvas. For 5,000+ satellites this matters for performance: generate icon canvas once per entity type (not per entity), reuse the same image reference across all billboards of that type. 4 icon types = 4 canvases. Color variants per type (military amber vs commercial blue) = 8 total canvases. |
+| **Animated expand/collapse with section identity** | Collapsible panels with labeled section headers (LAYERS, FILTERS, SEARCH, NAVIGATION) that show item counts when collapsed ("LAYERS ▸ 6 active") communicate state without requiring the panel to be open. | MEDIUM | Section count badge: reduce layer toggle states to active count in collapsed header. Use `useMemo` for the count. Framer Motion layout animation on section container so adjacent sections smoothly reflow when one collapses (avoids jarring jump). |
+| **Persistent panel state** | Remembering which sidebar sections were open/closed across page loads feels like a complete product detail, not a prototype. | LOW | `localStorage.setItem('sidebarSections', JSON.stringify(openSections))` on change. Read on mount with fallback defaults. Single useEffect hook. |
 
 ### Anti-Features (Do Not Build)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Real GPS jammer geolocation** | Users want to find the actual jammer device | Requires sensor triangulation not available from ADSB telemetry alone. Publishing a precise location is wrong and potentially defamatory. | Label all jamming data as "GNSS degradation anomaly cluster — inferred from aircraft telemetry, not geolocated." Use H3 hex cells, not precise points. |
-| **Live commercial traffic as "military"** | Users want more coverage | ADSB Exchange military filter is based on ICAO24 military registrations. Labeling ambiguous aircraft as military is misleading. | Stick to ADSB Exchange `/api/mil` endpoint. Clearly label as "military-registered ICAO." |
-| **CesiumJS Timeline widget for replay** | The built-in widget seems like an easy shortcut | The default Cesium timeline widget is not customizable enough for event dots, speed presets, category coloring, and LIVE/PLAYBACK toggle. It's a blocker, not a helper. | Build a custom React timeline component. Use `viewer.clock` API for the actual time control but drive it from custom UI. |
-| **Real-time street traffic data** | Users might expect actual traffic conditions | Real-time road traffic data (TomTom, HERE) requires expensive API keys. OSM has no real-time layer. Even fake-looking particles add cognitive noise if users think they represent real conditions. | Synthetic particle simulation only, clearly not representing real traffic. Or omit entirely if the "cinematic feel" benefit doesn't justify the complexity. |
-| **MarineTraffic / Kpler AIS** | Best coverage, most ship data | Commercial API, expensive at scale. License restricts redistribution. | Use AISHub (free, registration required) or aisstream.io (WebSocket, free tier). Label data source clearly. |
-| **Post-processing applied per object** | Users might want to NVG-highlight specific satellites only | CesiumJS PostProcessStage is screen-space (full-frame buffer). Selective per-object post-processing requires stencil buffer hacks or separate render passes — extremely complex and fragile. | Apply presets globally. Use object color/opacity changes to highlight specific objects within a preset. |
-| **Pixel-perfect FLIR thermal simulation** | Would look impressive | True FLIR requires actual thermal sensor data. Fake FLIR applied to a standard globe texture looks unconvincing unless the underlying data is thermal-appropriate. Attempting it looks bad. | Apply FLIR as a stylistic colormap preset (grayscale + hot-cold color ramp). Do not claim thermal accuracy. Label it "FLIR STYLE" not "FLIR SENSOR." |
-| **Replay of GPS Jamming / weather layers** | Users want full-scene historical replay | Storing historical snapshots of every layer simultaneously (GPS jam tiles + weather radar + AIS + aircraft) multiplies storage requirements dramatically. | Replay phase 1: satellites + aircraft only. Replay phase 2: add events. Jamming/weather historical data is not generally available for free anyway. |
-| **Keyboard shortcuts that conflict with browser defaults** | More shortcuts seem better | Ctrl+S, Ctrl+F, etc. conflict with browser save/find. Alt combinations are inconsistent cross-platform. | Use single-key shortcuts (Q/W/E/R/T for landmarks as specified) only when the globe viewport has focus. Escape to close panels. Avoid Ctrl/Alt combos. |
+| **Animated radar sweep circle on globe** | "Radar" aesthetic often prompts adding a rotating sweep animation projected onto the globe surface | A globe-projected animated sweep requires a GroundPrimitive with per-frame geometry updates, or a full-screen shader pass. At 5,000+ entities, additional shader complexity risks dropping below 60 FPS. Looks gimmicky on a globe — radar sweeps are flat-plane tools. | Apply radar aesthetic to UI panels only (corner brackets, scan lines on panel headers). Keep the globe surface clean of UI chrome. |
+| **Smooth continuous zoom (not jump-based) on double click** | "Smooth" zoom feels more natural | Continuous camera fly animations during double-click create motion sickness on 3D globes because of the extreme depth change. Google Earth uses a discrete "zoom level" jump, not a slow fly. | Use `camera.flyTo()` with a short `duration: 0.4` for perceived smoothness without the disorientation of a long pan. |
+| **Icon labels always visible** | "I want to know the plane callsign without clicking" | At 5,000+ entities, always-on labels are unreadable overlapping text. This is the reason we're using the Primitive API — Entity API tried to solve this with automatic LOD and failed at scale. | Show labels only on hover (mouseover) or selection. Use `distanceDisplayCondition` on labels to only show them close-up. |
+| **CSS animations on every entity icon** | Pulsing / blinking icons for active entities look impressive in demos | Per-icon CSS animations are applied as DOM elements only in Entity API. With Primitive API (BillboardCollection), icons are rendered as GPU sprites — there is no per-icon CSS. Applying canvas-level animation would require re-uploading canvas textures every frame for all entities. | Animate selected entity only (single selection marker / ring drawn via CesiumJS Primitive). Animate UI panels (scan lines, pulsing dot indicators), not the globe layer icons. |
+| **Resizable/draggable panels** | Power users want to arrange the UI | Drag-resize state management conflicts with the fixed positioning of CesiumJS canvas, causes z-index issues, requires substantial React drag state or a library (react-resizable-panels). Far higher complexity than the v3 scope warrants. | Collapsible sections address the space problem. Defer draggable panels to v4 if specifically requested. |
+| **Mouse-wheel zoom speed override** | Feels like an easy improvement | CesiumJS `ScreenSpaceCameraController.zoomEventTypes` and `wheelZoomWeightModifier` can be adjusted, but the default is already well-tuned for globe distances. Over-tuning breaks the feel at polar orbits vs street level (the altitude range is 7 orders of magnitude). | Leave scroll-wheel zoom at default. The +/- buttons are the fix for users who want discrete control. |
+| **Right-click context menu on globe** | Seems natural for "what is at this point" | Right-click on CesiumJS globe conflicts with the existing right-drag-tilt camera behavior. Disambiguating tap vs drag vs hold requires stateful timer logic that is error-prone. | Double-click for zoom is the standard interaction. Context info comes from click-to-inspect panels, which already exist. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[CesiumJS Scene / PostProcessStageCollection]
-    └──enables──> Visual Style Presets (NVG, CRT, FLIR, Noir)
-                      └──requires──> Post-Processing Parameter Controls (uniforms → sliders)
+[CesiumJS BillboardCollection (already exists in all layer components)]
+    ├──add-property──> scaleByDistance (NearFarScalar) per billboard
+    │                      └──enables──> Zoom-scalable entity icons (ICONS-05)
+    └──replace-image──> Custom SVG/canvas icons
+                           └──enables──> Custom entity type icons (ICONS-01 to 04)
 
-[CSS/React Viewport Overlay]
-    └──enables──> Cinematic HUD Overlay
-                      ├──requires──> mgrs-js (coord conversion)
-                      ├──requires──> Satellite Click-to-Inspect data (v1.0)
-                      └──requires──> Camera position listener (viewer.camera.changed)
+[CesiumJS ScreenSpaceEventHandler (already exists in GlobeView.tsx)]
+    └──override-double-click──> Custom double-click handler
+                                    └──uses──> camera.getPickRay() + globe.pick() + camera.flyTo()
+                                    └──enables──> Double-click zoom toward cursor (NAV-01)
 
-[ADSB Exchange API]
-    └──enables──> Military Flights Layer
-                      └──depends-on──> Aircraft Layer Toggle System (v1.0)
+[React component tree / LeftSidebar.tsx]
+    └──refactor-structure──> Section group components with AnimatePresence
+                                 ├──enables──> Collapsible sidebar sections (LAYOUT-01)
+                                 └──enables──> Logical panel grouping (LAYOUT-02)
 
-[USGS GeoJSON Feed]
-    └──enables──> Earthquake Layer
-                      └──depends-on──> Layer Toggle System (v1.0)
+[React absolute-positioned overlay (new component)]
+    ├──enables──> Zoom +/- buttons (NAV-03)
+    └──enables──> Tilt/pitch control widget (NAV-02)
+                      └──uses──> viewer.camera.flyTo({ orientation: { pitch } })
 
-[Iowa State Mesonet WMS]
-    └──enables──> Weather Radar Overlay
-                      └──uses──> CesiumJS WebMapServiceImageryProvider (built-in)
-
-[AISHub / aisstream.io]
-    └──enables──> Maritime Traffic Layer
-                      └──depends-on──> Layer Toggle System (v1.0)
-                      └──enhances──> 4D Historical Replay (ships in playback)
-
-[ADSB Exchange NACp/NACv fields OR gpsjam.org scrape]
-    └──enables──> GPS Jamming Heatmap
-                      └──depends-on──> PostGIS H3/hexagon aggregation
-                      └──enhances──> OSINT Event Correlation (jamming events)
-
-[OSM Overpass API + Custom WebGL Particles]
-    └──enables──> Street Traffic Particle Simulation
-                      └──isolated──> No dependencies on other v2.0 features
-
-[CesiumJS camera.flyTo()]
-    └──enables──> Landmark / City Preset Navigation
-                      └──isolated──> No dependencies on other v2.0 features
-
-[DB Snapshot Infrastructure]
-    ├──required-by──> 4D Historical Replay
-    │                     ├──requires──> Timeline Scrubber UI (custom React)
-    │                     ├──requires──> viewer.clock API (CesiumJS)
-    │                     └──enables──> OSINT Event Correlation (replay context)
-    └──required-by──> OSINT Event Correlation (event data storage)
-
-[satellite.js LOS computation]
-    └──enables──> OSINT Event Correlation (overpass lines)
-                      └──depends-on──> Satellite Tracking Worker (v1.0)
-                      └──depends-on──> 4D Historical Replay (time context for overpasses)
+[CSS custom properties / global stylesheet]
+    └──enables──> Radar visual language (STYLE-01, STYLE-02)
+                      └──isolated──> Pure CSS, no JavaScript runtime cost
+                      └──applies-to──> All panels (LeftSidebar, RightDrawer, PlaybackBar, SearchBar, HUD)
 ```
 
 ### Dependency Notes
 
-- **Post-processing controls require visual style presets first:** Sliders that control `bloomIntensity` etc. are meaningless without a PostProcessStage already on the scene. Build presets first, expose controls second.
-- **Cinematic HUD is independent of visual presets:** The CSS overlay can be shown in any preset mode. No dependency, but they are designed to be used together.
-- **4D Replay is the highest-order dependency:** OSINT event correlation with overpass lines is most powerful when the globe is in playback mode (showing a satellite overflying an area at the exact historical moment of an event). Replay should be built before full OSINT correlation.
-- **GPS Jamming heatmap has no official API:** Building from ADSB Exchange NACp fields is the most reliable path. This is a backend engineering task (PostGIS + RQ job), not a frontend task.
-- **Street traffic is fully isolated:** No other feature depends on it. It can be deferred or cut if the complexity/benefit ratio is unfavorable.
-- **Landmark navigation is fully isolated:** Pure frontend, no backend. Build it in any phase without risk.
-- **Military flights depends on ADSB Exchange rate limits:** The free tier is limited. The app should cache military positions and update every 15-30 seconds, not per frame.
+- **Icon scaling (ICONS-05) is a property addition, not a refactor.** `scaleByDistance` is added to each billboard's config in the existing BillboardCollection `add()` calls. One property per billboard. No architectural change to the Primitive renderer.
+- **Custom SVG icons (ICONS-01–04) require a canvas generation utility.** Because all layer components use BillboardCollection and share the same `image:` field pattern, a shared `generateIconCanvas(type, color)` utility can be created once and imported by all four layer components. No per-component duplication.
+- **Double-click zoom (NAV-01) must disable the CesiumJS default LEFT_DOUBLE_CLICK.** The default behavior zooms to and focuses on any clicked entity (sets `viewer.trackedEntity`). This must be removed and replaced with the custom globe.pick() + flyTo() handler. Disabling it is a one-liner; adding the custom handler is ~20 lines.
+- **Radar CSS language (STYLE-01/02) is purely additive.** No existing component needs to be rewritten. Corner brackets can be added as child `<span>` elements or CSS pseudo-elements in existing component JSX. Scan-line animation is a CSS keyframe on a pseudo-element overlay. The existing `rgba(0,212,255,0.25)` border color palette already matches radar aesthetics — this is a refinement, not a retheme.
+- **Collapsible sections (LAYOUT-01) require the most React refactoring.** LeftSidebar currently renders layer toggles as a flat fixed-position strip separate from the sidebar panel. The v3 design consolidates them inside the sidebar in named sections. This requires restructuring LeftSidebar's JSX and moving the bottom layer strip into the sidebar body — a structural change, not just a style change.
+- **Tilt widget and zoom buttons (NAV-02, NAV-03) are new React components.** They must be positioned in the CesiumJS canvas area without interfering with click-through. Use `pointer-events: none` on wrappers, `pointer-events: auto` on button elements only.
 
 ---
 
-## MVP Definition for v2.0
+## MVP Definition for v3.0
 
-### Phase 1 — Visual Engine (Build First)
+### Launch With (v3.0)
 
-These establish the new visual identity and have no data dependencies.
+Minimum viable refinement — what's needed to deliver the v3 capability tier.
 
-- [ ] **Visual style presets** — NVG, CRT, FLIR, Noir via PostProcessStage. Switches the entire product feel instantly.
-- [ ] **Post-processing parameter controls** — Bloom, Sharpen, Gain sliders. Low effort, high perceived quality.
-- [ ] **Cinematic HUD overlay** — Classification banner, MGRS readout, telemetry ticker. Pure CSS/React, no backend.
-- [ ] **Landmark / city preset navigation** — Q/W/E/R/T keyboard shortcuts + bottom quick-jump bar. Low effort.
+- [ ] **Radar corner brackets and panel header styling** (STYLE-01) — The visual signature. Pure CSS. High impact, low risk.
+- [ ] **Collapsible sidebar sections with grouping** (LAYOUT-01, LAYOUT-02) — Solves the practical problem of too many controls for a small panel.
+- [ ] **Panel overlap elimination** (LAYOUT-03) — Fix any existing z-index / layout conflicts between sidebar, right drawer, playback bar.
+- [ ] **Custom SVG billboard icons for all 4 entity types** (ICONS-01–04) — Replaces generic markers with recognizable entity silhouettes.
+- [ ] **Icon scale with camera altitude** (ICONS-05) — One `scaleByDistance` property added to each billboard. Proportional icons at all zoom levels.
+- [ ] **Double-click zoom toward cursor** (NAV-01) — Override default behavior, implement globe.pick() + flyTo(). ~30 lines of code but requires testing edge cases.
+- [ ] **Tilt control buttons and zoom +/- overlay** (NAV-02, NAV-03) — New React component, absolutely positioned, camera API calls.
 
-### Phase 2 — New Data Layers (Build Second)
+### Add After Validation (v3.1)
 
-These add intelligence value and follow the v1.0 layer pattern.
+- [ ] **Pulsing active indicator on panels** (STYLE-02) — CSS keyframe animation on active layer badges. Add once v3.0 layout is stable to avoid thrash.
+- [ ] **Scan-line sweep animation on panel headers** — CSS `@keyframes` translateY sweep. Aesthetic detail, defer until core layout is locked.
+- [ ] **Persistent sidebar section state** (localStorage) — Quality of life, add once section structure is finalized.
+- [ ] **Earthquake layer** (LAY-05) — Was deferred from v2.0, natural addition once layer UI grouping is solid.
+- [ ] **Weather radar overlay** (LAY-06) — Same deferral. Layer group structure makes adding new layers easier.
 
-- [ ] **Military flights layer** — ADSB Exchange `/api/mil`. Different icon from commercial.
-- [ ] **Earthquake layer** — USGS GeoJSON. Magnitude-scaled markers. Easy integration.
-- [ ] **Maritime traffic layer** — AISHub or aisstream.io. Ship icons, click-to-inspect.
-- [ ] **Weather radar overlay** — Iowa State Mesonet WMS. CesiumJS WebMapServiceImageryProvider.
-- [ ] **GPS Jamming heatmap** — Backend aggregation from ADSB NACp fields. H3 hex polygons.
+### Future Consideration (v3.x+)
 
-### Phase 3 — 4D Intelligence Engine (Build Third)
-
-These are architecturally complex and depend on Phases 1 and 2.
-
-- [ ] **4D Historical replay** — Snapshot storage, timeline scrubber, speed controls. Must be built before event correlation.
-- [ ] **OSINT event correlation** — Overpass lines, event filter tags. Requires replay context.
-- [ ] **Street traffic particle simulation** — Synthetic road particle animation. Aesthetic only, safe to defer.
+- [ ] **Draggable/resizable panels** — Significant complexity, not warranted until user feedback confirms the need.
+- [ ] **Globe-surface radar sweep animation** — Only if GPU headroom confirmed at full scene load.
+- [ ] **Custom icon per entity instance** (e.g., per airline livery) — Not differentiated enough to warrant per-entity canvas overhead.
 
 ---
 
@@ -159,172 +135,217 @@ These are architecturally complex and depend on Phases 1 and 2.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Visual style presets | HIGH | MEDIUM | P1 |
-| Post-processing controls | MEDIUM | LOW | P1 |
-| Cinematic HUD overlay | HIGH | MEDIUM | P1 |
-| Landmark navigation | MEDIUM | LOW | P1 |
-| Military flights layer | HIGH | MEDIUM | P1 |
-| Earthquake layer | MEDIUM | LOW | P1 |
-| Maritime traffic layer | HIGH | MEDIUM | P2 |
-| Weather radar overlay | MEDIUM | MEDIUM | P2 |
-| GPS Jamming heatmap | HIGH | HIGH | P2 |
-| 4D Historical replay | HIGH | HIGH | P2 |
-| OSINT event correlation | HIGH | HIGH | P3 |
-| Street traffic particles | LOW | HIGH | P3 |
+| Radar corner bracket styling | HIGH | LOW | P1 |
+| Collapsible sidebar sections | HIGH | MEDIUM | P1 |
+| Custom SVG entity icons | HIGH | MEDIUM | P1 |
+| Icon scale with zoom | HIGH | LOW | P1 |
+| Double-click zoom toward cursor | HIGH | MEDIUM | P1 |
+| Panel overlap fix | MEDIUM | LOW | P1 |
+| Tilt control widget | MEDIUM | LOW | P1 |
+| Zoom +/- buttons | MEDIUM | LOW | P1 |
+| Pulsing active indicators | MEDIUM | LOW | P2 |
+| Panel scan-line animation | LOW | LOW | P2 |
+| Persistent section state | MEDIUM | LOW | P2 |
+| Earthquake / weather layers | MEDIUM | LOW | P3 (v3.1) |
 
 **Priority key:**
-- P1: Must have for v2.0 launch — establishes the new capability tier
-- P2: Should have — fills out the intelligence picture
-- P3: Nice to have — add when P1/P2 are stable
+- P1: Required for v3.0 milestone — defines the refinement tier
+- P2: Ship in v3.1 once layout is stable
+- P3: Future milestone
 
 ---
 
-## Interaction Model Per Feature
+## Competitor Feature Analysis
 
-### Visual Style Presets
-
-- **Trigger:** Preset selector in top-right toolbar (tabs or icon buttons): NORMAL | NVG | CRT | FLIR | NOIR
-- **Behavior:** Clicking a preset immediately swaps the active PostProcessStage. Transition is instantaneous (no animation needed — the frame buffer switch is instant).
-- **Visual output:** NVG — green phosphor tint, slight noise. CRT — horizontal scanline bands, barrel distortion, phosphor bloom. FLIR — grayscale with hot-cold colormap (blue → white-hot). Noir — high-contrast desaturated with vignette.
-- **Persistence:** Store in localStorage, restore on next load.
-
-### Post-Processing Parameter Controls
-
-- **Trigger:** Expand panel (collapse by default) adjacent to preset selector.
-- **Behavior:** Each slider updates PostProcessStage uniforms in real-time. Labels and value readouts (e.g., "Bloom: 0.7") visible.
-- **Controls:** Bloom Intensity (0–2.0), Sharpen Amount (0–1.0), Gain (0.5–2.0), Scanline Spacing (1–10px), Scanline Opacity (0–0.8), Pixelation Level (1–16).
-- **Not all controls apply to all presets:** Grey out irrelevant sliders per preset. Scanlines only active in CRT. Pixelation only in FLIR.
-
-### Cinematic HUD Overlay
-
-- **Always visible** when HUD toggle is enabled (default: on).
-- **Top bar:** Red classification banner "TOP SECRET // SI-TK // NOFORN" in uppercase monospace. Static text — this is a style element, not actual classification.
-- **Bottom-left:** MGRS coordinate (10-digit precision) updating as camera moves. Lat/lon in decimal below it.
-- **Bottom-right:** REC indicator (blinking red dot + "REC" text) + ISO 8601 timestamp updating every second.
-- **Left sidebar:** When a satellite is selected — ORB (orbital period in minutes), PASS (next pass ETA), ALT (altitude km), INC (inclination deg), GSD (notional ground sample distance in meters), SUN (sun elevation angle at ground track), EL (elevation angle from observer).
-- **Interaction:** HUD toggle button (keyboard shortcut: H) shows/hides entire overlay.
-
-### Military Flights Layer
-
-- **Icons:** Diamond shape (vs circle for commercial aircraft). Color: amber/orange. Distinct from commercial grey/blue.
-- **Click-to-inspect:** Same panel as commercial aircraft but adds ICAO military registration note. Callsign, ICAO24, altitude, speed, heading.
-- **Data refresh:** Every 30 seconds (rate limit consideration).
-- **Toggle:** Separate from commercial aircraft toggle. Can coexist.
-- **Filter integration:** Existing altitude/region filters apply.
-
-### GPS Jamming Heatmap
-
-- **Visual:** H3 hexagonal grid overlaid on globe. Green/yellow/red coloring by degradation percentage.
-- **Opacity:** Default 50% — semi-transparent so globe detail shows through.
-- **Click interaction:** Click a hex cell — shows popup with degradation %, aircraft count in sample, date/time of data.
-- **Update cadence:** Daily update (data is aggregated over 24h). Show "data as of [date]" label.
-- **Honesty label:** Permanent overlay text "GPS anomaly inference — not precise geolocation." Small, semi-transparent, bottom of map.
-
-### Maritime Traffic Layer
-
-- **Icons:** Ship silhouette SVG, heading indicator (direction triangle). Color by vessel type: tanker (red), cargo (cyan), passenger (white), military (amber), other (grey).
-- **Click-to-inspect:** Vessel name, MMSI, type, speed (knots), heading, destination (if broadcast), flag state.
-- **Data refresh:** Every 60 seconds (AIS update rate varies by vessel class).
-- **Toggle:** Separate layer. Independent of aircraft/satellite layers.
-
-### Earthquake Layer
-
-- **Icons:** Circle markers. Radius scaled to magnitude (M2 = tiny, M7+ = large). Color by magnitude tier.
-- **Click-to-inspect:** Magnitude, depth, location name, origin time, USGS event link.
-- **Update cadence:** Every 5 minutes from USGS hourly feed. 24-hour rolling window.
-- **Animation:** New events pulse briefly on appearance.
-
-### Weather Radar Overlay
-
-- **Visual:** Semi-transparent NEXRAD precipitation tiles overlaid on globe. Standard radar color scale (green = light rain, yellow/orange = moderate, red/purple = severe).
-- **Opacity:** User-adjustable slider in layer control panel.
-- **Update cadence:** Every 5 minutes.
-- **Coverage note:** CONUS only initially. Label non-coverage areas clearly.
-- **Toggle:** Layer control with opacity slider.
-
-### Street Traffic Particle Simulation
-
-- **Trigger:** Automatically activates when camera altitude < 500m. Toggle in layer controls.
-- **Visual:** Small dots (3–5px) moving along road line segments. Speed proportional to road class. Motorway particles move faster than local roads.
-- **Color:** Road-class coded. Does NOT represent real traffic.
-- **Disclaimer label:** "Synthetic simulation — not real traffic data." Visible when layer active.
-- **Performance gate:** Road geometry fetched from OSM Overpass API for current bbox. Cache heavily. Max 2,000 active particles at a time.
-
-### Landmark / City Preset Navigation
-
-- **Bottom quick-jump bar:** Row of 5 labeled buttons at bottom of screen. Default POIs: [KYIV, STRAIT OF HORMUZ, SOUTH CHINA SEA, RED SEA, IRANIAN PLATEAU] — operationally relevant to current geopolitics.
-- **Keyboard shortcuts:** Q=slot1, W=slot2, E=slot3, R=slot4, T=slot5. Active only when globe has focus.
-- **Behavior:** Pressing a key or clicking a button triggers `viewer.camera.flyTo()` with a preset cartographic position and heading/pitch.
-- **Customization (v2.1):** Defer user-defined POIs to a future iteration. Hardcode the initial 5.
-
-### 4D Historical Replay
-
-- **Mode toggle:** LIVE / PLAYBACK toggle in top control bar.
-- **LIVE mode:** Current behavior (v1.0 real-time tracking).
-- **PLAYBACK mode:** Timeline scrubber appears at bottom. Date/time range selector. Playback controls: ⏮ (start), ⏪ (rewind), ⏸ (pause), ▶ (play), ⏩ (forward), ⏭ (end).
-- **Speed selector:** Discrete steps — 1×, 3×, 5×, 15×, 3600× (labeled as "1m/s", "3m/s", "5m/s", "15m/s", "1h/s").
-- **Event dots on timeline:** Small colored dots on the scrubber track mark events. Color by category: red=Kinetic, orange=Airspace Closure, blue=Maritime, brown=Seismic, yellow=GPS Anomaly.
-- **Backend:** RQ job snapshots all layer states every N minutes to PostgreSQL. Snapshot table: `(snapshot_id, layer, entity_id, timestamp, position_json, metadata_json)`.
-- **Playback engine:** Frontend fetches snapshots for current virtual time. Renders them as static positions (no live propagation in playback mode for aircraft/ships). Satellites CAN be propagated from TLEs using historical virtual clock — no snapshot needed for them.
-
-### OSINT Event Correlation
-
-- **Overpass lines:** When an event (e.g., airstrike report, maritime incident) is selected, draw arc lines from all ISR-capable satellites with LOS to that point at the event timestamp. Line weight proportional to satellite sensor capability (if known).
-- **Overpass computation:** Uses satellite.js `observe()` to compute elevation angle from event location to each satellite at the event time. Filter to elevation > 10 degrees (above horizon).
-- **Event filter tags:** Bottom bar chip filters — [ALL] [KINETIC] [AIRSPACE] [MARITIME] [SEISMIC] [JAMMING]. Click to filter which events are shown on globe and timeline.
-- **Interaction:** Click an event marker → event panel opens with description, timestamp, source, category, correlating satellites listed.
-- **Data source:** Events ingested from user-defined OSINT feeds or manually added (v2.0 scope: manual add + USGS earthquakes + ADSB airspace closures).
+| Feature | FlightRadar24 3D | Google Earth | WorldWind | Our Approach |
+|---------|-----------------|--------------|-----------|--------------|
+| Double-click zoom | Zooms camera toward clicked terrain point (smooth fly) | Zooms to clicked point one level at a time | Varies by config | `camera.getPickRay()` + `globe.pick()` + `camera.flyTo({ duration: 0.4 })` |
+| Zoom buttons | +/- overlay top-right | Slider bottom-right | +/- top-right | +/- buttons, absolute-positioned React component, calls `camera.zoomIn/Out()` |
+| Tilt control | None (hold right-click to tilt) | Vertical slider bottom-right (0°–90°) | Not prominent | Discrete preset buttons: Top-down / 45° / Horizon — easier than continuous slider on globe |
+| Panel collapse | No sidebar panels | Layers panel with expand/collapse tree | Varies | Framer Motion animated collapse with chevron icon and section item counts |
+| Entity icons | Aircraft silhouette SVG by airline type | KML icon set | Custom | Per-type SVG rendered to canvas, shared across all entities of same type |
+| Radar aesthetics | None | None | None (plain) | Angular corner brackets, scan header animation, pulsing active badge — differentiator |
 
 ---
 
-## Complexity Ranking (Honest Assessment)
+## Implementation Notes by Feature
 
-### LOW Complexity (< 3 days each)
+### STYLE-01: Radar Corner Brackets
 
-- Landmark / city preset navigation — pure frontend, CesiumJS flyTo() call
-- Earthquake layer — USGS GeoJSON, already-known pattern from v1.0
-- Post-processing parameter controls — slider → uniform binding
-- Cinematic HUD overlay — CSS/React, no backend
+CSS approach using 4 child `<span>` elements (reliable cross-browser vs `::before`/`::after` which are limited per element):
 
-### MEDIUM Complexity (3–7 days each)
+```
+Position: absolute at panel corners. Width/height ~12px, border 1–2px solid cyan.
+Corner spans: top-left (border-top + border-left), top-right (border-top + border-right),
+bottom-left (border-bottom + border-left), bottom-right (border-bottom + border-right).
+Remove full panel border. Add corner spans. Background rgba(0,8,20,0.92).
+```
 
-- Visual style presets — custom GLSL required for CRT/FLIR, NVG is built-in
-- Military flights layer — ADSB Exchange integration, icon differentiation
-- Maritime traffic layer — AIS source research + icon set + click-inspect
-- Weather radar overlay — WMS integration with CesiumJS WebMapServiceImageryProvider
+Apply to: LeftSidebar panel, RightDrawer, SearchBar dropdown, DetailPanel modals, PlaybackBar.
+Do not apply to: the CesiumJS attribution bar, browser scrollbars, anything not React-owned.
 
-### HIGH Complexity (1–3 weeks each)
+### STYLE-02: Pulsing Active Indicator
 
-- GPS Jamming heatmap — backend aggregation pipeline from NACp fields, H3 hexagons, no clean API
-- 4D Historical replay — snapshot storage design, custom timeline UI, playback engine, clock sync
-- OSINT event correlation — LOS computation at historical time, event data model, UI composition
-- Street traffic particle simulation — OSM road network fetching, custom particle WebGL system, performance management
+CSS `@keyframes` on `box-shadow`:
+```
+@keyframes radar-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.6); }
+  70%  { box-shadow: 0 0 0 6px rgba(0, 212, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+}
+```
+Apply to the active layer indicator dot (the small colored status dot next to toggle labels).
+Animation duration: 2s, infinite. Only play when layer is active (conditional class application).
+
+### LAYOUT-01: Collapsible Section Structure
+
+Proposed section grouping for LeftSidebar:
+
+```
+LAYERS           (SAT / AIR / MIL / SHIP / JAM / TRAFFIC)
+FILTERS          (existing FilterPanel contents)
+SEARCH           (existing SearchBar)
+NAVIGATION       (landmark quick-jump buttons)
+```
+
+State: `openSections: Set<string>` in local React state (or localStorage-persisted).
+Toggle: click section header chevron. Chevron rotates 90° via CSS transform transition.
+Framer Motion `AnimatePresence` wraps section content with `initial={false}` to avoid mount animation.
+Motion `variants: { open: { height: 'auto', opacity: 1 }, closed: { height: 0, opacity: 0 } }`.
+
+### ICONS-01–04: Custom SVG Entity Icons
+
+Icon specifications (SVG viewBox 32×32, exported to canvas at 32px for normal, 64px for high-DPI):
+
+- **Satellite (ICONS-01):** Rectangular body with two solar panel wings, small antenna nub. Color: `#00d4ff` (cyan) standard, `#00ff88` (green) active/selected.
+- **Aircraft (ICONS-02):** Top-down aircraft silhouette — narrow fuselage, swept wings, tail fin. Color: `#aaaacc` (grey-blue) commercial, selected state: `#ffffff`.
+- **Military Aircraft (ICONS-03):** Top-down fighter silhouette — delta wing, wider body. Color: `#ffaa00` (amber). Different shape from commercial is critical for quick visual identification.
+- **Ship (ICONS-04):** Top-down vessel silhouette — elongated hull with bow shape. Color by vessel type: cargo `#00aaff`, tanker `#ff4444`, military `#ffaa00`, passenger `#ffffff`.
+
+All icons generated via `<canvas>` element at mount time in a `useGlobeIcons` hook. The canvas `toDataURL()` result is passed as the `image:` field to BillboardCollection. Generate once per color variant, not per entity.
+
+### ICONS-05: scaleByDistance
+
+Add to every billboard in every layer component's `billboards.add({})` call:
+
+```
+scaleByDistance: new Cesium.NearFarScalar(
+  1.5e3,  // near distance: 1500m
+  1.8,    // near scale: 1.8x (enlarged close-up)
+  1.5e8,  // far distance: 150,000km (ISS orbital altitude range)
+  0.35    // far scale: 0.35x (small dot at high altitude)
+)
+```
+
+These values need empirical tuning during implementation. Start with these and adjust. The key insight from research: `scaleByDistance` is set per billboard object in the BillboardCollection config — it is NOT a collection-wide setting. It must be added to each `billboards.add({...})` call in SatelliteLayer.tsx, AircraftLayer.tsx, MilitaryAircraftLayer.tsx, and ShipLayer.tsx.
+
+Note on performance: `scaleByDistance` is evaluated on the GPU per-frame by the shader that renders BillboardCollection sprites. There is no CPU cost per entity. It is a uniform value stored with each billboard's vertex buffer entry.
+
+### NAV-01: Double-Click Zoom Toward Cursor
+
+The implementation pattern (MEDIUM confidence — verified from CesiumJS community and API docs):
+
+```
+Step 1: Remove default double-click behavior
+  viewer.screenSpaceEventHandler.setInputAction(
+    () => {},
+    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+  );
+
+Step 2: Add custom handler
+  handler.setInputAction((event) => {
+    const ray = viewer.camera.getPickRay(event.position);
+    if (!ray) return;
+    const intersection = viewer.scene.globe.pick(ray, viewer.scene);
+    if (!Cesium.defined(intersection)) return;
+
+    // Fly to a point 40% closer along camera→intersection vector
+    const cameraPos = viewer.camera.position;
+    const newDest = Cesium.Cartesian3.lerp(
+      cameraPos,
+      intersection,
+      0.4,   // 40% of the way toward the terrain point
+      new Cesium.Cartesian3()
+    );
+    viewer.camera.flyTo({
+      destination: newDest,
+      duration: 0.4,
+      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+    });
+  }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+```
+
+Edge cases to handle:
+- Double-clicking an entity (picked entity, not globe) — should still zoom, not open entity panel
+- Double-clicking sky/space (no globe intersection) — do nothing or zoom to screen center
+- Double-clicking very close to surface — clamp minimum altitude to ~100m
+
+### NAV-02: Tilt Control Widget
+
+React component `<TiltControl>`, absolutely positioned bottom-right (above zoom buttons).
+Three discrete buttons: `[⊤]` Top-down (pitch: -90°), `[◩]` Oblique (pitch: -45°), `[▬]` Horizon (pitch: -15°).
+Current tilt shown as small readout "TILT 45°" between buttons.
+Camera animation: `viewer.camera.flyTo({ destination: currentPos, orientation: { heading: currentHeading, pitch: Cesium.Math.toRadians(targetPitch), roll: 0.0 }, duration: 0.6 })`.
+Note: CesiumJS pitch convention is negative for "looking down" — 0° is looking at the horizon, -90° is straight down. This is inverted from the Mapbox convention. Document this in code.
+
+### NAV-03: Zoom Buttons
+
+React component `<ZoomControls>`, absolutely positioned right side of globe (or bottom-right corner).
+Two buttons: `[+]` and `[-]`.
+Amount should scale with current altitude:
+```
+const altitude = Cesium.Cartographic.fromCartesian(viewer.camera.position).height;
+const zoomAmount = altitude * 0.15; // zoom by 15% of current altitude
+viewer.camera.zoomIn(zoomAmount);  // or zoomOut
+```
+This maintains consistent feel across the full altitude range (orbit → street level).
+
+---
+
+## Complexity Ranking
+
+### LOW Complexity (< 1 day each)
+
+- Radar corner bracket CSS (STYLE-01) — Pure CSS, zero JS
+- Panel overlap z-index fix (LAYOUT-03) — CSS specificity audit
+- Zoom +/- buttons (NAV-03) — ~50 lines React component
+- Pulsing active indicator CSS (STYLE-02) — CSS keyframes
+- `scaleByDistance` on existing billboards (ICONS-05) — One property added per layer component
+- Persistent sidebar section state — Single useEffect + localStorage
+
+### MEDIUM Complexity (1–3 days each)
+
+- Collapsible sidebar sections with Framer Motion (LAYOUT-01, LAYOUT-02) — Requires restructuring LeftSidebar JSX and consolidating the bottom layer strip into the sidebar body
+- Custom SVG billboard icons (ICONS-01–04) — Canvas generation utility + integration into 4 layer components + selection state visual variants
+- Double-click zoom toward cursor (NAV-01) — Camera API usage is straightforward but edge cases need testing
+- Tilt control widget (NAV-02) — Simple React component, but CesiumJS pitch convention is counter-intuitive (requires careful testing)
+
+### HIGH Complexity (Not in v3.0 scope)
+
+- Draggable/resizable panels — Defer
+- Globe-surface radar sweep — Defer
+- Per-instance custom icons (per airline livery, per vessel flag) — Defer
 
 ---
 
 ## Sources
 
-- [CesiumJS PostProcessStageLibrary Documentation](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageLibrary.html)
-- [CesiumJS PostProcessStage Reference](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStage.html)
-- [CesiumJS NightVision.glsl built-in shader](https://github.com/CesiumGS/cesium/blob/master/Source/Shaders/PostProcessStages/NightVision.glsl)
-- [CesiumJS Animation / Clock API](https://cesium.com/learn/cesiumjs/ref-doc/Animation.html)
-- [Cesium Time Animation using CZML](https://cesium.com/blog/2018/03/21/czml-time-animation/)
-- [USGS Earthquake GeoJSON Summary Feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php)
-- [USGS Earthquake Catalog API](https://earthquake.usgs.gov/fdsnws/event/1/)
-- [NOAA nowCOAST NEXRAD WMS Server](https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer?request=GetCapabilities&service=WMS)
-- [Iowa State Mesonet NEXRAD WMS (IEM)](https://mesonet.agron.iastate.edu/ogc/)
-- [ADS-B Exchange REST API Information](https://www.adsbexchange.com/data/rest-api-samples/)
-- [ADSB.lol — Unfiltered Flight Tracking API](https://adsb.lol/)
-- [ADSB One API (ADSBExchange v2-compatible)](https://github.com/ADSB-One/api)
-- [GPSJam GPS/GNSS Interference Map](https://gpsjam.org/)
-- [GPSJam FAQ — Data methodology](https://gpsjam.org/faq)
-- [GPSJam — Bellingcat OSINT Toolkit](https://bellingcat.gitbook.io/toolkit/more/all-tools/gpsjam)
-- [AISHub Free AIS Data Exchange](https://www.aishub.net/)
-- [NGA MGRS-JS Library (MIT License)](https://github.com/ngageoint/mgrs-js)
-- [Proj4js MGRS Utility](https://github.com/proj4js/mgrs)
-- [Flightradar24 GPS Jamming Map](https://www.flightradar24.com/data/gps-jamming)
+- [CesiumJS Billboard API — scaleByDistance, distanceDisplayCondition](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html)
+- [CesiumJS BillboardCollection API](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html)
+- [CesiumJS Camera API — getPickRay, flyTo, zoomIn, zoomOut](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html)
+- [CesiumJS ScreenSpaceCameraController — zoom configuration](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceCameraController.html)
+- [CesiumJS Billboard display based on zoom level — Community discussion](https://community.cesium.com/t/billboard-display-based-on-zoomlevel/21042)
+- [CesiumJS zoom in to mouse point — Community implementation pattern](https://community.cesium.com/t/zoom-in-to-mouse-point/2614)
+- [CesiumJS implement zoom controls — Custom button approach](https://community.cesium.com/t/implement-zoom-controls/8231)
+- [CesiumJS Tilt control — Community discussion](https://community.cesium.com/t/tilt-control-over-globe/471)
+- [CesiumJS Tilt how-to — Community](https://community.cesium.com/t/how-to-control-the-tilt-in-cesium/6197)
+- [Framer Motion — AnimatePresence and height animation for collapsible panels](https://www.react-magic-motion.com/applications/collapsible-sidebar)
+- [Collapsible panel with smooth animation — React pattern](https://medium.com/@igorroch_/how-to-create-a-collapsible-panel-with-smooth-animation-in-react-89e95bf1b31a)
+- [Radar/HUD UI patterns — CSS implementation examples (CodePen)](https://codepen.io/sasscoding/pen/xbbzgLp)
+- [NearFarScalar scaleByDistance not linear — Issue context](https://github.com/CesiumGS/cesium/issues/10522)
+- [FlightRadar24 3D view — zoom and interaction reference](https://www.flightradar24.com/blog/exploring-the-new-flightradar24-3d-view/)
 
 ---
 
-*Feature research for: Intelligence Globe v2.0 WorldView Parity*
-*Researched: 2026-03-11*
+*Feature research for: Intelligence Globe v3.0 UI Refinement*
+*Researched: 2026-03-12*

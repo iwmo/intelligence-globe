@@ -1,69 +1,333 @@
-# Technology Stack Research
+# Stack Research
 
-**Domain:** 3D Globe OSINT Platform — v2.0 WorldView Parity feature additions
-**Researched:** 2026-03-11
-**Confidence:** HIGH (CesiumJS, USGS, NOAA verified via official docs) / MEDIUM (AIS, flight data APIs) / LOW (gpsjam.org data URL pattern — no official API docs found)
+**Domain:** Geospatial intelligence UI refinement — radar-style CSS panels, collapsible sidebar animations, CesiumJS SVG billboard icons with altitude-based scaling, double-click camera zoom, tilt/pitch control widget
+**Researched:** 2026-03-12
+**Confidence:** HIGH (CesiumJS APIs verified via official docs), HIGH (CSS approach — no new library warranted), MEDIUM (canvas SVG texture pattern — community-confirmed workaround for CesiumJS 1.43+ breakage)
 
-> **Scope note:** This file covers ONLY the additions and decisions needed for v2.0 features.
-> The base stack (CesiumJS 1.139, React 19, Vite 7, TypeScript 5, FastAPI, PostgreSQL + PostGIS, Redis, RQ, Docker Compose)
-> is validated, deployed, and documented from v1.0. Do not re-research it.
+> **Scope note:** This file covers ONLY what is NEW or changes for v3.0 UI Refinement.
+> The base stack (CesiumJS 1.139, React 19, Vite 7, TypeScript 5.9, FastAPI, PostgreSQL + PostGIS, Redis, RQ, Docker Compose)
+> is validated, deployed, and documented from v1.0/v2.0. Do not re-research or reinstall the base stack.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (v2.0 additions only)
+### New Libraries Required
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **CesiumJS PostProcessStageLibrary** | built into cesium 1.139 | NVG/Noir/custom GLSL presets | `PostProcessStageLibrary.createNightVisionStage()` is a built-in factory that produces a green-tinted NVG post-process stage. `viewer.scene.postProcessStages.bloom` is a built-in `PostProcessStageComposite` with direct uniform access. No additional library needed — all presets are custom GLSL fragments on top of the existing `PostProcessStage` API. |
-| **CesiumJS WebMapServiceImageryProvider** | built into cesium 1.139 | NOAA NEXRAD weather radar overlay | Native WMS support exists in CesiumJS. `WebMapServiceImageryProvider` supports time-enabled WMS-T layers via the `clock` property. NOAA nowCoast provides the NEXRAD WMS endpoint with CORS enabled. No additional library needed. |
-| **CesiumJS Clock + ClockViewModel** | built into cesium 1.139 | 4D historical replay | `viewer.clock.currentTime`, `startTime`, `stopTime`, `multiplier`, `clockRange` and `ClockRange.LOOP_STOP` / `CLAMPED` are all built-in. The `AnimationViewModel` provides play/pause/step. No additional library needed. |
-| **mgrs** | 2.1.0 | MGRS coordinate display in HUD | MIT. Zero runtime dependencies. Ships TypeScript types. Three methods: `forward([lon,lat], precision)` → MGRS string, `inverse(mgrs)` → bbox, `toPoint(mgrs)` → [lon,lat]. Maintained by proj4js contributors. NGA-originated, NATO standard. |
-| **aisstream.io WebSocket API** | free (beta) | Maritime AIS real-time vessel feed | WebSocket at `wss://stream.aisstream.io/v0/stream`. Free API key via GitHub OAuth sign-in. Requires `APIKey` + `BoundingBoxes` in subscription JSON within 3 seconds of connect. No SLA. Delivers 24+ AIS message types including position, speed, heading, vessel name. No polling, push-only. |
-| **airplanes.live REST API** | free (non-commercial) | Military / unfiltered aircraft layer | Base URL: `https://api.airplanes.live/v2/`. Endpoint `/mil` returns all aircraft tagged military. No API key required. ADSBExchange v2-compatible JSON schema (`dbFlags & 1` = military bit). Community-run, no SLA. Polling interval: 15–30 s. |
-| **USGS Earthquake GeoJSON Feed** | v1.0 (stable) | Earthquake layer | `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson` — no auth, no rate limit documented. Returns FeatureCollection with point geometries, magnitude, depth, time. Feed updates every 1 minute. CORS enabled. Consumed directly from frontend via TanStack Query. |
-| **NOAA nowCoast NEXRAD WMS** | WMS 1.3.0 | Weather radar overlay | WMS endpoint: `https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer`. MRMS composite reflectivity at 1 km resolution. Time-enabled (WMS-T), 5-minute update cadence for CONUS + Hawaii + Puerto Rico + Guam + Alaska. CORS enabled per community verification. No auth. Used via `WebMapServiceImageryProvider`. |
-| **Overpass API (osm-based)** | free public endpoint | OSM road network fetch for particle sim | `https://overpass-api.de/api/interpreter` (or mirror). Fetch `way["highway"]` within current viewport bbox. Returns Overpass JSON. Convert to GeoJSON via `osmtogeojson`. Cache result in Redis (road networks do not change frequently). Fetch triggered once per visible region, not per frame. |
-| **osmtogeojson** | 3.0.0-beta.5 | Convert Overpass JSON → GeoJSON | Standard converter for Overpass API output. Works in browser and Node. Ships as ESM-compatible UMD. `@types/osmtogeojson` available (v2.2.34). Beta label is stable in practice — 5+ years unchanged API. Alternative: `osm2geojson-ultra` (faster TypeScript rewrite, use if osmtogeojson proves slow at large road sets). |
+**None.** All four v3.0 feature areas are achievable with the existing dependency set. No `npm install` step is needed for this milestone.
 
-### Supporting Libraries
+### Core Technologies — Integration Points That Change for v3.0
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **h3-js** | 4.1.0 | Hexagonal grid for GPS jamming heatmap | Uber's H3 spatial indexing library. CesiumJS renders hexagon polygons using `PolygonPrimitive`. h3-js converts H3 cell IDs (from gpsjam CSV) to lat/lng boundary polygons. Use when rendering the gpsjam heatmap layer. Pure JS, works in browser. `h3-js` ships TypeScript types natively. |
-| **@types/osmtogeojson** | 2.2.34 | TypeScript types for osmtogeojson | Install alongside `osmtogeojson` when using TypeScript. Pin to 2.2.34 — API has not changed. |
-| **date-fns** | 3.x | Timeline scrubber date formatting | Lightweight date formatting for the 4D replay HUD. Replaces `moment.js` (deprecated). Format ISO8601 timestamps as `yyyy-MM-dd HH:mm:ss UTC`. Zero-dependency alternative: `Intl.DateTimeFormat` (native, but less ergonomic for formatting CesiumJS JulianDate conversions). Use `date-fns` only if `JulianDate.toIso8601()` output is insufficient. |
+| Technology | Version (current) | v3.0 Integration Change | Why This Matters |
+|------------|------------------|------------------------|-----------------|
+| CesiumJS | 1.139.1 | `BillboardCollection` replaces `PointPrimitiveCollection` in entity layers | Billboard has `image`, `scaleByDistance`, `color` properties; Point does not support arbitrary icons |
+| CesiumJS | 1.139.1 | `ScreenSpaceEventHandler` + `LEFT_DOUBLE_CLICK` for camera zoom | Existing layers already use this handler pattern — extend, do not duplicate |
+| CesiumJS | 1.139.1 | `camera.flyTo`, `camera.setView`, `camera.zoomIn/zoomOut` for nav widget | Camera API is well-established; `flyTo` is the only way to zoom toward cursor position |
+| CesiumJS | 1.139.1 | `NearFarScalar` for altitude-based icon scaling | Built-in CesiumJS type, no external math library needed |
+| Tailwind CSS | 3.4.19 | Custom `@keyframes` in `globe.css` for radar scan/pulse animations | The existing `globe.css` is the correct global stylesheet; no new CSS file needed |
+| tw-animate-css | 1.4.0 | `animate-ping` for active panel pulsing indicators | Already installed; confirm it is in `tailwind.config.js` plugins array |
+| lucide-react | 0.577.0 | Tilt/pitch chevron icons and zoom +/- button icons | Already installed; no new icon library needed |
+| zustand | 5.0.11 | No new slices needed for camera state | Subscribe to `viewer.camera.changed` locally in nav widget component instead |
 
-### Development Tools (v2.0 additions)
+### Supporting Libraries — Confirm Already Present
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **Overpass Turbo** | Interactive OSM query dev tool (overpass-turbo.eu) | Use during development to prototype road network queries before hardcoding them. Not shipped in the app. |
-| **NOAA nowCoast GetCapabilities** | Verify available WMS layers and time dimensions | Fetch `?request=GetCapabilities&service=WMS` from the WMS URL during development to enumerate available layers and valid time extents. |
+| Library | Version | v3.0 Purpose | Condition |
+|---------|---------|-------------|-----------|
+| clsx + tailwind-merge | current | Compose panel section toggle states (open/closed class variants) | Already installed |
+| tw-animate-css | 1.4.0 | `animate-ping` on active layer badges inside radar panels | Confirm in `tailwind.config.js` plugins array; add if missing |
 
 ---
 
 ## Installation
 
-```bash
-# Frontend — new packages for v2.0 only
-# (cesium, react, zustand, @tanstack/react-query already installed)
-npm install mgrs h3-js osmtogeojson
-npm install -D @types/osmtogeojson
-
-# date-fns — only if native Intl.DateTimeFormat proves insufficient
-# npm install date-fns
-```
+No new packages to install for v3.0.
 
 ```bash
-# Backend — no new Python packages required for v2.0
-# All new data sources are either:
-#   (a) consumed directly by the frontend (USGS, NOAA WMS, Overpass, airplanes.live)
-#   (b) proxied via existing FastAPI + httpx endpoints (AIS WebSocket relay)
-#   (c) fetched and cached by existing RQ workers (gpsjam CSV daily ingest)
-# httpx, shapely, redis already in requirements.txt
+# Nothing to add — all features use existing dependencies
 ```
+
+The only potential addition is confirming `tw-animate-css` is active in Tailwind config:
+
+```js
+// tailwind.config.js — verify this line is present
+plugins: [require('tw-animate-css')],
+// If missing, no npm install needed — just add the plugin line
+```
+
+---
+
+## Implementation Approach Per Feature Area
+
+### Feature 1: Radar-Style Panel CSS (STYLE-01, STYLE-02)
+
+**Approach:** Pure CSS `@keyframes` in `frontend/src/styles/globe.css` plus Tailwind utility classes.
+
+Radar aesthetics consist of four independent visual elements:
+
+**Angular bracket corners** — CSS pseudo-elements only, no library:
+```css
+.panel-radar {
+  position: relative;
+}
+.panel-radar::before,
+.panel-radar::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.panel-radar::before {
+  top: 0; left: 0;
+  border-top: 1px solid rgba(0,212,255,0.7);
+  border-left: 1px solid rgba(0,212,255,0.7);
+}
+.panel-radar::after {
+  bottom: 0; right: 0;
+  border-bottom: 1px solid rgba(0,212,255,0.7);
+  border-right: 1px solid rgba(0,212,255,0.7);
+}
+```
+Two-corner decoration uses one `::before` + one `::after`. Four corners requires wrapping span elements — each can carry its own pseudo-elements.
+
+**Scan sweep animation** — `@keyframes` conic-gradient rotation:
+```css
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.panel-radar-sweep::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    rgba(0,212,255,0.0) 0deg,
+    rgba(0,212,255,0.12) 60deg,
+    rgba(0,212,255,0.0) 90deg
+  );
+  border-radius: 50%;
+  animation: radar-sweep 4s infinite linear;
+  pointer-events: none;
+}
+```
+Apply only to panels that are explicitly "active" — not to every panel. Keep sweep opacity low (~0.12) so it does not compete with data.
+
+**Pulsing active indicators** — Tailwind `animate-ping` (from tw-animate-css):
+```tsx
+{isActive && (
+  <span className="relative flex h-2 w-2">
+    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+  </span>
+)}
+```
+This is the canonical Tailwind ping pattern — no custom keyframe needed.
+
+**Where to add keyframes:** `frontend/src/styles/globe.css` (already imported globally in `GlobeView.tsx`). Do not add CSS animations as inline `style` prop strings — they cannot be themed by visual preset.
+
+### Feature 2: Collapsible Sidebar Sections (LAYOUT-01 through LAYOUT-03)
+
+**Approach:** `useRef` + `scrollHeight` measurement + CSS `max-height` transition. No new animation library.
+
+**Do not add framer-motion.** Decision:
+- framer-motion 12.35.2 is React 19 compatible and supports `height: 0 → auto`. However, it is 15–34 KB gzipped for a transition that requires ~20 lines of native React.
+- The existing codebase uses inline `style` objects throughout. framer-motion introduces a separate animation API paradigm that is inconsistent with the project's styling approach.
+- The project is a single-user operational tool, not a marketing site — animation polish beyond functional expand/collapse is out of scope.
+
+**Do not use modern CSS `interpolate-size: allow-keywords`.** As of March 2026, browser support is Chromium-only (~67% global coverage). For an operational tool where reliability matters, this is not acceptable.
+
+**Recommended pattern:**
+```tsx
+function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const height = open ? (contentRef.current?.scrollHeight ?? 0) : 0;
+
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)}>{title}</button>
+      <div
+        ref={contentRef}
+        style={{
+          maxHeight: height,
+          overflow: 'hidden',
+          transition: 'max-height 220ms ease',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+```
+
+**Overflow caveat:** Set `overflow: 'visible'` after transition completes to avoid clipping tooltips or dropdowns inside expanded sections. Use an `onTransitionEnd` handler to toggle overflow state.
+
+**For sections with static-height content** (layer toggle buttons): a fixed `max-height` value avoids the `scrollHeight` measurement entirely. Measure once at design time.
+
+### Feature 3: CesiumJS SVG Billboard Icons with Altitude-Based Scaling (ICONS-01–05)
+
+**Approach:** Replace `PointPrimitiveCollection` with `BillboardCollection` (Primitive API). Render SVG strings to `HTMLCanvasElement`, assign canvas as billboard image. Scale with `NearFarScalar`.
+
+**Primitive API compatibility:** `BillboardCollection` is a Primitive API construct. It is added via `scene.primitives.add(new BillboardCollection())` — the same pattern used for `PointPrimitiveCollection` in every existing layer. This is a drop-in replacement at the collection level. The billboard management loop (add/update/remove per entity) mirrors the existing point management pattern.
+
+**SVG-to-canvas pattern (required workaround):**
+Direct SVG URL assignment to `billboard.image` has been broken since CesiumJS 1.43+ in some browsers due to cross-origin restrictions on data: URIs. The community-confirmed stable approach is rendering to an `HTMLCanvasElement`:
+
+```typescript
+function svgToCanvas(svgMarkup: string, size = 32): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const img = new Image(size, size);
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, size, size);
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+  return canvas; // assign as billboard.image — Cesium reads it after onload
+}
+```
+
+Create canvases once at module level per icon type (satellite, aircraft, military, ship) — not per entity. Pass the same canvas instance to every billboard of that type so BillboardCollection deduplicates the GPU texture.
+
+**Per-entity tinting via `billboard.color`:** Once the billboard uses a neutral white/grey SVG shape, `billboard.color` applies a multiplicative tint at zero extra GPU cost. This replaces the per-color PointPrimitive approach used in v1.0/v2.0.
+
+**Altitude-based scaling with NearFarScalar:**
+```typescript
+import { NearFarScalar } from 'cesium';
+
+// Satellites: orbit (LEO ~500km) to geostationary (~36,000km)
+// Camera range (Cesium measures camera-to-surface, not altitude): 500_000m to 50_000_000m
+const SAT_SCALE = new NearFarScalar(5e5, 0.5, 5e7, 1.8);
+
+// Aircraft/military: city (~10km) to continent (~5,000km) zoom
+const AIR_SCALE = new NearFarScalar(1e4, 0.7, 5e6, 1.3);
+
+// Ships: similar to aircraft but tighter (ships are near-surface)
+const SHIP_SCALE = new NearFarScalar(1e4, 0.6, 2e6, 1.2);
+```
+
+`NearFarScalar(nearDistance, nearValue, farDistance, farValue)`: scale interpolates linearly between `nearValue` (camera close) and `farValue` (camera far). Outside range, scale is clamped. These starting values should be tuned in-browser.
+
+**Known CesiumJS issue (GitHub #10522):** `scaleByDistance` interpolation is not perfectly linear near range edges — there is a small jump near the boundary values. Mitigation: widen the near/far range so the camera never sits at the exact boundary during normal use.
+
+**Performance:** Keep one `BillboardCollection` per entity type. Do not create per-entity collections — BillboardCollection batches all billboards into one WebGL draw call. Use `BlendOption.TRANSLUCENT` for SVG icons with alpha channels (all SVG icons will have transparency).
+
+```typescript
+import { BillboardCollection, BlendOption } from 'cesium';
+const billboards = viewer.scene.primitives.add(
+  new BillboardCollection({ blendOption: BlendOption.TRANSLUCENT })
+);
+```
+
+### Feature 4: Double-Click Camera Zoom Toward Cursor (NAV-01)
+
+**Approach:** `ScreenSpaceEventHandler` with `LEFT_DOUBLE_CLICK`, `scene.pickPosition()` to resolve screen position to world `Cartesian3`, then `camera.flyTo()` with halved altitude. No new library.
+
+**The existing layers already use `ScreenSpaceEventHandler`** (`SatelliteLayer.tsx`, `AircraftLayer.tsx`) — this is an established codebase pattern. The double-click zoom handler belongs in `GlobeView.tsx` during viewer init, not in a layer component, because it is a global navigation behavior.
+
+**Remove default double-click behavior first.** CesiumJS default double-click zooms to a tracked entity. It must be removed before adding the custom handler:
+```typescript
+// In GlobeView.tsx after Viewer construction
+viewer.screenSpaceEventHandler.removeInputAction(
+  Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+);
+```
+If this line is omitted, both the default and custom handlers fire on double-click.
+
+**Implementation pattern:**
+```typescript
+import {
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  Cartographic,
+  Cartesian3,
+  Math as CesiumMath,
+  EasingFunction,
+  defined,
+} from 'cesium';
+
+const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+handler.setInputAction((event: { position: Cesium.Cartesian2 }) => {
+  const cartesian = viewer.scene.pickPosition(event.position);
+  if (!defined(cartesian)) return; // click on sky — ignore
+
+  const currentHeight = viewer.camera.positionCartographic.height;
+  const targetHeight = Math.max(currentHeight * 0.35, 500); // floor at 500m
+
+  const carto = Cartographic.fromCartesian(cartesian);
+  viewer.camera.flyTo({
+    destination: Cartesian3.fromRadians(
+      carto.longitude, carto.latitude, targetHeight
+    ),
+    duration: 0.75,
+    easingFunction: EasingFunction.QUADRATIC_OUT,
+  });
+}, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+```
+
+**`scene.pickPosition` reliability:** Requires `scene.globe.depthTestAgainstTerrain = true` for accurate picks on terrain. This project uses `EllipsoidTerrainProvider` (flat ellipsoid), so picks always land on the ellipsoid surface — `pickPosition` is reliable without that flag. If terrain is added in a future milestone, the flag becomes necessary.
+
+**Zoom factor 0.35:** Reduces altitude by ~65% per double-click. Matches FlightRadar24 behavior. Adjust to taste; 0.25–0.5 is the usable range.
+
+### Feature 5: Tilt/Pitch Widget and Zoom Buttons (NAV-02, NAV-03)
+
+**Approach:** Small React component overlay (same `position: fixed` pattern as existing HUD elements), calling CesiumJS camera API directly via `viewerRegistry`. No new library.
+
+**Tilt/pitch control:**
+```typescript
+// Increment pitch by delta radians
+function adjustTilt(viewer: Viewer, deltaPitch: number) {
+  const currentPitch = viewer.camera.pitch; // radians; -Math.PI/2 = nadir
+  const newPitch = CesiumMath.clamp(
+    currentPitch + deltaPitch,
+    -Math.PI / 2,   // max nadir (straight down)
+    CesiumMath.toRadians(-5) // min tilt (5° below horizon)
+  );
+  viewer.camera.flyTo({
+    destination: viewer.camera.position,
+    orientation: {
+      heading: viewer.camera.heading,
+      pitch: newPitch,
+      roll: 0,
+    },
+    duration: 0.25,
+  });
+}
+```
+
+Use `camera.flyTo` (not `camera.setView`) for the tilt widget to get a smooth 250ms animation. `setView` is instantaneous and feels jarring for a UI button.
+
+**Zoom buttons:**
+```typescript
+function zoomIn(viewer: Viewer) {
+  const step = viewer.camera.positionCartographic.height * 0.3;
+  viewer.camera.zoomIn(step);
+}
+function zoomOut(viewer: Viewer) {
+  const step = viewer.camera.positionCartographic.height * 0.3;
+  viewer.camera.zoomOut(step);
+}
+```
+
+Scale `step` by current altitude for consistent apparent zoom speed at all scales. Fixed-meter steps feel too slow at orbit altitude and too violent at street level.
+
+**Widget layout:** Anchor bottom-right, above the `BottomStatusBar`. Use `lucide-react` icons (`ChevronUp`, `ChevronDown` for tilt; `Plus`, `Minus` for zoom). Style with the same inline `style` object pattern used throughout the codebase.
+
+**Camera state in widget:** The tilt indicator (showing current pitch as a gauge) should read `viewer.camera.pitch` on render. Subscribe to `viewer.camera.changed` in a `useEffect` to trigger re-renders when camera moves:
+```typescript
+useEffect(() => {
+  const listener = viewer.camera.changed.addEventListener(() => {
+    setPitch(viewer.camera.pitch); // local state, not Zustand
+  });
+  return () => { viewer.camera.changed.removeEventListener(listener); };
+}, [viewer]);
+```
+Do not put camera pitch in Zustand — it would re-render all subscribers (layer components, sidebar, HUD) on every camera move.
 
 ---
 
@@ -71,14 +335,13 @@ npm install -D @types/osmtogeojson
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `airplanes.live /v2/mil` (free, no auth) | ADSBexchange RapidAPI ($10/month) | If airplanes.live uptime becomes unacceptable in production. ADSBexchange is the authoritative source but costs money. |
-| `airplanes.live /v2/mil` | `opendata.adsb.fi /api/v2/mil` (1 req/s rate limit) | adsb.fi is a valid free fallback with identical ADSBexchange v2 JSON schema. Use if airplanes.live is down. Both can be tried in sequence. |
-| `aisstream.io` WebSocket | MarineTraffic API (paid, $50+/mo) | MarineTraffic has richer vessel metadata and SLA. Use if aisstream.io beta instability is unacceptable for production or if historical AIS is needed. |
-| `aisstream.io` WebSocket | `aisstream` Python package (backend relay) | If WebSocket management in the frontend proves brittle, relay AIS through FastAPI WebSocket endpoint on the backend. Backend maintains one persistent upstream WS connection, fans out to frontend clients. |
-| NOAA nowCoast NEXRAD WMS | RainViewer API (free tier, REST tiles) | RainViewer (`https://api.rainviewer.com/public/weather-maps.json`) provides global radar tiles as PNG tile URLs in a simpler format. Use if NOAA WMS-T time integration in CesiumJS proves difficult. RainViewer is easier to integrate but US-only coverage is less precise. |
-| Overpass API for roads | Natural Earth road GeoJSON | Natural Earth provides pre-built GeoJSON for major roads worldwide (no live query needed). Use for the initial particle simulation layer if Overpass query latency is unacceptable for realtime viewport changes. |
-| `osmtogeojson` (browser) | `osmtogeojson` CLI (backend pre-processing) | If road network GeoJSON files are pre-built per region and served as static assets, no client-side conversion is needed. Better for homelab use where regions are known in advance. |
-| `PostProcessStage` custom GLSL | Three.js EffectComposer (separate renderer) | Three.js post-processing is more mature, but requires running a second WebGL renderer alongside CesiumJS — extremely complex and GPU-expensive. Not recommended. Stay entirely within CesiumJS post-processing pipeline. |
+| CSS `max-height` transition for collapsible sections | framer-motion `AnimatePresence` | Use framer-motion if the project were Next.js/app-router based with complex stagger orchestration across many animated components. Not warranted for sidebar accordion with 6–8 sections. |
+| Canvas-rendered SVG → `BillboardCollection` | Entity API `BillboardGraphics` with SVG URL | Entity API is simpler to author but collapses at 5,000+ entities. The project already validated Primitive API as the only acceptable approach (v1.0 key decision). |
+| CSS `@keyframes` in `globe.css` | react-spring or CSS-in-JS animation | CSS is already the styling mechanism for the globe. Adding a JS animation runtime for decorative CSS effects is over-engineering. |
+| `camera.flyTo` for double-click zoom toward cursor | `camera.zoomIn()` | `zoomIn()` zooms toward canvas center, not the clicked point. For cursor-directed zoom, resolving the click to a world position and flying to it is the only correct approach. |
+| `scene.pickPosition` for world coordinate resolution | `scene.pick()` | `scene.pick()` returns the picked object (primitive, feature), not the world position. `pickPosition()` returns the 3D world Cartesian3 needed to construct the `flyTo` destination. |
+| CSS-only radar panel decorations | SVG overlay elements | CSS `::before`/`::after` pseudo-elements are sufficient for corner brackets and scan lines. SVG overlays are unnecessary additional DOM for purely decorative elements. |
+| `billboard.color` for per-entity tinting | Per-color BillboardCollection instances | Separate collections per color defeats GPU batching. `billboard.color` applies a zero-cost GPU-side tint on a shared texture. |
 
 ---
 
@@ -86,95 +349,38 @@ npm install -D @types/osmtogeojson
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **CesiumJS Entity API for new layers** | Entity API collapses at 5,000+ objects (proven in v1.0). All new layers (ships, earthquakes, jamming hexagons) must use Primitive API: `PointPrimitiveCollection`, `PolylinePrimitiveCollection`, `GeometryInstance + Appearance`. | CesiumJS Primitive API (established v1.0 pattern) |
-| **CZML for 4D replay** | CZML is XML-like and parsed synchronously. For a custom timeline with snapshot data stored in PostgreSQL, driving `viewer.clock` directly and updating Primitive positions per-tick is far more performant and flexible. CZML is designed for pre-baked animated datasets, not dynamic multi-layer replay. | Direct `viewer.clock.onTick` + Primitive position updates |
-| **MarineTraffic free tier** | MarineTraffic deprecated their free tier API for new signups. Any "free" key from old documentation will 403. Use aisstream.io. | `aisstream.io` free WebSocket API |
-| **OpenAIP or Flightradar24** | Both are proprietary or require paid keys. No free military data. | `airplanes.live /v2/mil` (free, no auth) |
-| **moment.js** | 67KB, deprecated since 2020. No tree-shaking. | `date-fns` (13KB, tree-shakable) or native `Intl.DateTimeFormat` |
-| **Leaflet.js** | 2D only. No globe projection. Incompatible with CesiumJS 3D viewport. Do not mix map libraries. | CesiumJS `WebMapServiceImageryProvider` and `ImageryLayer` for all overlay layers |
-| **WebSocket reconnect from scratch** | aisstream.io drops connections on inactivity. Writing manual reconnect logic is fragile. | Use `reconnecting-websocket` (1KB) or implement exponential backoff in a custom hook. See PITFALLS.md. |
-| **gpsjam.org scraping** | No official API. Site HTML changes break scrapers. | Fetch daily CSV directly from the static data URL (see Data Sources section) |
+| **framer-motion / motion for React** | 15–34 KB bundle for a `height: 0 → auto` accordion. Inconsistent with existing inline-style codebase. Not warranted for this feature set. React 19 compatible but unnecessary. | CSS `max-height` transition with `useRef`/`scrollHeight` measurement (~20 lines of native React) |
+| **`interpolate-size: allow-keywords` CSS** | Chromium-only as of March 2026 (~67% global coverage). Operational tools require full browser support. | `max-height` transition with JavaScript-measured `scrollHeight` |
+| **Direct SVG URL as `billboard.image`** | Broken in multiple browsers since CesiumJS 1.43 due to cross-origin data: URI restrictions. Community confirms unreliable. | Render SVG markup to `HTMLCanvasElement` via Blob URL, assign canvas element as billboard image |
+| **One BillboardCollection per entity instance** | Defeats GPU batching. 5,000 satellites = 5,000 draw calls. CesiumJS renders each primitive collection as a separate WebGL draw call setup. | One `BillboardCollection` per entity type (satellites, aircraft, military, ships) — 4 collections total |
+| **Entity API `BillboardGraphics`** | Entity API performance collapses at 5,000+ objects — this is a validated v1.0 key decision. `BillboardGraphics` is the Entity API wrapper, not Primitive API. | `BillboardCollection` (Primitive API) |
+| **`@base-ui/react` Collapsible component** | Available in existing deps but adds an opaque API surface for a feature implementable in ~20 lines. Harder to style to radar aesthetic. Uses internal animation approach incompatible with the existing inline-style pattern. | Native `useState` + CSS `max-height` transition |
+| **Modifying `viewer.screenSpaceEventHandler` without removing default LEFT_DOUBLE_CLICK** | CesiumJS registers a default double-click handler that zooms to tracked entity. If not removed, both the default and custom handlers fire simultaneously. | `viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOUBLE_CLICK)` before registering custom handler |
+| **Storing camera pitch/heading in Zustand** | Causes re-renders in all Zustand subscribers (layer components, sidebar, HUD) on every camera move. Camera state is local to the nav widget. | `viewer.camera.changed.addEventListener` in widget `useEffect`, local `useState` |
 
 ---
 
-## Stack Patterns by Feature
+## Stack Patterns by Variant
 
-**For visual style presets (NVG, CRT, FLIR, Noir):**
-- Use `PostProcessStageLibrary.createNightVisionStage()` for NVG — it is built in, no GLSL authoring required
-- FLIR thermal: custom `PostProcessStage` with GLSL fragment that maps luminance → iron/rainbow LUT via a 1D texture uniform
-- CRT scanlines + pixelation: custom `PostProcessStageComposite` chaining two stages (pixelation pass → scanline pass)
-- Noir: `PostProcessStageLibrary.createBlackAndWhiteStage()` is built in; add a `createBrightnessStage()` stage for contrast adjustment
-- All presets are toggled via `stage.enabled = true/false` — do not create/destroy stages per toggle (expensive)
+**If a sidebar section contains dynamic-height content (FilterPanel, search results):**
+- Use `scrollHeight`-based `max-height` transition — content height changes as filters are added/removed
+- Add `onTransitionEnd` to toggle `overflow: hidden → visible` after expand completes (avoids clipping dropdowns)
 
-**For post-processing sliders (Bloom, Sharpen, Gain, Scanlines, Pixelation):**
-- Bloom: `viewer.scene.postProcessStages.bloom.enabled = true` then set uniforms: `bloom.uniforms.contrast`, `bloom.uniforms.brightness`, `bloom.uniforms.glowOnly`
-- Sharpen: custom `PostProcessStage` with unsharp-mask GLSL; expose `strength` uniform
-- Gain: custom `PostProcessStage` that multiplies RGB by a uniform scalar; trivial single-line GLSL
-- Scanlines + Pixelation: uniforms on the CRT composite stage (pixel size, scanline spacing, opacity)
-- Pass all slider values through a Zustand `postProcessStore` slice; update uniforms in a `useEffect` watching slice state
+**If a sidebar section contains fixed-height content (layer toggles, 6 buttons):**
+- Use a fixed `max-height` value measured at design time (e.g. `max-height: 180px`)
+- Simpler, avoids `scrollHeight` measurement overhead
 
-**For the cinematic HUD (classification markings, MGRS readout, telemetry):**
-- HUD is a React overlay div absolutely positioned over the Cesium canvas — not a CesiumJS entity or label
-- Use `mgrs` package: `forward([lon, lat], 4)` converts the camera center to MGRS with 10m precision
-- Camera position → lat/lon: `viewer.camera.positionCartographic` → `CesiumMath.toDegrees()`
-- Classification markings, corner text, scan-line aesthetic: pure CSS + Tailwind — no additional library
+**If entity count for a type is below 200 (ships, military flights):**
+- Still use `BillboardCollection` for visual consistency — the same icon rendering path for all entity types
+- `NearFarScalar` ranges can be narrower for maritime (ships never appear above atmosphere altitude)
 
-**For military flights layer:**
-- Poll `https://api.airplanes.live/v2/mil` every 15–30 s via TanStack Query
-- Render using existing `PointPrimitiveCollection` pattern from v1.0 aircraft layer
-- Deduplicate with civilian aircraft layer by `hex` (ICAO24) in the Zustand aircraft store
-- Military flag indicator: different color constant (e.g. amber) and optional icon overlay
+**If the user zooms in below 500m altitude (street level):**
+- Floor the double-click zoom target at 500m to prevent going underground
+- `Math.max(currentHeight * 0.35, 500)` handles this
 
-**For GPS jamming heatmap:**
-- Fetch daily CSV from `https://gpsjam.org/data/YYYY-MM-DD.csv` (where date is today or yesterday)
-- CSV columns: `hex` (H3 cell ID at resolution 4), `pct_bad` (fraction of aircraft reporting poor nav accuracy), `count`
-- Use `h3-js`: `h3.cellToBoundary(hexId)` → array of `[lat, lng]` pairs → convert to CesiumJS `Cartesian3.fromDegreesArray`
-- Render as `GroundPrimitive` + `PolygonGeometry` colored by `pct_bad` (green < 2% → yellow 2–10% → red > 10%)
-- Backend RQ worker fetches and caches the daily CSV in Redis with 12-hour TTL; frontend polls FastAPI proxy endpoint
-
-**For maritime traffic (AIS):**
-- Connect from **frontend** via `WebSocket` to `wss://stream.aisstream.io/v0/stream`
-- Subscription: `{ APIKey, BoundingBoxes: [[[minLat,minLon],[maxLat,maxLon]]], FilterMessageTypes: ["PositionReport"] }`
-- Update bounding box on camera move (debounced 2 s) by sending a new subscription message
-- Render vessel positions as `PointPrimitiveCollection`; trails as `PolylinePrimitiveCollection` (last N positions per MMSI stored in Zustand)
-- Alternative pattern: relay through backend FastAPI WebSocket endpoint if browser cross-origin WS proves problematic
-
-**For earthquake layer:**
-- `GET https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson` — no auth
-- TanStack Query with 60-second refetch interval (feed updates every 1 minute)
-- Render: `PointPrimitiveCollection` with point scale proportional to magnitude (`Math.pow(10, magnitude) * scale_factor`)
-- Click-to-inspect: reuse existing metadata panel component from v1.0
-
-**For NOAA NEXRAD weather radar:**
-- ```typescript
-  const radarProvider = new Cesium.WebMapServiceImageryProvider({
-    url: 'https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer',
-    layers: '1',
-    parameters: { transparent: true, format: 'image/png' },
-    clock: viewer.clock,
-    times: new Cesium.TimeIntervalCollection([...]),
-  });
-  viewer.imageryLayers.add(new Cesium.ImageryLayer(radarProvider, { alpha: 0.6 }));
-  ```
-- Layer is toggled by `imageryLayer.show = false/true` — do not add/remove from collection on toggle
-- WMS time parameter is driven by `viewer.clock` — integrates with the 4D replay timeline automatically
-- CORS is enabled on nowCoast per NOAA documentation
-
-**For street traffic particle simulation:**
-- Fetch road network from Overpass API for visible viewport bbox using TanStack Query (cache: `staleTime: Infinity`)
-- Convert response with `osmtogeojson`, extract `LineString` features where `highway` property exists
-- Spawn `ParticleSystem` instances along road polylines using CesiumJS `ParticleEmitter`; position emitters at road start points
-- Particle velocity direction follows polyline tangent (derive from first two vertices of each way)
-- Use `BlendOption.TRANSLUCENT` on particle collection
-- Performance gate: only render particles for roads within 500 km of camera; disable at zoom > 5000 km altitude
-
-**For 4D historical replay:**
-- `viewer.clock.startTime` and `stopTime` set to replay window (e.g., last 24 h)
-- `viewer.clock.multiplier` controlled by a speed slider (0.25×, 1×, 5×, 10×, 60×, 600×)
-- `viewer.clock.clockRange = Cesium.ClockRange.CLAMPED` for single-pass; `LOOP_STOP` for looping
-- On each `viewer.clock.onTick`, query local snapshot store for entities at `currentTime`
-- Snapshot data fetched from FastAPI `/api/snapshots?start=&end=&type=` and cached in Zustand
-- Backend: PostgreSQL `aircraft_snapshots` table (already exists) queried with `timestamp BETWEEN start AND end`
+**If SVG canvas texture rendering causes flicker on first render:**
+- Pre-render all icon canvases during app init (before any viewer is shown), not lazily on first billboard add
+- Store canvas references in module-level constants — they survive React re-renders
 
 ---
 
@@ -182,108 +388,33 @@ npm install -D @types/osmtogeojson
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `mgrs@2.1.0` | TypeScript 5.x | Ships `index.d.ts`. No @types needed. |
-| `h3-js@4.1.0` | cesium@1.139, TypeScript 5.x | Ships TypeScript types natively. Uses ES2015 module format. No polyfills needed for Chrome 111+. |
-| `osmtogeojson@3.0.0-beta.5` | TypeScript 5.x (via @types/osmtogeojson) | UMD + ESM compatible. Works in browser and Node. `@types/osmtogeojson@2.2.34` provides types. |
-| NOAA WMS (CORS) | `WebMapServiceImageryProvider` | CORS confirmed enabled on nowcoast.noaa.gov. No proxy needed. |
-| aisstream.io WSS | Browser native `WebSocket` | Standard WSS — no special polyfills. Confirmed `wss://stream.aisstream.io/v0/stream`. |
-| `airplanes.live /v2/mil` | `fetch` / TanStack Query | Standard REST, JSON, CORS enabled. |
-| USGS GeoJSON | `fetch` / TanStack Query | CORS enabled. No auth. Stable v1.0 feed URL since 2012. |
-| `PostProcessStageLibrary` | cesium@1.139 | All built-in stages verified: `createNightVisionStage()`, `createBlackAndWhiteStage()`, `createBrightnessStage()`, `createBlurStage()`, `createDepthOfFieldStage()`, `createEdgeDetectionStage()`, `createLensFlareStage()`, `createSilhouetteStage()`. Bloom is a property on `PostProcessStageCollection` (`viewer.scene.postProcessStages.bloom`), NOT a factory function. |
-
----
-
-## Data Sources — Full Reference
-
-### Military Aircraft
-- **Primary:** `https://api.airplanes.live/v2/mil` — free, no auth, ADSBExchange v2 JSON schema, community-run
-- **Fallback:** `https://opendata.adsb.fi/api/v2/mil` — free, no auth, same schema, 1 req/s rate limit
-- **Paid option:** ADSBexchange RapidAPI, $10/month, same schema, SLA available
-- **Auth:** None for primary/fallback. `X-RapidAPI-Key` header for paid ADSBexchange.
-
-### GPS Jamming Heatmap
-- **Source:** gpsjam.org daily CSV
-- **URL pattern:** `https://gpsjam.org/data/YYYY-MM-DD.csv` (e.g. `2026-03-10.csv`)
-- **Format:** CSV with columns `hex` (H3 cell ID, resolution 4), `pct_bad`, `count`
-- **Confidence:** LOW — no official API documentation found. URL pattern inferred from source code references and community usage. Verify by fetching the URL before building the ingest worker.
-- **Strategy:** RQ worker fetches daily at 00:05 UTC, stores in Redis with 24-hour TTL. FastAPI endpoint serves cached data to frontend. If URL pattern changes, fallback: ADSB-derived jamming inference from aircraft NACp field (navigation accuracy category) in airplanes.live data.
-
-### Maritime AIS
-- **Source:** aisstream.io
-- **Endpoint:** `wss://stream.aisstream.io/v0/stream` (secure WebSocket)
-- **Auth:** API key in subscription JSON (`APIKey` field). Sign up free at aisstream.io via GitHub OAuth.
-- **Status:** Free (beta), no SLA, no uptime guarantee
-- **Subscription message:** `{ "APIKey": "...", "BoundingBoxes": [[[minLat, minLon], [maxLat, maxLon]]], "FilterMessageTypes": ["PositionReport"] }`
-- **Key fields:** `MetaData.latitude`, `MetaData.longitude`, `MetaData.MMSI`, `MetaData.ShipName`, `Message.PositionReport.Sog` (speed over ground), `Message.PositionReport.Cog` (course)
-
-### Earthquakes
-- **Source:** USGS Earthquake Hazards Program
-- **Endpoint:** `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson`
-- **Auth:** None
-- **Format:** GeoJSON FeatureCollection, Point geometries
-- **Key fields:** `properties.mag`, `properties.place`, `properties.time` (Unix ms), `properties.depth` (km), `geometry.coordinates` [lon, lat, depth]
-- **Update cadence:** Every 1 minute
-- **Confidence:** HIGH — official USGS feed, stable since 2012
-
-### Weather Radar
-- **Source:** NOAA nowCoast MRMS NEXRAD composite
-- **WMS URL:** `https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer`
-- **Layer:** `1` (base reflectivity mosaic)
-- **Auth:** None
-- **CORS:** Enabled
-- **Update cadence:** Every 5 minutes
-- **Coverage:** CONUS, Hawaii, Puerto Rico, Guam, Alaska
-- **CesiumJS integration:** `WebMapServiceImageryProvider` with `parameters: { transparent: true, format: 'image/png' }`
-- **Confidence:** HIGH — official NOAA service, verified WMS endpoint
-
-### Road Network (particle simulation)
-- **Source:** OpenStreetMap via Overpass API
-- **Endpoint:** `https://overpass-api.de/api/interpreter`
-- **Query:** `[out:json][timeout:25]; (way["highway"~"motorway|trunk|primary|secondary"]({{bbox}}); ); out geom;`
-- **Auth:** None (public endpoint, rate-limited by abuse detection)
-- **Note:** Use the Overpass API mirror list (`overpass.kumi.systems`, `overpass.openstreetmap.fr`) as fallbacks. Restrict highway types to `motorway|trunk|primary|secondary` to limit result size. Do not query tertiary/residential streets — too many features, too slow.
-
----
-
-## Confidence Assessment
-
-| Feature Area | Confidence | Source | Notes |
-|--------------|------------|--------|-------|
-| CesiumJS post-processing (NVG, Bloom, B&W) | HIGH | Official Cesium docs, GitHub source | Built-in stages verified. FLIR/CRT require custom GLSL — standard WebGL patterns. |
-| MGRS library (`mgrs@2.1.0`) | HIGH | npm, NGA-origin | Zero deps, ships types, MIT, stable API |
-| Military flights (`airplanes.live /v2/mil`) | MEDIUM | Official API guide page | Free, no auth confirmed. Community-run — no guaranteed uptime. |
-| GPS jamming CSV (`gpsjam.org/data/`) | LOW | Community references, not official docs | URL pattern inferred, not officially documented. Confirm before building. |
-| AIS (`aisstream.io`) | MEDIUM | Official aisstream.io docs | Free, functional, beta with no SLA. In production by community users. |
-| USGS Earthquake GeoJSON | HIGH | Official USGS docs | Stable federal data feed since 2012. |
-| NOAA NEXRAD WMS | HIGH | Official NOAA service, verified endpoint | Federal service, CORS enabled, WMS-T time support confirmed. |
-| Overpass API for roads | HIGH | OpenStreetMap official wiki | Public endpoint, stable query language since 2007. |
-| `osmtogeojson` | MEDIUM | npm, GitHub | Beta label but API unchanged 5+ years. `osm2geojson-ultra` is faster TypeScript alternative if needed. |
-| `h3-js@4.1.0` | HIGH | Official H3 docs (Uber) | Ships TS types natively, stable API, 5000+ GitHub stars. |
-| CesiumJS Clock / 4D replay | HIGH | Official Cesium docs | `multiplier`, `clockRange`, `onTick` are core, stable CesiumJS API. |
+| cesium@1.139.1 | `BillboardCollection` Primitive API | Stable, unchanged API since 1.43+. `scaleByDistance` and `NearFarScalar` confirmed in current Billboard docs. |
+| cesium@1.139.1 | `NearFarScalar` | Built-in CesiumJS type. GitHub issue #10522 documents non-linear edge behavior — widen near/far range to mitigate. |
+| cesium@1.139.1 | `ScreenSpaceEventType.LEFT_DOUBLE_CLICK` | Stable event type. Default handler exists and must be removed before adding custom handler. |
+| cesium@1.139.1 | `camera.flyTo` with `orientation: { pitch }` | Confirmed in Camera docs. `pitch` is in radians. `-Math.PI/2` = straight down (nadir). |
+| cesium@1.139.1 | `camera.positionCartographic.height` | Returns meters above ellipsoid. For EllipsoidTerrainProvider (used in this project) this equals altitude above surface. |
+| tailwindcss@3.4.19 | tw-animate-css@1.4.0 | Compatible. Confirm plugin registration in `tailwind.config.js`. `animate-ping` used for active panel indicators. |
+| react@19.2.0 | framer-motion 12.35.2 | Compatible (NOT recommended for this milestone — documented above). |
 
 ---
 
 ## Sources
 
-- [CesiumJS PostProcessStageLibrary docs](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageLibrary.html) — built-in stage functions verified
-- [CesiumJS PostProcessStageCollection docs](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStageCollection.html) — `bloom` property confirmed as built-in
-- [CesiumJS PostProcessStage docs](https://cesium.com/learn/cesiumjs/ref-doc/PostProcessStage.html) — custom GLSL fragment shader API
-- [CesiumJS Clock docs](https://cesium.com/learn/cesiumjs/ref-doc/Clock.html) — `multiplier`, `clockRange`, `startTime`, `stopTime`
-- [CesiumJS WebMapServiceImageryProvider docs](https://cesium.com/learn/ion-sdk/ref-doc/WebMapServiceImageryProvider.html) — WMS-T `clock` integration
-- [CesiumJS NightVision.glsl source](https://github.com/CesiumGS/cesium/blob/master/Source/Shaders/PostProcessStages/NightVision.glsl) — built-in NVG shader reference
-- [mgrs on npm](https://www.npmjs.com/package/mgrs) — version 2.1.0, TS types confirmed
-- [aisstream.io documentation](https://aisstream.io/documentation) — WebSocket endpoint, auth, subscription format
-- [airplanes.live API guide](https://airplanes.live/api-guide/) — `/mil` endpoint, free/no-auth confirmed
-- [USGS GeoJSON feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) — official feed documentation
-- [NOAA nowCoast NEXRAD WMS](https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer?request=GetCapabilities&service=WMS) — GetCapabilities endpoint
-- [Overpass API OSM wiki](https://wiki.openstreetmap.org/wiki/Overpass_API) — query language and endpoint
-- [osmtogeojson on npm](https://www.npmjs.com/package/osmtogeojson) — version 3.0.0-beta.5
-- [h3-js on GitHub](https://github.com/uber/h3) — H3 hexagonal indexing, v4.1.0
-- [gpsjam.org FAQ](https://gpsjam.org/faq) — hexagon display confirmed, CSV URL pattern NOT officially documented (LOW confidence)
-- [ADSBexchange data page](https://www.adsbexchange.com/data/) — military data confirmed available
-- [adsb.fi opendata GitHub](https://github.com/adsbfi/opendata) — fallback military endpoint confirmed
+- [CesiumJS Billboard API](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html) — `scale`, `scaleByDistance`, `image`, `setImage`, `color` properties confirmed (HIGH confidence — official docs)
+- [CesiumJS BillboardCollection API](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html) — Primitive API `scene.primitives.add()` pattern, `add()` signature, `BlendOption`, performance notes confirmed (HIGH confidence — official docs)
+- [CesiumJS Camera API](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html) — `flyTo`, `setView`, `positionCartographic`, `zoomIn/zoomOut`, `heading`, `pitch`, `changed` event confirmed (HIGH confidence — official docs)
+- [CesiumJS ScreenSpaceEventHandler API](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — `setInputAction(action, type)` signature, `PositionedEvent.position: Cartesian2` confirmed (HIGH confidence — official docs)
+- [CesiumJS community: Remove default double-click](https://blog.webiks.com/remove-default-double-click-behavior-in-cesium/) — `removeInputAction` pattern before custom handler confirmed (MEDIUM confidence — community blog)
+- [CesiumJS community: zoom in to mouse point](https://community.cesium.com/t/zoom-in-to-mouse-point/2614) — `pickPosition` + `flyTo` pattern for cursor-directed zoom confirmed (MEDIUM confidence — community forum)
+- [CesiumJS NearFarScalar non-linear issue #10522](https://github.com/CesiumGS/cesium/issues/10522) — Scale edge behavior warning; mitigation: widen range (MEDIUM confidence — GitHub issue)
+- [CesiumJS community: SVG billboards broken since 1.43](https://community.cesium.com/t/svg-as-billboards-src-doesnt-work-since-cesium-1-43/6698) — canvas workaround confirmed (MEDIUM confidence — community forum)
+- [CesiumJS community: canvas/SVG dynamic coloring](https://community.cesium.com/t/using-canvas-svg-as-billboards-images-with-dynamic-coloring/2515) — canvas assignment pattern confirmed (MEDIUM confidence — community forum)
+- [CSS interpolate-size browser support](https://www.joshwcomeau.com/snippets/html/interpolate-size/) — Chromium-only ~67% global coverage, March 2026 (HIGH confidence — Josh W. Comeau / CSS-Tricks)
+- [framer-motion npm — v12.35.2](https://www.npmjs.com/package/framer-motion) — React 19 compatible, 15–34 KB bundle confirmed (HIGH confidence — official npm page)
+- [CSS radar scan animation (csswolf.com, Feb 2026)](https://csswolf.com/radar-scanner-animation-effect-in-css-no-js/) — Pure CSS `@keyframes` rotate + conic-gradient confirmed sufficient (MEDIUM confidence — blog source)
+- WebSearch: "CSS radar panel angular corner decorations animation" — multiple CodePen/blog sources confirm pure CSS approach for corner brackets and scan lines (MEDIUM confidence — multiple sources agree)
 
 ---
 
-*Stack research for: Intelligence Globe v2.0 WorldView Parity — new library and API additions only*
-*Researched: 2026-03-11*
+*Stack research for: Intelligence Globe v3.0 UI Refinement — no new dependencies, integration points with existing CesiumJS Primitive API only*
+*Researched: 2026-03-12*
