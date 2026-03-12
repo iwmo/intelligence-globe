@@ -61,7 +61,7 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const offset = i * 4;
       buf[offset + 3] = norad;
 
-      if (typeof pv.position === 'boolean' || pv.position === undefined) {
+      if (pv === null || typeof pv.position === 'boolean' || pv.position === undefined) {
         buf[offset] = NaN;
         buf[offset + 1] = NaN;
         buf[offset + 2] = NaN;
@@ -90,7 +90,7 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const gmst = satellite.gstime(t);
       const pv = satellite.propagate(satrec, t);
 
-      if (typeof pv.position === 'boolean' || pv.position === undefined) continue;
+      if (pv === null || typeof pv.position === 'boolean' || pv.position === undefined) continue;
 
       const ecf = satellite.eciToEcf(pv.position, gmst);
       orbitPoints.push([ecf.x * 1000, ecf.y * 1000, ecf.z * 1000]);
@@ -113,7 +113,7 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
     const now = new Date();
     const gmst = satellite.gstime(now);
     const pv = satellite.propagate(entry.satrec, now);
-    if (typeof pv.position === 'boolean' || pv.position === undefined) {
+    if (pv === null || typeof pv.position === 'boolean' || pv.position === undefined) {
       self.postMessage({ type: 'POSITION_RESULT', norad, position: null });
       return;
     }
