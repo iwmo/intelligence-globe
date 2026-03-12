@@ -24,7 +24,7 @@
 - [x] **Phase 7: Visual Engine + Navigation** — Post-processing presets, cinematic HUD, and city/landmark navigation (completed 2026-03-12)
 - [ ] **Phase 8: New Data Pipelines — Military + Maritime** — Backend workers and frontend layers for military flights and AIS ships
 - [x] **Phase 9: GPS Jamming + Street Traffic** — NIC/NACp aggregation heatmap and OSM particle simulation (completed 2026-03-12)
-- [ ] **Phase 10: Snapshot Infrastructure** — Time-partitioned position recording for all live layers
+- [x] **Phase 10: Snapshot Infrastructure** — Time-partitioned position recording for all live layers (completed 2026-03-12)
 - [ ] **Phase 11: Replay Engine** — LIVE/PLAYBACK toggle, timeline scrubber, speed controls, and event markers
 - [ ] **Phase 12: OSINT Event Correlation** — Satellite overpass lines, event entry, and category tag filtering
 
@@ -135,6 +135,6 @@ Plans:
 | 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 8. New Data Pipelines — Military + Maritime | 2/5 | In Progress|  | — |
 | 9. GPS Jamming + Street Traffic | 5/5 | Complete    | 2026-03-12 | — |
-| 10. Snapshot Infrastructure | 2/3 | In Progress|  | — |
+| 10. Snapshot Infrastructure | 3/3 | Complete   | 2026-03-12 | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |
 | 12. OSINT Event Correlation | v2.0 | 0/? | Not started | — |
