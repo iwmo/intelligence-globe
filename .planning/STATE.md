@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: planning
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-03-12T17:47:30.945Z"
+stopped_at: "Checkpoint: 14-04 Task 2 human-verify"
+last_updated: "2026-03-12T17:50:33.506Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -68,6 +68,8 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 | Phase 14-entity-icons-altitude-scaling P03 | 4 | 1 tasks | 1 files |
 - [Phase 14-entity-icons-altitude-scaling]: id: ac.icao24 (bare icao24, no prefix) preserved on billboards — unified LEFT_CLICK handler requires no changes
 - [Phase 14-entity-icons-altitude-scaling]: rAF lerp loop closure captures module-scope billboardsByIcao24 — no structural change to lerp architecture
+| Phase 14-entity-icons-altitude-scaling P04 | 1 | 1 tasks | 1 files |
+- [Phase 14-entity-icons-altitude-scaling]: scaleByDistance set post-add on PointPrimitive instance (not in collection.add options) — NearFarScalar(5e5, 1.5, 5e7, 0.3) on satellites
 
 ### Pending Todos
 
@@ -81,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:47:30.942Z
-Stopped at: Completed 14-03-PLAN.md
+Last session: 2026-03-12T17:50:33.503Z
+Stopped at: Checkpoint: 14-04 Task 2 human-verify
 Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
