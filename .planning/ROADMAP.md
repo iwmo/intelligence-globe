@@ -69,13 +69,13 @@ Plans:
   3. Ships appear as vessel hull silhouette icons (not dots) on the globe
   4. Satellites appear as improved orbital-cross markers (PointPrimitive, not billboard) — icons do not degrade to generic dots at any zoom level
   5. Aircraft, military, and ship icons grow larger as the camera zooms in and shrink as it zooms out, remaining legible from 20,000 km to 500 m altitude
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 14-01: Define SVG icon canvases for aircraft, military, and ship entity types; pre-render at layer mount in module scope
-- [ ] 14-02: Migrate `ShipLayer.tsx` and `MilitaryAircraftLayer.tsx` to `BillboardCollection` with `scaleByDistance` `NearFarScalar`; remove old `PointPrimitiveCollection` atomically
-- [ ] 14-03: Migrate `AircraftLayer.tsx` to `BillboardCollection`; verify unified `LEFT_CLICK` dispatcher works for all entity ID schemes; update rAF lerp loop to update billboard positions
-- [ ] 14-04: Add `scaleByDistance` via `NearFarScalar` to `SatelliteLayer.tsx` `PointPrimitive` config; tune scale values with continuous zoom test from 20,000 km to 500 m; validate 60 FPS at 5,000+ satellites on integrated GPU
+- [ ] 14-01-PLAN.md — Pre-render module-scope SVG canvas icons (AIRCRAFT_ICON, MILITARY_ICON, SHIP_ICON) in the three billboard layer files
+- [ ] 14-02-PLAN.md — Migrate `ShipLayer.tsx` and `MilitaryAircraftLayer.tsx` to `BillboardCollection` with `scaleByDistance` NearFarScalar; remove old PointPrimitiveCollection atomically
+- [ ] 14-03-PLAN.md — Migrate `AircraftLayer.tsx` to `BillboardCollection`; update rAF lerp loop to write billboard positions; preserve unified LEFT_CLICK dispatcher
+- [ ] 14-04-PLAN.md — Add `scaleByDistance` NearFarScalar to `SatelliteLayer.tsx` PointPrimitive entries; human verify zoom legibility from 20,000 km to 500 m
 
 ### Phase 15: Camera Navigation Controls
 **Goal**: Users can navigate the globe using double-click zoom toward the cursor, on-screen zoom buttons, and a tilt/pitch widget — covering both scroll-wheel-absent input and deliberate camera orientation control
