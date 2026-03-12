@@ -135,6 +135,6 @@ Plans:
 | 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
 | 8. New Data Pipelines — Military + Maritime | 2/5 | In Progress|  | — |
 | 9. GPS Jamming + Street Traffic | 5/5 | Complete    | 2026-03-12 | — |
-| 10. Snapshot Infrastructure | v2.0 | 0/3 | Not started | — |
+| 10. Snapshot Infrastructure | 1/3 | In Progress|  | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |
 | 12. OSINT Event Correlation | v2.0 | 0/? | Not started | — |

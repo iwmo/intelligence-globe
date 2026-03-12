@@ -29,7 +29,7 @@ Requirements for the v2.0 WorldView Parity milestone.
 
 ### Replay Engine
 
-- [ ] **REP-01**: System records position snapshots of all entities at 60s intervals in time-partitioned PostgreSQL tables
+- [x] **REP-01**: System records position snapshots of all entities at 60s intervals in time-partitioned PostgreSQL tables
 - [ ] **REP-02**: User can switch between LIVE and PLAYBACK modes via a toggle in the top bar
 - [ ] **REP-03**: User can scrub through a historical timeline with configurable speed controls (1m/s, 3m/s, 5m/s, 15m/s, 1h/s)
 - [ ] **REP-04**: User sees OSINT event markers on the timeline (Kinetic, Airspace Closure, Maritime, GPS Jamming, Internet Blackout, etc.)
@@ -72,7 +72,7 @@ Deferred to future release.
 | LAY-03 | Phase 8 | Complete |
 | LAY-02 | Phase 9 | Complete |
 | LAY-04 | Phase 9 | Complete |
-| REP-01 | Phase 10 | Pending |
+| REP-01 | Phase 10 | Complete |
 | REP-02 | Phase 11 | Pending |
 | REP-03 | Phase 11 | Pending |
 | REP-04 | Phase 11 | Pending |

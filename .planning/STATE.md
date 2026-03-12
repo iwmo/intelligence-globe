@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 09-gps-jamming-street-traffic/09-05-PLAN.md
-last_updated: "2026-03-12T11:40:36.943Z"
+stopped_at: Completed 10-snapshot-infrastructure/10-01-PLAN.md
+last_updated: "2026-03-12T12:18:32.187Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 19
+  completed_plans: 17
   percent: 40
 ---
 
@@ -113,6 +113,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 - [Phase 09-gps-jamming-street-traffic]: GpsJammingLayer and StreetTrafficLayer mounted always-on in App.tsx — consistent with MilitaryAircraftLayer/ShipLayer pattern from Phase 08 P05
 - [Phase 09-gps-jamming-street-traffic]: GPS degradation disclaimer rendered as static conditional span below JAM toggle, not CesiumJS entity label — avoids globe label budget and positions caveat near user control
 - [Phase 09-gps-jamming-street-traffic]: String-based RQ enqueue used for sync_aggregate_gps_jamming — no module-level import, consistent with satellite and aircraft task registrations
+| Phase 10-snapshot-infrastructure P01 | 3 | 2 tasks | 2 files |
+- [Phase 10-snapshot-infrastructure]: Deferred imports in snapshot unit tests: ModuleNotFoundError is the correct RED signal
+- [Phase 10-snapshot-infrastructure]: test_replay_invalid_layer incidentally passes RED (expects 404, gets 404 from missing route) — acceptable; contract enforces correct behavior in GREEN
 
 ### Pending Todos
 
@@ -131,6 +134,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T11:34:39.155Z
-Stopped at: Completed 09-gps-jamming-street-traffic/09-05-PLAN.md
+Last session: 2026-03-12T12:18:32.183Z
+Stopped at: Completed 10-snapshot-infrastructure/10-01-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
