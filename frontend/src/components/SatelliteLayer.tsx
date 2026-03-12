@@ -8,10 +8,16 @@ import {
   BlendOption,
   Color,
   Material,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  Ellipsoid,
+  Math as CesiumMath,
+  Cartesian2,
 } from 'cesium';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
 import { flyToCartesian } from '../lib/viewerRegistry';
+import type { OverheadSat } from '../workers/overpassElevation';
 
 // ---------------------------------------------------------------------------
 // Pure filter helpers — module-level, no React deps
@@ -78,22 +84,39 @@ interface PositionResultMessage {
   position: { x: number; y: number; z: number } | null;
 }
 
-type WorkerOutMessage = LoadedMessage | PositionsMessage | OrbitResultMessage | PositionResultMessage;
+interface OverpassResultMessage {
+  type: 'OVERPASS_RESULT';
+  overhead: OverheadSat[];
+  timestamp: number;
+}
+
+type WorkerOutMessage = LoadedMessage | PositionsMessage | OrbitResultMessage | PositionResultMessage | OverpassResultMessage;
 
 interface SatelliteLayerProps {
-  viewer: Viewer | null;
+  viewer?: Viewer | null;
   onWorkerReady?: (worker: Worker) => void;
 }
 
-export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
+export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerProps) {
   const satellites = useSatellites();
   const workerRef = useRef<Worker | null>(null);
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
   const orbitCollectionRef = useRef<PolylineCollection | null>(null);
+  const overpassCollectionRef = useRef<PolylineCollection | null>(null);
+  const aoiCollectionRef = useRef<PointPrimitiveCollection | null>(null);
   const indexMapRef = useRef<Map<number, number>>(new Map());
   const rafRef = useRef<number>(0);
-  // handlerRef kept for cleanup reference (no handler registered here — AircraftLayer owns click dispatch)
-  const handlerRef = useRef<null>(null);
+  const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+
+  // Phase 12: TLE staleness check for warning display
+  const tleLastUpdated = useAppStore(s => s.tleLastUpdated);
+  const replayMode = useAppStore(s => s.replayMode);
+  const replayTs = useAppStore(s => s.replayTs);
+  const areaOfInterest = useAppStore(s => s.areaOfInterest);
+
+  const TLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const tleAge = tleLastUpdated ? Date.now() - new Date(tleLastUpdated).getTime() : Infinity;
+  const tleStalenessWarning = replayMode === 'playback' && tleAge > TLE_MAX_AGE_MS;
 
   // Effect 1: Initialize worker and point collection when viewer + data are ready
   useEffect(() => {
@@ -147,6 +170,35 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
         const posMsg = msg as { type: 'POSITION_RESULT'; norad: number; position: { x: number; y: number; z: number } | null };
         if (posMsg.position) {
           flyToCartesian(new Cartesian3(posMsg.position.x, posMsg.position.y, posMsg.position.z));
+        }
+      }
+
+      if (msg.type === 'OVERPASS_RESULT') {
+        const ovMsg = msg as OverpassResultMessage;
+        // Stale guard: discard result if > 2000ms out of sync with current replayTs
+        const { replayTs: currentTs, areaOfInterest: aoi } = useAppStore.getState();
+        if (Math.abs(ovMsg.timestamp - currentTs) > 2000) return;
+        // Remove previous overpass collection
+        if (overpassCollectionRef.current && !overpassCollectionRef.current.isDestroyed()) {
+          viewer?.scene.primitives.remove(overpassCollectionRef.current);
+        }
+        overpassCollectionRef.current = null;
+        if (!aoi || !viewer || viewer.isDestroyed()) return;
+        // Build new overpass arc PolylineCollection
+        const ovColl = viewer.scene.primitives.add(new PolylineCollection());
+        overpassCollectionRef.current = ovColl;
+        for (const sat of ovMsg.overhead) {
+          ovColl.add({
+            positions: [
+              new Cartesian3(sat.ecf.x, sat.ecf.y, sat.ecf.z),
+              Cartesian3.fromDegrees(aoi.lon, aoi.lat, 0),
+            ],
+            width: 1.5,
+            arcType: ArcType.GEODESIC,
+            material: Material.fromType('Color', {
+              color: Color.fromCssColorString('#00D4FF').withAlpha(0.5),
+            }),
+          });
         }
       }
 
@@ -220,10 +272,13 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
       if (orbitCollectionRef.current && !orbitCollectionRef.current.isDestroyed()) {
         viewer.scene.primitives.remove(orbitCollectionRef.current);
       }
+      if (overpassCollectionRef.current && !overpassCollectionRef.current.isDestroyed()) {
+        viewer.scene.primitives.remove(overpassCollectionRef.current);
+      }
       collectionRef.current = null;
       orbitCollectionRef.current = null;
+      overpassCollectionRef.current = null;
       workerRef.current = null;
-      handlerRef.current = null;
       indexMapRef.current = new Map();
     };
   }, [viewer, satellites.data, onWorkerReady]);
@@ -267,6 +322,88 @@ export function SatelliteLayer({ viewer, onWorkerReady }: SatelliteLayerProps) {
       orbitCollectionRef.current = null;
     }
   }, [selectedId, viewer]);
+
+  // Effect 5: AOI right-click handler — sets AOI in store + renders crosshair point
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+    const aoiColl = viewer.scene.primitives.add(new PointPrimitiveCollection());
+    aoiCollectionRef.current = aoiColl;
+    const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+    handlerRef.current = handler;
+    handler.setInputAction((click: { position: Cartesian2 }) => {
+      const earthPos = viewer.scene.pickPosition(click.position);
+      if (!earthPos) return;
+      const carto = Ellipsoid.WGS84.cartesianToCartographic(earthPos);
+      const lat = CesiumMath.toDegrees(carto.latitude);
+      const lon = CesiumMath.toDegrees(carto.longitude);
+      useAppStore.getState().setAreaOfInterest({ lat, lon });
+      aoiColl.removeAll();
+      aoiColl.add({
+        position: Cartesian3.fromDegrees(lon, lat, 0),
+        pixelSize: 8,
+        color: Color.fromCssColorString('#ffffff').withAlpha(0.9),
+      });
+    }, ScreenSpaceEventType.RIGHT_CLICK);
+    return () => {
+      handler.destroy();
+      if (!aoiColl.isDestroyed()) viewer.scene.primitives.remove(aoiColl);
+      aoiCollectionRef.current = null;
+      handlerRef.current = null;
+    };
+  }, [viewer]);
+
+  // Effect 6: COMPUTE_OVERPASS dispatch — debounced 1s on replayTs / replayMode / areaOfInterest change
+  useEffect(() => {
+    if (replayMode !== 'playback' || !areaOfInterest || !workerRef.current) return;
+    if (tleStalenessWarning) return;  // TLE stale — suppress dispatch
+    const timer = setTimeout(() => {
+      workerRef.current?.postMessage({
+        type: 'COMPUTE_OVERPASS',
+        payload: {
+          lat: areaOfInterest.lat,
+          lon: areaOfInterest.lon,
+          timestamp: replayTs,
+          elevationThresholdDeg: 10,
+        },
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayTs, replayMode, areaOfInterest, tleStalenessWarning]);
+
+  // Effect 7: Clear overpass lines when switching back to live mode
+  useEffect(() => {
+    if (replayMode === 'live' && overpassCollectionRef.current && !overpassCollectionRef.current.isDestroyed() && viewer && !viewer.isDestroyed()) {
+      viewer.scene.primitives.remove(overpassCollectionRef.current);
+      overpassCollectionRef.current = null;
+    }
+  }, [replayMode, viewer]);
+
+  // Render TLE staleness warning as a DOM element so tests can assert on it
+  if (tleStalenessWarning) {
+    return (
+      <div
+        data-testid="tle-stale-warning"
+        role="alert"
+        style={{
+          position: 'fixed',
+          bottom: '48px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(255,0,0,0.15)',
+          border: '1px solid #ff3333',
+          color: '#ff3333',
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          padding: '3px 10px',
+          zIndex: 80,
+          pointerEvents: 'none',
+        }}
+      >
+        TLE &gt;7d old — overpass suppressed
+      </div>
+    );
+  }
 
   return null;
 }

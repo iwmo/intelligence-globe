@@ -43,15 +43,30 @@ vi.mock('cesium', () => {
     add = cesiumMocks.mockAdd;
     get = cesiumMocks.mockGet;
     isDestroyed = cesiumMocks.mockIsDestroyed;
+    removeAll = vi.fn();
     length = 0;
   }
   class PolylineCollection {
     add = vi.fn();
     isDestroyed = vi.fn(() => false);
   }
+  class ScreenSpaceEventHandler {
+    setInputAction = vi.fn();
+    destroy = vi.fn();
+    constructor(_canvas: unknown) {}
+  }
   return {
     PointPrimitiveCollection,
     PolylineCollection,
+    ScreenSpaceEventHandler,
+    ScreenSpaceEventType: { RIGHT_CLICK: 'RIGHT_CLICK' },
+    Ellipsoid: {
+      WGS84: {
+        cartesianToCartographic: vi.fn(() => ({ latitude: 0, longitude: 0, height: 0 })),
+      },
+    },
+    Math: { toDegrees: vi.fn((v: number) => v * 180 / Math.PI) },
+    Cartesian2: class MockCartesian2 {},
     Cartesian3: {
       ZERO: { x: 0, y: 0, z: 0 },
       fromRadians: vi.fn(() => ({ x: 0, y: 0, z: 0 })),
@@ -273,31 +288,20 @@ describe('Nine pitfall checks (static audit)', () => {
 
   /**
    * Pitfall 7: ArcType.NONE on orbit polylines (not geodesic arcs)
-   * Assert: SatelliteLayer.tsx uses ArcType.NONE and no other ArcType variant.
+   * Assert: SatelliteLayer.tsx uses ArcType.NONE for orbit paths.
+   * Note: ArcType.GEODESIC is also permitted for Phase 12 overpass arc lines.
    */
   it('Pitfall 7: ArcType.NONE used for orbit polylines (not geodesic)', () => {
     const layerPath = path.join(SRC_DIR, 'components', 'SatelliteLayer.tsx');
     let hasArcTypeNone = false;
-    let hasArcTypeOther = false;
     try {
       const result = execSync(`grep -n "ArcType" "${layerPath}"`, { encoding: 'utf-8' });
       hasArcTypeNone = result.includes('ArcType.NONE');
-      // Flag any non-import ArcType reference that is not ArcType.NONE and not a comment
-      // Exclude: import destructuring lines (just "ArcType,"), comment lines (//)
-      hasArcTypeOther = result.split('\n').some(line => {
-        if (!line.includes('ArcType')) return false;
-        if (line.includes('ArcType.NONE')) return false;  // correct usage
-        if (line.includes('import')) return false;         // import statement
-        if (/^\s*\/\//.test(line.replace(/^\d+[:\s]+/, ''))) return false; // comment line
-        // Bare "ArcType," in a destructure block (e.g. "  ArcType,") — not a usage
-        if (/^\s*\d*[:\s]*\s*ArcType,/.test(line)) return false;
-        return true;
-      });
     } catch {
       // No ArcType references at all — would be unexpected
     }
+    // Orbit polylines must still use ArcType.NONE (Phase 12 overpass arcs use GEODESIC, which is intentional)
     expect(hasArcTypeNone).toBe(true);
-    expect(hasArcTypeOther).toBe(false);
   });
 
   /**
