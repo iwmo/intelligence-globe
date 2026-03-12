@@ -50,11 +50,11 @@ Plans:
 - [ ] 07-05-PLAN.md — App.tsx wiring and human verification of all 7 requirements
 
 ### Phase 8: New Data Pipelines — Military + Maritime
-**Goal**: Users see military aircraft as distinct amber icons and ships as cyan icons, both toggleable independently, with click-to-inspect metadata
+**Goal**: Users see military aircraft as distinct red icons and ships as green icons, both toggleable independently, with click-to-inspect metadata
 **Depends on**: Phase 7
 **Requirements**: LAY-01, LAY-03
 **Success Criteria** (what must be TRUE):
-  1. User can enable a Military Flights toggle and see amber icons appear for military aircraft, visually distinct from commercial aircraft, refreshing from airplanes.live at a 300-second cadence
+  1. User can enable a Military Flights toggle and see red icons appear for military aircraft, visually distinct from commercial aircraft, refreshing from airplanes.live at a 300-second cadence
   2. User can click any military aircraft icon and see a metadata panel (callsign, ICAO24, type, altitude, speed, heading)
   3. User can enable a Maritime Traffic toggle and see ship icons populate from AIS data, with the layer recovering gracefully from backend WebSocket reconnections without freezing the globe
   4. User can click any ship icon and see a metadata panel (MMSI, vessel name, type, speed, heading, last update time)
