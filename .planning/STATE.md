@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
-status: planning
-stopped_at: Defining requirements
+status: ready_to_plan
+stopped_at: Roadmap created — ready to plan Phase 13
 last_updated: "2026-03-12T00:00:00.000Z"
-last_activity: 2026-03-12 — Milestone v3.0 UI Refinement started
+last_activity: 2026-03-12 — v3.0 roadmap created (4 phases, 15 requirements mapped)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 13
   completed_plans: 0
   percent: 0
 ---
@@ -21,157 +21,52 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12 after v3.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Defining requirements for v3.0 UI Refinement milestone
+**Current focus:** Phase 13 — Collapsible Sidebar Layout (ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-12 — Milestone v3.0 UI Refinement started
+Phase: 13 of 16 (Collapsible Sidebar Layout)
+Plan: — of 3 in current phase
+Status: Ready to plan
+Last activity: 2026-03-12 — v3.0 roadmap created
 
-Progress: [__________] 0% (v3.0 milestone — not yet started)
+Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 
 ## Performance Metrics
 
 - Plans complete: 0
 - Plans in progress: 0
-- Phases complete: 0 / 0
+- Phases complete: 0 / 4
 
 ## Accumulated Context
 
 ### Decisions
 
-**v2.0 Architecture decisions (from research):**
+**v3.0 Architectural constraints (from research):**
 
 | Decision | Rationale |
 |----------|-----------|
-| PostProcessEngine singleton created at init, never recreated | CesiumJS PostProcessStage applies to entire scene framebuffer; recreating on preset switch causes stale uniforms and is expensive |
-| Snapshot table range-partitioned by day from day one | Retrofitting a live unpartitioned table at scale requires downtime; 100M+ rows within two weeks at 60s intervals |
-| GPS jamming rendered as GroundPrimitive (not ImageryLayer) | WebGL texture sampler budget limited; GroundPrimitive bypasses ImageryLayer sampler limit |
-| AIS proxied through FastAPI backend (not direct browser WebSocket) | aisstream.io API key would be exposed in client JS if connected from browser |
-| airplanes.live /v2/mil as primary military source (not ADSB Exchange) | ADSB Exchange moved to paid RapidAPI model March 2025; airplanes.live is free, same JSON schema |
-| Custom React TimelinePanel (not CesiumJS default Timeline widget) | CesiumJS widget lacks speed presets, event dot coloring, and category filtering; confirmed anti-feature in research |
-| LIVE/PLAYBACK mode toggle drives viewer.clock directly | CZML replay is not flexible enough for multi-layer custom timeline UI |
-| 60-second snapshot interval with frontend lerp interpolation | 1/3600th the storage cost vs 1Hz; visually sufficient at all replay speeds |
-| Street traffic gated below 500 km altitude, viewport-scoped road fetch | Full road network at global zoom is unusable; Overpass bbox query scoped to viewport |
-| TLE age > 7 days triggers visible overpass warning | SGP4 error grows to kilometers beyond 7 days; fail visibly rather than show inaccurate overpass lines |
+| Satellite layer stays on PointPrimitiveCollection — never BillboardCollection | 5,000+ billboard entities degrade frame rate on integrated GPU; hard constraint not a preference |
+| CSS sidebar collapse uses grid-template-rows transition (not scrollHeight) | scrollHeight forces synchronous layout reflow on same thread as CesiumJS render loop — halves FPS during animation |
+| SVG icon canvases pre-rendered once at layer mount in module scope | Per-entity dynamic SVG strings exhaust TextureAtlas GPU texture budget (DeveloperError at >5,000 entries) |
+| LEFT_DOUBLE_CLICK handler removes CesiumJS built-in entity-tracking handler first | Two conflicting camera animations fire simultaneously if built-in not removed via removeInputAction |
+| LEFT_CLICK debounced 200ms when double-click zoom is active | CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click; debounce prevents entity panel opening on zoom gesture |
+| Billboard migration per-layer in two atomic steps (add new, remove old) | Parallel PointPrimitive + BillboardCollection for same layer causes doubled draw calls and double-pickable entities |
 
-All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
-| Phase 07-visual-engine-navigation P01 | 8 | 2 tasks | 6 files |
-- [Phase 07-visual-engine-navigation]: Wave 0 stub pattern uses vi.mock without static import to avoid Vite import analysis failure on non-existent modules
-- [Phase 07-visual-engine-navigation]: VisualPreset and PostProcessUniforms types exported from useAppStore.ts as single source of truth for downstream components
-- [Phase 07-visual-engine-navigation]: postProcessUniforms setter uses spread merge pattern to support partial uniform updates from individual UI sliders
-| Phase 07-visual-engine-navigation P04 | 3 | 2 tasks | 6 files |
-| Phase 07-visual-engine-navigation P03 | 3min | 1 tasks | 3 files |
-- [Phase 07-visual-engine-navigation]: LandmarkNav navigation goes through viewerRegistry singleton to avoid prop drilling
-- [Phase 07-visual-engine-navigation]: cancelFlight() called before every flyToLandmark to prevent CesiumJS concurrent flight errors on rapid keypresses
-- [Phase 07-visual-engine-navigation]: Distance-proportional flight duration: Math.hypot(deltaLon,deltaLat)/30 clamped 0.5s-3.5s
-- [Phase 07-visual-engine-navigation]: getCameraGridRef exported from CinematicHUD.tsx (not a separate file) — keeps MGRS logic co-located with its consumer component
-- [Phase 07-visual-engine-navigation]: Polar guard uses explicit numeric check (lat > 84 || lat < -80) rather than catching forward() errors — more explicit and testable
-| Phase 07-visual-engine-navigation P02 | 5 | 2 tasks | 4 files |
-- [Phase 07-visual-engine-navigation]: CRT as PostProcessStageComposite (scanlines + barrel/aberration passes); scene.preRender is scene-level not postProcessStages-level; PostProcessPanel standalone export for Plan 05 App.tsx wiring
-| Phase 07-visual-engine-navigation P05 | 20 | 2 tasks | 1 files |
-- [Phase 07-visual-engine-navigation]: PostProcessPanel rendered as left-side floating panel — RightDrawer has no children prop
-- [Phase 07-visual-engine-navigation]: CinematicHUD and LandmarkNav mounted unconditionally outside cleanUI gate so telemetry and nav persist in Clean UI mode
-| Phase 08-new-data-pipelines-military-maritime P01 | 6 | 2 tasks | 6 files |
-- [Phase 08-new-data-pipelines-military-maritime]: Wave 0 backend API test pattern: AsyncClient(ASGITransport(app=app)) mirrors aircraft test pattern for military + ships
-- [Phase 08-new-data-pipelines-military-maritime]: test_military_detail and test_ship_detail assert 404 (not 422) to force routes to exist before GREEN
-- [Phase 08-new-data-pipelines-military-maritime]: Frontend smoke tests use static import after vi.mock() — no vi.hoisted() needed for simple cesium/store/hook mocks
-| Phase 08-new-data-pipelines-military-maritime P03 | ~15min | 2 tasks | 9 files |
-- [Phase 08-new-data-pipelines-military-maritime]: MMSI returned as raw int from parse_ais_message() to satisfy test assertion (result["mmsi"] == 123456789); str() coercion happens at DB write time in batch_flush_ships_to_pg
-- [Phase 08-new-data-pipelines-military-maritime]: routes_ships.py uses lat/lon/heading key aliases (not latitude/longitude/true_heading) to match test_ships.py contract
-- [Phase 08-new-data-pipelines-military-maritime]: Ships migration chain: down_revision set to a1b2c3d4e5f6 (military) to resolve dual-head Alembic conflict with Plan 02 migration
-- [Phase 08-new-data-pipelines-military-maritime]: websockets import deferred inside run_ais_worker() body to keep module importable in test environments without websockets installed
-| Phase 08-new-data-pipelines-military-maritime P02 | 15 | 2 tasks | 6 files |
-- [Phase 08-new-data-pipelines-military-maritime]: routes_military.py returns lat/lon keys (matching test contract) not latitude/longitude
-- [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraft model stores altitude in FEET as received from airplanes.live (not normalised to metres)
-| Phase 08-new-data-pipelines-military-maritime P04 | 4 | 2 tasks | 11 files |
-- [Phase 08-new-data-pipelines-military-maritime]: Ship heading 511 displayed as N/A (AIS standard: value 511 means heading not available)
-- [Phase 08-new-data-pipelines-military-maritime]: layers.militaryAircraft and layers.ships default false — user opt-in prevents globe clutter on first load
-- [Phase 08-new-data-pipelines-military-maritime]: ShipLayer omits lerp rAF loop — direct position update sufficient for ship update cadence (30s)
-| Phase 08-new-data-pipelines-military-maritime P05 | 5 | 1 tasks | 2 files |
-- [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraftLayer and ShipLayer mounted always-on in App.tsx — manage own visibility via store (no conditional mount gate)
-- [Phase 08-new-data-pipelines-military-maritime]: ShieldAlert and Anchor icons used for MIL/SHIP toggles — confirmed present in installed lucide-react before editing
-| Phase 08-new-data-pipelines-military-maritime P06 | ~10min | 2 tasks | 1 files |
-- [Phase 08-new-data-pipelines-military-maritime]: pv === null guard placed before typeof pv.position === 'boolean' check — satellite.js returns null (not { position: false }) for decayed TLEs
-- [Phase 08-new-data-pipelines-military-maritime]: All three call sites patched in single commit (PROPAGATE, COMPUTE_ORBIT, GET_POSITION) — split-site patch would leave crash paths open
-| Phase 09-gps-jamming-street-traffic P01 | 4min | 2 tasks | 3 files |
-- [Phase 09-gps-jamming-street-traffic]: Backend GPS jamming tests use deferred import pattern so ModuleNotFoundError is the RED signal (not a collection error)
-- [Phase 09-gps-jamming-street-traffic]: test_missing_nic_excluded: aircraft with nic=None treated as GOOD per gpsjam.org formula; None means no degradation data
-| Phase 09-gps-jamming-street-traffic P02 | 10min | 2 tasks | 10 files |
-- [Phase 09-gps-jamming-street-traffic]: is_bad uses OR logic: (nic < 7) OR (nac_p < 8) — either metric degraded means bad GPS signal
-- [Phase 09-gps-jamming-street-traffic]: bad_ratio = max(0.0, (bad-1)/total) — subtract 1 from bad count to reduce false positives from single-aircraft anomalies
-- [Phase 09-gps-jamming-street-traffic]: gpsJamming and streetTraffic layer keys default false — user opt-in prevents globe clutter (same pattern as militaryAircraft/ships)
-| Phase 09-gps-jamming-street-traffic P03 | 2min | 2 tasks | 2 files |
-- [Phase 09-gps-jamming-street-traffic]: Lazy Color.fromCssColorString initialization in StreetTrafficLayer: module-level CesiumJS calls crash vitest mocks — compute on first particle creation instead
-- [Phase 09-gps-jamming-street-traffic]: useStreetTraffic inline Overpass JSON parser (no osmtogeojson import): deferred until Plan 05 npm install
-| Phase 09-gps-jamming-street-traffic P04 | 3min | 2 tasks | 4 files |
-- [Phase 09-gps-jamming-street-traffic]: h3-js installed in Plan 04 (not Plan 05): Vite import-analysis statically scans dynamic imports too — package must be present for test to run
-- [Phase 09-gps-jamming-street-traffic]: GpsJammingLayer.tsx uses synchronous buildHexPrimitive() — h3-js installed so no lazy-loading needed; removePrimitive() guards isDestroyed() before primitives.remove()
-| Phase 09-gps-jamming-street-traffic P05 | 30min | 2 tasks | 4 files |
-- [Phase 09-gps-jamming-street-traffic]: GpsJammingLayer and StreetTrafficLayer mounted always-on in App.tsx — consistent with MilitaryAircraftLayer/ShipLayer pattern from Phase 08 P05
-- [Phase 09-gps-jamming-street-traffic]: GPS degradation disclaimer rendered as static conditional span below JAM toggle, not CesiumJS entity label — avoids globe label budget and positions caveat near user control
-- [Phase 09-gps-jamming-street-traffic]: String-based RQ enqueue used for sync_aggregate_gps_jamming — no module-level import, consistent with satellite and aircraft task registrations
-| Phase 10-snapshot-infrastructure P01 | 3 | 2 tasks | 2 files |
-- [Phase 10-snapshot-infrastructure]: Deferred imports in snapshot unit tests: ModuleNotFoundError is the correct RED signal
-- [Phase 10-snapshot-infrastructure]: test_replay_invalid_layer incidentally passes RED (expects 404, gets 404 from missing route) — acceptable; contract enforces correct behavior in GREEN
-| Phase 10-snapshot-infrastructure P02 | 2min | 2 tasks | 3 files |
-- [Phase 10-snapshot-infrastructure]: snapshot_from_* helpers accept both ORM instances and plain dicts via isinstance(row, dict) — unit tests pass plain dicts; production task passes ORM rows
-- [Phase 10-snapshot-infrastructure]: text() bulk INSERT used for position_snapshots writes — avoids ORM composite PK + BIGSERIAL interaction complexity in partitioned tables
-- [Phase 10-snapshot-infrastructure]: ensure_partition() drops 7-day-old partition in same DDL session as CREATE — bounds storage without a separate cleanup task
-| Phase 10-snapshot-infrastructure P03 | 3min | 2 tasks | 3 files |
-- [Phase 10-snapshot-infrastructure]: @router.get('/snapshots') used (not empty string '') — empty string maps to /api/replay not /api/replay/snapshots; plan note was incorrect
-- [Phase 10-snapshot-infrastructure]: String-based RQ enqueue for sync_snapshot_positions — consistent with all other task registrations in worker.py
-| Phase 11-replay-engine P01 | 6min | 3 tasks | 4 files |
-- [Phase 11-replay-engine]: Store replay fields and /api/replay/window pre-implemented in Phase 10 Plan 03; Plans 02-04 scope reduced to PlaybackBar and useReplaySnapshots only
-| Phase 11-replay-engine P02 | 7 | 2 tasks | 5 files |
-- [Phase 11-replay-engine]: func.min/max aggregate in single SELECT for /api/replay/window — avoids two separate DB round-trips
-- [Phase 11-replay-engine]: refetchInterval: replayMode === 'live' ? interval : false pattern established for all polling hooks — pauses live updates during historical playback
-| Phase 11-replay-engine P03 | 3 | 2 tasks | 4 files |
-- [Phase 11-replay-engine]: PlaybackBar test mock uses mutable mockState object so per-describe replayMode override works without module re-import
-- [Phase 11-replay-engine]: rAF loop reads replayTs via useAppStore.getState() to avoid stale closure — replayTs excluded from useEffect deps
-- [Phase 11-replay-engine]: OSINT_EVENTS kept as empty array in Phase 11 — PlaybackBar handles zero event markers gracefully
-| Phase 11-replay-engine P04 | continuation | 3 tasks | 4 files |
-- [Phase 11-replay-engine]: Playback interpolation added as additive useEffect in each layer — live lerp effects left completely untouched to reduce regression risk
-- [Phase 11-replay-engine]: PlaybackBar mounted unconditionally outside cleanUI gate in App.tsx, consistent with CinematicHUD/LandmarkNav pattern from Phase 07
-| Phase 12-osint-event-correlation P01 | 10 | 1 tasks | 10 files |
-- [Phase 12-osint-event-correlation]: Empty stub files used for non-existent modules: Vite import-analysis scans dynamic imports at transform time — vi.mock alone insufficient; stub files resolve the path
-- [Phase 12-osint-event-correlation]: SEISMIC category added to PlaybackBar category chips test — forces Plan 05 to include it alongside existing KINETIC/AIRSPACE/MARITIME/JAMMING
-| Phase 12-osint-event-correlation P02 | 2min | 2 tasks | 5 files |
-- [Phase 12-osint-event-correlation]: ts field accepts Unix milliseconds integer OR ISO datetime string via Pydantic field_validator — test contract sends ms epoch
-- [Phase 12-osint-event-correlation]: Category validation in Pydantic validator raises ValueError -> FastAPI converts to 422 automatically
-| Phase 12 P03 | 8min | 2 tasks | 4 files |
-- [Phase 12]: computeOverpassElevation accepts single SatRec or SatrecEntry[] union type to satisfy both test contract and worker batch usage
-- [Phase 12]: computeOverpassElevationBatch is a separate export returning OverheadSat[] with ECF in meters for Cesium rendering
-| Phase 12-osint-event-correlation P04 | 3min | 2 tasks | 3 files |
-- [Phase 12-osint-event-correlation]: OsintEventPanel props optional (open defaults true) so test renders without props
-- [Phase 12-osint-event-correlation]: useOsintEvents refetchInterval pause: enabled ? 30_000 : false matches all polling hooks pattern
-| Phase 12-osint-event-correlation P05 | 10 | 2 tasks | 6 files |
-- [Phase 12-osint-event-correlation]: TLE staleness warning rendered as DOM element from SatelliteLayer to satisfy data-testid test assertions
-- [Phase 12-osint-event-correlation]: Category filter acts on event marker visibility only; layer-level .show gating deferred to avoid regression risk
-- [Phase 12-osint-event-correlation]: PlaybackBar onOpenOsintPanel prop pattern: panel state owned by App.tsx, passed down as callback
-- [Phase Phase 12-osint-event-correlation P05]: TLE staleness warning rendered as DOM element from SatelliteLayer to satisfy data-testid test assertions
-- [Phase Phase 12-osint-event-correlation P05]: Category filter acts on event marker visibility only; layer-level .show gating deferred to avoid regression risk
-- [Phase Phase 12-osint-event-correlation P05]: PlaybackBar onOpenOsintPanel prop pattern: panel state owned by App.tsx, passed down as callback
+**v2.0 decisions still valid — see PROJECT.md Key Decisions table.**
 
 ### Pending Todos
 
-- Register aisstream.io API key before Phase 8 planning (requires GitHub OAuth)
-- Verify airplanes.live /v2/mil JSON schema matches ADSB Exchange v2 schema before writing ingestion worker
-- Confirm gpsjam.org CSV URL pattern (https://gpsjam.org/data/YYYY-MM-DD.csv) by direct fetch before Phase 9 planning
-- Prototype PostgreSQL daily range partition DDL before writing Phase 10 Alembic migration
-- Validate 60s lerp interpolation is visually acceptable at 10x and 60x playback before committing to Phase 11 granularity
+None.
 
 ### Blockers/Concerns
 
-- **AIS availability:** aisstream.io is beta with no SLA and 2-minute server-initiated disconnects. Exponential backoff reconnect with Redis position cache required. Must test live connection before designing reconnect logic.
-- **ADSB Exchange rate limit:** 10,000 req/month on Basic plan. airplanes.live /v2/mil is the safer primary source; ADSB Exchange as fallback only.
-- **WebGL texture sampler budget:** Must test with all Phase 8-9 layers active simultaneously on integrated GPU hardware before marking Phase 9 complete.
-- **Replay data cold start:** Phase 11 requires minimum 24-48 hours of Phase 10 snapshot data before replay is meaningfully testable. Build Phase 10 first and let it accumulate.
+- **NearFarScalar scale values**: Starting ranges from research (satellites: 5e5–5e7, aircraft/ships: 1e4–5e6) require in-browser tuning with continuous zoom test — mandatory before Phase 14 marked complete.
+- **tw-animate-css plugin registration**: Confirm `require('tw-animate-css')` present in `tailwind.config.js` before Phase 13 — installed but may not be active.
+- **PointPrimitive.scaleByDistance API signature**: Verify exact property name on PointPrimitive (vs Billboard.scaleByDistance) before Phase 14 Plan 04 — used in v1.0/v2.0 but scaleByDistance was not.
 
 ## Session Continuity
 
-Last session: 2026-03-12T14:39:51.736Z
-Stopped at: Completed 12-osint-event-correlation/12-05-PLAN.md
-Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
+Last session: 2026-03-12
+Stopped at: Roadmap created for v3.0 UI Refinement
+Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
