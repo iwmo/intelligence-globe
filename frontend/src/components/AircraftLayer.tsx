@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   Viewer,
-  PointPrimitiveCollection,
+  BillboardCollection,
   PolylineCollection,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -11,6 +11,8 @@ import {
   BlendOption,
   Color,
   Material,
+  NearFarScalar,
+  Math as CesiumMath,
 } from 'cesium';
 import { useAircraft } from '../hooks/useAircraft';
 import { useAppStore } from '../store/useAppStore';
@@ -78,13 +80,13 @@ function matchesAircraftFilter(
 const prevPositions = new Map<string, Cartesian3>();
 const currPositions = new Map<string, Cartesian3>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pointsByIcao24 = new Map<string, any>(); // PointPrimitive reference
+const billboardsByIcao24 = new Map<string, any>(); // Billboard reference
 let lastUpdateTime = Date.now();
 const scratchLerp = new Cartesian3(); // reused every frame — zero GC pressure
 
 export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const aircraft = useAircraft();
-  const collectionRef = useRef<PointPrimitiveCollection | null>(null);
+  const collectionRef = useRef<BillboardCollection | null>(null);
   const trailCollectionRef = useRef<PolylineCollection | null>(null);
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const rafRef = useRef<number>(0);
@@ -106,13 +108,13 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     replayMode === 'playback',
   );
 
-  // Effect 1: Initialize PointPrimitiveCollection and manage aircraft points + lerp loop
+  // Effect 1: Initialize BillboardCollection and manage aircraft billboards + lerp loop
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
     // Create collection once per viewer mount
     if (!collectionRef.current || collectionRef.current.isDestroyed()) {
-      collectionRef.current = viewer.scene.primitives.add(new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE }));
+      collectionRef.current = viewer.scene.primitives.add(new BillboardCollection({ blendOption: BlendOption.OPAQUE }));
     }
 
     // Set up unified click handler (once per viewer).
@@ -181,11 +183,11 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       // Clear module-scope maps on unmount
       prevPositions.clear();
       currPositions.clear();
-      pointsByIcao24.clear();
+      billboardsByIcao24.clear();
     };
   }, [viewer]);
 
-  // Effect 2: Update lerp maps and point collection when new aircraft data arrives
+  // Effect 2: Update lerp maps and billboard collection when new aircraft data arrives
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !aircraft.data || !collectionRef.current) return;
 
@@ -209,15 +211,23 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       prevPositions.set(ac.icao24, existing ?? nextPos);
       currPositions.set(ac.icao24, nextPos);
 
-      // Add new point primitive if not yet in collection
-      if (!pointsByIcao24.has(ac.icao24)) {
-        const point = collection.add({
+      // Add new billboard if not yet in collection
+      if (!billboardsByIcao24.has(ac.icao24)) {
+        const bb = collection.add({
           position: nextPos,
-          pixelSize: 4,
-          color: Color.fromCssColorString('#FF8C00'),
-          id: ac.icao24,
+          image: AIRCRAFT_ICON,
+          width: 24,
+          height: 24,
+          rotation: CesiumMath.toRadians(-(ac.true_track ?? 0)),
+          alignedAxis: Cartesian3.ZERO,
+          id: ac.icao24,         // bare icao24 — no prefix — click handler unchanged
+          scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
         });
-        pointsByIcao24.set(ac.icao24, point);
+        billboardsByIcao24.set(ac.icao24, bb);
+      } else {
+        // Update heading for existing aircraft
+        const existingBb = billboardsByIcao24.get(ac.icao24);
+        if (existingBb) existingBb.rotation = CesiumMath.toRadians(-(ac.true_track ?? 0));
       }
     }
 
@@ -230,11 +240,11 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       function lerp() {
         if (!rafRunningRef.current) return;
         const alpha = Math.min((Date.now() - lastUpdateTime) / POLL_INTERVAL_MS, 1.0);
-        for (const [icao24, point] of pointsByIcao24) {
+        for (const [icao24, bb] of billboardsByIcao24) {
           const prev = prevPositions.get(icao24);
           const curr = currPositions.get(icao24);
-          if (prev && curr && point && !collection.isDestroyed()) {
-            point.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
+          if (prev && curr && bb && !collection.isDestroyed()) {
+            bb.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
           }
         }
         rafRef.current = requestAnimationFrame(lerp);
@@ -245,15 +255,15 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   }, [viewer, aircraft.data]);
 
   // Combined filter + visibility effect (replaces Plan 02 visibility-only effect)
-  // Single effect setting point.show — avoids conflict between two effects both writing show
+  // Single effect setting bb.show — avoids conflict between two effects both writing show
   const aircraftFilter = useAppStore(s => s.aircraftFilter);
   const layerVisible = useAppStore(s => s.layers.aircraft);
   useEffect(() => {
     const byIcao = new Map(aircraft.data?.map(a => [a.icao24, a]) ?? []);
-    for (const [icao24, point] of pointsByIcao24) {
+    for (const [icao24, bb] of billboardsByIcao24) {
       const ac = byIcao.get(icao24);
       if (!ac) continue;
-      point.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
+      bb.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
     }
   }, [aircraftFilter, aircraft.data, layerVisible]);
 
@@ -297,8 +307,8 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     if (replayMode !== 'playback') return;
     if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
 
-    for (const [icao24, point] of pointsByIcao24) {
-      if (!point) continue;
+    for (const [icao24, bb] of billboardsByIcao24) {
+      if (!bb) continue;
       const snapshots = snapshotsByEntity.get(icao24);
       if (!snapshots || snapshots.length === 0) continue;
 
@@ -312,7 +322,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
       const alt = (snapA.altitude ?? 0) + 1000;
 
-      point.position = Cartesian3.fromDegrees(lon, lat, alt);
+      bb.position = Cartesian3.fromDegrees(lon, lat, alt);
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
 
