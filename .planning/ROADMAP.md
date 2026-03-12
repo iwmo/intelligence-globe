@@ -52,12 +52,12 @@
   2. Each section (LAYERS, FILTERS, SEARCH, VISUAL ENGINE) is labeled and visually distinct from adjacent sections
   3. Visual preset sliders panel and aircraft filter panel no longer overlap each other at any sidebar scroll position
   4. Sidebar section open/closed state is independent — collapsing one section does not affect others
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: Add `sidebarSections` Zustand slice and collapsible section component using `grid-template-rows` CSS transition
-- [ ] 13-02: Restructure `LeftSidebar.tsx` into named sections (LAYERS / FILTERS / SEARCH / VISUAL ENGINE) and fix panel overlap z-index audit
-- [ ] 13-03: Wire section state, validate animation at CesiumJS 60 FPS, confirm no layout reflow during collapse
+- [ ] 13-01-PLAN.md — Add `sidebarSections` Zustand slice and `CollapsibleSection` component (TDD)
+- [ ] 13-02-PLAN.md — Restructure `LeftSidebar.tsx` into four named sections; remove floating `PostProcessPanel` from `App.tsx`
+- [ ] 13-03-PLAN.md — Start dev server; human verify animation smoothness, section independence, and overlap elimination
 
 ### Phase 14: Entity Icons and Altitude Scaling
 **Goal**: Users can distinguish entity types at a glance by silhouette — aircraft, military flights, and ships display unique shaped icons on the globe, and all icons remain legible from orbital altitude to street level
