@@ -13,6 +13,7 @@ import {
   Ellipsoid,
   Math as CesiumMath,
   Cartesian2,
+  NearFarScalar,
 } from 'cesium';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
@@ -144,12 +145,13 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
         const count: number = msg.count;
         const map = indexMapRef.current;
         for (let i = 0; i < satData.length && i < count; i++) {
-          collection.add({
+          const pt = collection.add({
             position: Cartesian3.ZERO,
             pixelSize: 3,
             color: Color.fromCssColorString('#00D4FF'),
             id: satData[i].norad_cat_id,  // scene.pick() returns this as picked.id
           });
+          pt.scaleByDistance = new NearFarScalar(5e5, 1.5, 5e7, 0.3);
           map.set(satData[i].norad_cat_id, i);
         }
       }
