@@ -18,6 +18,7 @@ router = APIRouter()
 
 
 _OMM_PROPAGATION_KEYS = {
+    "NORAD_CAT_ID",  # required by satellite.js json2satrec (calls .toString() on it)
     "EPOCH", "MEAN_MOTION", "ECCENTRICITY", "INCLINATION",
     "RA_OF_ASC_NODE", "ARG_OF_PERICENTER", "MEAN_ANOMALY",
     "BSTAR", "MEAN_MOTION_DOT", "MEAN_MOTION_DDOT", "OBJECT_NAME",
