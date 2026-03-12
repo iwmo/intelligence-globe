@@ -26,7 +26,7 @@
 - [x] **Phase 9: GPS Jamming + Street Traffic** — NIC/NACp aggregation heatmap and OSM particle simulation (completed 2026-03-12)
 - [x] **Phase 10: Snapshot Infrastructure** — Time-partitioned position recording for all live layers (completed 2026-03-12)
 - [x] **Phase 11: Replay Engine** — LIVE/PLAYBACK toggle, timeline scrubber, speed controls, and event markers (completed 2026-03-12)
-- [ ] **Phase 12: OSINT Event Correlation** — Satellite overpass lines, event entry, and category tag filtering
+- [x] **Phase 12: OSINT Event Correlation** — Satellite overpass lines, event entry, and category tag filtering (completed 2026-03-12)
 
 ## Phase Details
 
@@ -150,4 +150,4 @@ Plans:
 | 9. GPS Jamming + Street Traffic | 5/5 | Complete    | 2026-03-12 | — |
 | 10. Snapshot Infrastructure | 3/3 | Complete    | 2026-03-12 | — |
 | 11. Replay Engine | 4/4 | Complete    | 2026-03-12 | — |
-| 12. OSINT Event Correlation | 4/5 | In Progress|  | — |
+| 12. OSINT Event Correlation | 5/5 | Complete   | 2026-03-12 | — |

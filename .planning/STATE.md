@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 12-osint-event-correlation/12-04-PLAN.md
-last_updated: "2026-03-12T14:05:51.943Z"
+stopped_at: Completed 12-osint-event-correlation/12-05-PLAN.md
+last_updated: "2026-03-12T14:16:34.184Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 28
-  completed_plans: 27
+  completed_plans: 28
   percent: 40
 ---
 
@@ -147,6 +147,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 12-osint-event-correlation P04 | 3min | 2 tasks | 3 files |
 - [Phase 12-osint-event-correlation]: OsintEventPanel props optional (open defaults true) so test renders without props
 - [Phase 12-osint-event-correlation]: useOsintEvents refetchInterval pause: enabled ? 30_000 : false matches all polling hooks pattern
+| Phase 12-osint-event-correlation P05 | 10 | 2 tasks | 6 files |
+- [Phase 12-osint-event-correlation]: TLE staleness warning rendered as DOM element from SatelliteLayer to satisfy data-testid test assertions
+- [Phase 12-osint-event-correlation]: Category filter acts on event marker visibility only; layer-level .show gating deferred to avoid regression risk
+- [Phase 12-osint-event-correlation]: PlaybackBar onOpenOsintPanel prop pattern: panel state owned by App.tsx, passed down as callback
 
 ### Pending Todos
 
@@ -165,6 +169,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T14:05:51.940Z
-Stopped at: Completed 12-osint-event-correlation/12-04-PLAN.md
+Last session: 2026-03-12T14:16:34.180Z
+Stopped at: Completed 12-osint-event-correlation/12-05-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
