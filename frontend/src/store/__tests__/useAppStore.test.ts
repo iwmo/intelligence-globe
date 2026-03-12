@@ -97,6 +97,65 @@ describe('useAppStore — filter and search slices', () => {
   });
 });
 
+describe('useAppStore — replay slice', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      replayMode: 'live',
+      replayTs: Date.now(),
+      replaySpeedMultiplier: 60,
+      replayWindowStart: null,
+      replayWindowEnd: null,
+    });
+  });
+
+  it('replayMode defaults to "live"', () => {
+    expect(useAppStore.getState().replayMode).toBe('live');
+  });
+
+  it('setReplayMode("playback") sets replayMode', () => {
+    useAppStore.getState().setReplayMode('playback');
+    expect(useAppStore.getState().replayMode).toBe('playback');
+  });
+
+  it('setReplayMode("live") returns to live', () => {
+    useAppStore.getState().setReplayMode('playback');
+    useAppStore.getState().setReplayMode('live');
+    expect(useAppStore.getState().replayMode).toBe('live');
+  });
+
+  it('replayTs is a number', () => {
+    expect(typeof useAppStore.getState().replayTs).toBe('number');
+  });
+
+  it('setReplayTs(12345) sets replayTs', () => {
+    useAppStore.getState().setReplayTs(12345);
+    expect(useAppStore.getState().replayTs).toBe(12345);
+  });
+
+  it('replaySpeedMultiplier defaults to 60', () => {
+    expect(useAppStore.getState().replaySpeedMultiplier).toBe(60);
+  });
+
+  it('setReplaySpeedMultiplier(3600) sets to 3600', () => {
+    useAppStore.getState().setReplaySpeedMultiplier(3600);
+    expect(useAppStore.getState().replaySpeedMultiplier).toBe(3600);
+  });
+
+  it('replayWindowStart defaults to null', () => {
+    expect(useAppStore.getState().replayWindowStart).toBeNull();
+  });
+
+  it('replayWindowEnd defaults to null', () => {
+    expect(useAppStore.getState().replayWindowEnd).toBeNull();
+  });
+
+  it('setReplayWindow(1000, 2000) sets both window bounds', () => {
+    useAppStore.getState().setReplayWindow(1000, 2000);
+    expect(useAppStore.getState().replayWindowStart).toBe(1000);
+    expect(useAppStore.getState().replayWindowEnd).toBe(2000);
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({
