@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: executing
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-02-PLAN.md
-last_updated: "2026-03-12T06:47:36.879Z"
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-04-PLAN.md
+last_updated: "2026-03-12T06:54:02.387Z"
 last_activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 35
 ---
 
@@ -86,6 +86,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 08-new-data-pipelines-military-maritime P02 | 15 | 2 tasks | 6 files |
 - [Phase 08-new-data-pipelines-military-maritime]: routes_military.py returns lat/lon keys (matching test contract) not latitude/longitude
 - [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraft model stores altitude in FEET as received from airplanes.live (not normalised to metres)
+| Phase 08-new-data-pipelines-military-maritime P04 | 4 | 2 tasks | 11 files |
+- [Phase 08-new-data-pipelines-military-maritime]: Ship heading 511 displayed as N/A (AIS standard: value 511 means heading not available)
+- [Phase 08-new-data-pipelines-military-maritime]: layers.militaryAircraft and layers.ships default false — user opt-in prevents globe clutter on first load
+- [Phase 08-new-data-pipelines-military-maritime]: ShipLayer omits lerp rAF loop — direct position update sufficient for ship update cadence (30s)
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:47:36.876Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-02-PLAN.md
+Last session: 2026-03-12T06:54:02.384Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-04-PLAN.md
 Resume: Execute 08-04-PLAN.md (ShipLayer frontend component)
