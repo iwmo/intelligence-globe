@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 09-gps-jamming-street-traffic/09-01-PLAN.md
-last_updated: "2026-03-12T09:45:51.937Z"
+stopped_at: Completed 09-gps-jamming-street-traffic/09-02-PLAN.md
+last_updated: "2026-03-12T09:58:33.230Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
   percent: 40
 ---
 
@@ -99,6 +99,10 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 09-gps-jamming-street-traffic P01 | 4min | 2 tasks | 3 files |
 - [Phase 09-gps-jamming-street-traffic]: Backend GPS jamming tests use deferred import pattern so ModuleNotFoundError is the RED signal (not a collection error)
 - [Phase 09-gps-jamming-street-traffic]: test_missing_nic_excluded: aircraft with nic=None treated as GOOD per gpsjam.org formula; None means no degradation data
+| Phase 09-gps-jamming-street-traffic P02 | 10min | 2 tasks | 10 files |
+- [Phase 09-gps-jamming-street-traffic]: is_bad uses OR logic: (nic < 7) OR (nac_p < 8) — either metric degraded means bad GPS signal
+- [Phase 09-gps-jamming-street-traffic]: bad_ratio = max(0.0, (bad-1)/total) — subtract 1 from bad count to reduce false positives from single-aircraft anomalies
+- [Phase 09-gps-jamming-street-traffic]: gpsJamming and streetTraffic layer keys default false — user opt-in prevents globe clutter (same pattern as militaryAircraft/ships)
 
 ### Pending Todos
 
@@ -117,6 +121,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T09:45:51.934Z
-Stopped at: Completed 09-gps-jamming-street-traffic/09-01-PLAN.md
+Last session: 2026-03-12T09:58:33.227Z
+Stopped at: Completed 09-gps-jamming-street-traffic/09-02-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
