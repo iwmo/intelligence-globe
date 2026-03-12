@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: planning
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-12T16:08:17.858Z"
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-03-12T16:13:00.215Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -57,6 +57,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 | Phase 13-collapsible-sidebar-layout P01 | 8 | 2 tasks | 4 files |
 - [Phase 13-collapsible-sidebar-layout]: Used grid-template-rows transition (not scrollHeight) for sidebar collapse — avoids CesiumJS render thread reflow
 - [Phase 13-collapsible-sidebar-layout]: All CollapsibleSection animation via inline styles — tw-animate-css activation not confirmed
+| Phase 13-collapsible-sidebar-layout P02 | 2 | 2 tasks | 2 files |
+- [Phase 13-collapsible-sidebar-layout]: PostProcessPanel moves from App.tsx fixed overlay into VISUAL ENGINE CollapsibleSection — eliminates panel overlap (LAYOUT-02)
+- [Phase 13-collapsible-sidebar-layout]: App.tsx owns no floating UI panels that belong in sidebar — panels live in LeftSidebar sections
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T16:07:58.734Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-03-12T16:13:00.209Z
+Stopped at: Completed 13-02-PLAN.md
 Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
