@@ -1,6 +1,6 @@
 ---
 phase: 14-entity-icons-altitude-scaling
-plan: 04
+plan: "04"
 subsystem: ui
 tags: [cesium, satellites, PointPrimitive, NearFarScalar, altitude-scaling]
 
@@ -14,6 +14,7 @@ requires:
 provides:
   - Satellite PointPrimitive scaleByDistance NearFarScalar(5e5, 1.5, 5e7, 0.3) post-add in LOADED handler
   - All five entity types (aircraft, military, ships, satellites) have altitude-proportional icon sizing
+  - Human zoom test approved — icons legible from 20,000 km orbital to 500 m street level
 
 affects:
   - future satellite layer changes
@@ -33,7 +34,8 @@ key-files:
 
 key-decisions:
   - "scaleByDistance must be set post-add on PointPrimitive instance — collection.add() returns the instance"
-  - "Starting NearFarScalar values (near=5e5, far=5e7) require in-browser zoom tuning — mandated as Task 2 human-verify checkpoint"
+  - "NearFarScalar(5e5, 1.5, 5e7, 0.3) starting values passed human zoom test without tuning — approved as-is"
+  - "Satellite layer remains PointPrimitiveCollection — BillboardCollection migration blocked by 5,000+ entity GPU TextureAtlas constraint"
 
 patterns-established:
   - "Pattern: capture collection.add() return value to set scaleByDistance post-add on PointPrimitive"
@@ -43,48 +45,52 @@ requirements-completed:
   - ICONS-05
 
 # Metrics
-duration: 1min
+duration: 10min
 completed: 2026-03-12
 ---
 
 # Phase 14 Plan 04: Satellite scaleByDistance and Zoom Legibility Summary
 
-**NearFarScalar(5e5, 1.5, 5e7, 0.3) added post-add to each satellite PointPrimitive in LOADED handler — all five entity types now have altitude-proportional sizing**
+**NearFarScalar(5e5, 1.5, 5e7, 0.3) added post-add to each satellite PointPrimitive; human zoom test approved all five entity icon shapes and altitude legibility from 20,000 km orbital to 500 m street level**
 
 ## Performance
 
-- **Duration:** 1 min
+- **Duration:** ~10 min
 - **Started:** 2026-03-12T17:48:38Z
-- **Completed:** 2026-03-12T17:49:18Z
-- **Tasks:** 1 of 2 (Task 2 is a human-verify checkpoint — awaiting visual approval)
+- **Completed:** 2026-03-12T18:00:00Z
+- **Tasks:** 2 of 2
 - **Files modified:** 1
 
 ## Accomplishments
+
 - Added `NearFarScalar` import to SatelliteLayer.tsx cesium imports
-- Captured `collection.add()` return value as `pt` in the `LOADED` message handler
-- Set `pt.scaleByDistance = new NearFarScalar(5e5, 1.5, 5e7, 0.3)` post-add on each satellite primitive
+- Captured `collection.add()` return value as `pt` in the `LOADED` message handler and set `pt.scaleByDistance = new NearFarScalar(5e5, 1.5, 5e7, 0.3)` post-add on each satellite primitive
 - Satellite layer architecture unchanged — still PointPrimitiveCollection, no BillboardCollection migration
+- Human approved all five entity icon shapes: aircraft (orange swept-wing), military (red delta-wing), ships (green hull), satellites (cyan dots by design)
+- Continuous zoom test from 20,000 km to 500 m passed — NearFarScalar starting values required no tuning
 
 ## Task Commits
 
 Each task was committed atomically:
 
 1. **Task 1: Add scaleByDistance to SatelliteLayer.tsx PointPrimitive entries** - `805eaaf` (feat)
-2. **Task 2: Verify all entity icons and zoom legibility** - PENDING human-verify checkpoint
+2. **Task 2: Verify all entity icons and zoom legibility** - human-approved (no code changes required)
 
-**Plan metadata:** (docs commit pending after Task 2 approval)
+**Plan metadata:** (docs commit follows this summary)
 
 ## Files Created/Modified
+
 - `frontend/src/components/SatelliteLayer.tsx` - Added NearFarScalar import + pt.scaleByDistance post-add in LOADED handler
 
 ## Decisions Made
+
 - `scaleByDistance` is set post-add on the PointPrimitive instance (not as a collection.add() option) — API pattern confirmed from research
-- Starting values NearFarScalar(5e5, 1.5, 5e7, 0.3): near=500km → scale 1.5x, far=50,000km → scale 0.3x
-- NearFarScalar values are explicitly labeled as starting values requiring in-browser tuning during zoom test
+- Starting NearFarScalar values (near=5e5, nearValue=1.5, far=5e7, farValue=0.3) passed human visual zoom test without adjustment — approved as-is
+- Satellite layer stays PointPrimitiveCollection per hard GPU constraint (5,000+ billboards degrade integrated GPU frame rate)
 
 ## Deviations from Plan
 
-None — plan executed exactly as written. The two additive changes (import + post-add scaleByDistance) were applied without any structural changes to SatelliteLayer.tsx.
+None — plan executed exactly as written. NearFarScalar starting values required no tuning per human zoom test approval.
 
 ## Issues Encountered
 
@@ -95,10 +101,12 @@ Pre-existing lint and TypeScript build errors exist in test files and unrelated 
 None — no external service configuration required.
 
 ## Next Phase Readiness
-- Task 2 (human-verify checkpoint) requires starting the dev server and performing zoom legibility test across 20,000 km to 500 m range
-- If NearFarScalar values need tuning, user reports the adjusted values and executor applies them
-- After human approval, Phase 14 is complete (all five entity types have shaped icons with altitude scaling)
+
+- Phase 14 (entity icons and altitude scaling) is complete — all four plans (01-04) executed
+- All five entity types render with correct shaped icons and altitude-proportional scaling
+- No GPU TextureAtlas crash risk — three pre-rendered canvas textures shared across all billboard entities; satellites remain PointPrimitiveCollection
+- Ready for subsequent phase development
 
 ---
 *Phase: 14-entity-icons-altitude-scaling*
-*Completed: 2026-03-12 (partial — Task 2 checkpoint pending)*
+*Completed: 2026-03-12*
