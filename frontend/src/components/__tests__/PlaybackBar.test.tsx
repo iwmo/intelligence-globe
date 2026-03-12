@@ -2,18 +2,21 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 
 vi.mock('cesium', () => ({}));
+
+const mockState = {
+  replayMode: 'live' as 'live' | 'playback',
+  setReplayMode: vi.fn(),
+  replayTs: Date.now(),
+  setReplayTs: vi.fn(),
+  replayWindowStart: null as number | null,
+  replayWindowEnd: null as number | null,
+  replaySpeedMultiplier: 60,
+  setReplaySpeedMultiplier: vi.fn(),
+  setReplayWindow: vi.fn(),
+};
+
 vi.mock('../../store/useAppStore', () => ({
-  useAppStore: vi.fn((selector) => selector({
-    replayMode: 'live',
-    setReplayMode: vi.fn(),
-    replayTs: Date.now(),
-    setReplayTs: vi.fn(),
-    replayWindowStart: null,
-    replayWindowEnd: null,
-    replaySpeedMultiplier: 60,
-    setReplaySpeedMultiplier: vi.fn(),
-    setReplayWindow: vi.fn(),
-  })),
+  useAppStore: vi.fn((selector: (s: typeof mockState) => unknown) => selector(mockState)),
 }));
 vi.mock('../../hooks/useReplaySnapshots', () => ({
   useReplaySnapshots: vi.fn(() => ({ data: new Map(), isLoading: false })),
@@ -24,6 +27,7 @@ import { PlaybackBar } from '../PlaybackBar';
 
 describe('PlaybackBar smoke tests', () => {
   it('renders PLAYBACK button in live mode', () => {
+    mockState.replayMode = 'live';
     const { getByText } = render(<PlaybackBar />);
     expect(getByText('PLAYBACK')).toBeTruthy();
   });
@@ -31,6 +35,7 @@ describe('PlaybackBar smoke tests', () => {
 
 describe('PlaybackBar playback mode', () => {
   it('renders LIVE button and speed presets in playback mode', () => {
+    mockState.replayMode = 'playback';
     const { getByText } = render(<PlaybackBar />);
     expect(getByText('LIVE')).toBeTruthy();
     expect(getByText('1m/s')).toBeTruthy();
