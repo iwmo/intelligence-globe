@@ -19,7 +19,7 @@ created: 2026-03-12
 |----------|-------|
 | **Framework** | pytest 7.x (backend) / vitest (frontend) |
 | **Config file** | backend/pytest.ini or pyproject.toml / frontend/vite.config.ts |
-| **Quick run command** | `cd backend && pytest tests/test_gps_jamming.py tests/test_street_traffic.py -x -q` |
+| **Quick run command** | `cd backend && pytest tests/test_gps_jamming.py -x -q` |
 | **Full suite command** | `cd backend && pytest -q && cd ../frontend && npx vitest run` |
 | **Estimated runtime** | ~30 seconds |
 
@@ -27,7 +27,7 @@ created: 2026-03-12
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd backend && pytest tests/test_gps_jamming.py tests/test_street_traffic.py -x -q`
+- **After every task commit:** Run `cd backend && pytest tests/test_gps_jamming.py -x -q`
 - **After every plan wave:** Run `cd backend && pytest -q && cd ../frontend && npx vitest run`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 30 seconds
@@ -42,8 +42,8 @@ created: 2026-03-12
 | 9-01-02 | 01 | 1 | LAY-02 | unit | `pytest tests/test_gps_jamming.py::test_h3_cell_generation -xq` | ❌ W0 | ⬜ pending |
 | 9-01-03 | 01 | 1 | LAY-02 | unit | `pytest tests/test_gps_jamming.py::test_severity_classification -xq` | ❌ W0 | ⬜ pending |
 | 9-01-04 | 01 | 1 | LAY-02 | integration | `pytest tests/test_gps_jamming.py::test_api_endpoint -xq` | ❌ W0 | ⬜ pending |
-| 9-02-01 | 02 | 2 | LAY-04 | unit | `pytest tests/test_street_traffic.py::test_overpass_fetch -xq` | ❌ W0 | ⬜ pending |
-| 9-02-02 | 02 | 2 | LAY-04 | unit | `pytest tests/test_street_traffic.py::test_viewport_scoping -xq` | ❌ W0 | ⬜ pending |
+| 9-02-01 | 02 | 2 | LAY-04 | manual | N/A — frontend-only feature, no backend test | N/A | ⬜ pending |
+| 9-02-02 | 02 | 2 | LAY-04 | manual | N/A — frontend-only feature, no backend test | N/A | ⬜ pending |
 | 9-02-03 | 02 | 2 | LAY-04 | manual | N/A — visual particle animation | N/A | ⬜ pending |
 | 9-02-04 | 02 | 2 | LAY-04 | manual | N/A — altitude gate visibility | N/A | ⬜ pending |
 
@@ -54,8 +54,9 @@ created: 2026-03-12
 ## Wave 0 Requirements
 
 - [ ] `backend/tests/test_gps_jamming.py` — stubs for LAY-02 (NIC/NACp aggregation, H3 cell generation, severity classification, API endpoint)
-- [ ] `backend/tests/test_street_traffic.py` — stubs for LAY-04 (Overpass fetch, viewport scoping)
-- [ ] `backend/tests/conftest.py` — shared fixtures (mock ADS-B data, mock Overpass response)
+- [ ] `backend/tests/conftest.py` — shared fixtures (mock ADS-B data)
+
+*Note: LAY-04 (Street Traffic) is a frontend-only feature — no backend test file is created for it.*
 
 *If h3 or httpx not yet in requirements.txt — Wave 0 adds them.*
 
