@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { cellToBoundary } from 'h3-js';
 import {
   Viewer,
-  GroundPrimitive,
+  Primitive,
   GeometryInstance,
   PolygonGeometry,
   PolygonHierarchy,
@@ -19,34 +19,50 @@ interface GpsJammingLayerProps {
   viewer: Viewer | null;
 }
 
-function buildHexPrimitive(cells: GpsJammingCell[]): GroundPrimitive {
-  const instances = cells.map(({ h3index, severity }) => {
-    const boundary = cellToBoundary(h3index);
-    // CRITICAL: swap [lat,lng] to [lng,lat] for CesiumJS
-    const positions = Cartesian3.fromDegreesArray(
-      boundary.flatMap(([lat, lng]) => [lng, lat])
-    );
-    const color =
-      severity === 'red'
-        ? Color.RED.withAlpha(0.55)
-        : severity === 'yellow'
-          ? Color.YELLOW.withAlpha(0.45)
-          : Color.GREEN.withAlpha(0.35);
-    return new GeometryInstance({
-      geometry: new PolygonGeometry({ polygonHierarchy: new PolygonHierarchy(positions) }),
-      id: `gps-jam:${h3index}`,
-      attributes: { color: ColorGeometryInstanceAttribute.fromColor(color) },
-    });
-  });
-  return new GroundPrimitive({
+// Slight elevation above the ellipsoid to avoid z-fighting with the globe surface.
+// EllipsoidTerrainProvider has no elevation data, so GroundPrimitive terrain-clamping
+// is not needed; a regular Primitive at fixed height is more reliable.
+const HEX_HEIGHT_M = 5000;
+
+function buildHexPrimitive(cells: GpsJammingCell[]): Primitive {
+  const instances: GeometryInstance[] = [];
+
+  for (const { h3index, severity } of cells) {
+    try {
+      const boundary = cellToBoundary(h3index);
+      // CRITICAL: swap [lat,lng] to [lng,lat] for CesiumJS
+      const positions = Cartesian3.fromDegreesArray(
+        boundary.flatMap(([lat, lng]) => [lng, lat])
+      );
+      const color =
+        severity === 'red'
+          ? Color.RED.withAlpha(0.6)
+          : severity === 'yellow'
+            ? Color.YELLOW.withAlpha(0.5)
+            : Color.fromCssColorString('#00ff88').withAlpha(0.25);
+      instances.push(new GeometryInstance({
+        geometry: new PolygonGeometry({
+          polygonHierarchy: new PolygonHierarchy(positions),
+          vertexFormat: PerInstanceColorAppearance.FLAT_VERTEX_FORMAT,
+          height: HEX_HEIGHT_M,
+        }),
+        id: `gps-jam:${h3index}`,
+        attributes: { color: ColorGeometryInstanceAttribute.fromColor(color) },
+      }));
+    } catch {
+      // Skip invalid H3 cells silently
+    }
+  }
+
+  return new Primitive({
     geometryInstances: instances,
-    appearance: new PerInstanceColorAppearance({ flat: true }),
+    appearance: new PerInstanceColorAppearance({ flat: true, translucent: true }),
     asynchronous: true,
   });
 }
 
 export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): null {
-  const primitiveRef = useRef<GroundPrimitive | null>(null);
+  const primitiveRef = useRef<Primitive | null>(null);
   const gpsJamming = useGpsJamming();
   const layerVisible = useAppStore((s) => s.layers.gpsJamming);
 
@@ -73,7 +89,7 @@ export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): null {
       return;
     }
 
-    // Remove old primitive before creating new one (GroundPrimitive geometry is immutable)
+    // Remove old primitive before creating new one (geometry is immutable)
     removePrimitive();
 
     const newPrimitive = buildHexPrimitive(cells);
