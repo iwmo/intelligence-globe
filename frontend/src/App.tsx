@@ -12,7 +12,6 @@ import { GpsJammingLayer } from './components/GpsJammingLayer';
 import { StreetTrafficLayer } from './components/StreetTrafficLayer';
 import { registerViewer } from './lib/viewerRegistry';
 import { PostProcessEngine } from './components/PostProcessEngine';
-import { PostProcessPanel } from './components/PostProcessPanel';
 import { CinematicHUD } from './components/CinematicHUD';
 import { LandmarkNav } from './components/LandmarkNav';
 import { PlaybackBar } from './components/PlaybackBar';
@@ -70,17 +69,6 @@ export default function App() {
       {!cleanUI && <RightDrawer />}
       {!cleanUI && <BottomStatusBar />}
 
-      {/* Phase 7: Post-process control panel — left side, below hamburger */}
-      {!cleanUI && (
-        <div style={{
-          position: 'fixed',
-          top: '84px',
-          left: '12px',
-          zIndex: 75,
-        }}>
-          <PostProcessPanel />
-        </div>
-      )}
     </div>
   );
 }
