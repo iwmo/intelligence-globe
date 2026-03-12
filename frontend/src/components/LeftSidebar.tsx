@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Satellite, Plane } from 'lucide-react';
+import { Satellite, Plane, ShieldAlert, Anchor } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
@@ -46,6 +46,18 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
           active={layers.aircraft}
           icon={<Plane size={12} />}
           onToggle={() => setLayerVisible('aircraft', !layers.aircraft)}
+        />
+        <LayerToggleButton
+          label="MIL"
+          active={layers.militaryAircraft}
+          icon={<ShieldAlert size={12} />}
+          onToggle={() => setLayerVisible('militaryAircraft', !layers.militaryAircraft)}
+        />
+        <LayerToggleButton
+          label="SHIP"
+          active={layers.ships}
+          icon={<Anchor size={12} />}
+          onToggle={() => setLayerVisible('ships', !layers.ships)}
         />
       </div>
 

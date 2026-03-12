@@ -6,6 +6,8 @@ import { BottomStatusBar } from './components/BottomStatusBar';
 import { RightDrawer } from './components/RightDrawer';
 import { SatelliteLayer } from './components/SatelliteLayer';
 import { AircraftLayer } from './components/AircraftLayer';
+import { MilitaryAircraftLayer } from './components/MilitaryAircraftLayer';
+import { ShipLayer } from './components/ShipLayer';
 import { registerViewer } from './lib/viewerRegistry';
 import { PostProcessEngine } from './components/PostProcessEngine';
 import { PostProcessPanel } from './components/PostProcessPanel';
@@ -34,6 +36,10 @@ export default function App() {
       <SatelliteLayer viewer={cesiumViewer} onWorkerReady={setSatWorker} />
       {/* Aircraft layer — renders null to DOM, manages aircraft CesiumJS primitives */}
       <AircraftLayer viewer={cesiumViewer} />
+      {/* Phase 8: Military aircraft layer — amber dots, manages own visibility via store */}
+      <MilitaryAircraftLayer viewer={cesiumViewer} />
+      {/* Phase 8: Ship layer — cyan dots, manages own visibility via store */}
+      <ShipLayer viewer={cesiumViewer} />
 
       {/* Phase 7: Post-processing (invisible, manages WebGL stages) */}
       <PostProcessEngine viewer={cesiumViewer} />
