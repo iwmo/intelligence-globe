@@ -59,7 +59,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
         const point = collection.add({
           position: pos,
           pixelSize: 5,
-          color: Color.fromCssColorString('#F59E0B'), // amber — distinct from commercial aircraft orange
+          color: Color.fromCssColorString('#EF4444'), // red — distinct from aircraft orange
           id: `mil:${ac.hex}`,
           show: layerVisible,
         });

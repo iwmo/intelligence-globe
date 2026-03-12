@@ -63,7 +63,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         const point = collection.add({
           position: pos,
           pixelSize: 4,
-          color: Color.fromCssColorString('#06B6D4'), // cyan — distinct from sat (#00D4FF), air (#FF8C00), mil (#F59E0B)
+          color: Color.fromCssColorString('#22C55E'), // green — distinct from sat (#00D4FF), air (#FF8C00), mil (#EF4444)
           id: `mmsi:${ship.mmsi}`,
           show: layerVisible,
         });
