@@ -10,6 +10,32 @@ import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
+// ---------------------------------------------------------------------------
+// SVG-derived canvas icon — pre-rendered once at module scope.
+// Military aircraft shape: delta-wing silhouette, visually distinct from
+// commercial aircraft. Red color matches existing military point color.
+// ---------------------------------------------------------------------------
+function drawMilitaryIcon(): HTMLCanvasElement {
+  const SIZE = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#EF4444'; // military red — matches existing point color
+  // Delta-wing silhouette: broad swept wings, short body, pointed nose
+  ctx.beginPath();
+  ctx.moveTo(SIZE / 2, 2);           // nose tip
+  ctx.lineTo(SIZE - 4, SIZE - 4);    // starboard rear corner
+  ctx.lineTo(SIZE / 2 + 3, SIZE * 0.7); // notch into fuselage (starboard)
+  ctx.lineTo(SIZE / 2, SIZE - 6);    // tail center
+  ctx.lineTo(SIZE / 2 - 3, SIZE * 0.7); // notch into fuselage (port)
+  ctx.lineTo(4, SIZE - 4);           // port rear corner
+  ctx.closePath();
+  ctx.fill();
+  return canvas;
+}
+export const MILITARY_ICON = drawMilitaryIcon();
+
 // Module-scope map — military updates every 300s, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const militaryPointsByHex = new Map<string, any>();

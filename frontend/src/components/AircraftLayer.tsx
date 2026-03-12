@@ -19,6 +19,35 @@ import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySna
 const POLL_INTERVAL_MS = 90_000;
 
 // ---------------------------------------------------------------------------
+// SVG-derived canvas icon — pre-rendered once at module scope.
+// One canvas object per entity type. CesiumJS TextureAtlas deduplicates
+// when the same canvas reference is passed to every billboard.add({ image }).
+// NEVER create a canvas per entity — exhausts GPU TextureAtlas at 500+ entities.
+// ---------------------------------------------------------------------------
+function drawAircraftIcon(): HTMLCanvasElement {
+  const SIZE = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#FF8C00'; // aircraft orange — matches existing point color
+  // Airplane silhouette: nose up, swept wings mid-body, twin tail fins
+  ctx.beginPath();
+  ctx.moveTo(SIZE / 2, 2);               // nose tip
+  ctx.lineTo(SIZE * 0.85, SIZE * 0.65);  // starboard wingtip
+  ctx.lineTo(SIZE / 2, SIZE * 0.55);     // fuselage-wing junction (starboard)
+  ctx.lineTo(SIZE / 2 + 4, SIZE - 4);   // starboard tail fin
+  ctx.lineTo(SIZE / 2, SIZE - 8);        // tail center
+  ctx.lineTo(SIZE / 2 - 4, SIZE - 4);   // port tail fin
+  ctx.lineTo(SIZE / 2, SIZE * 0.55);    // fuselage-wing junction (port)
+  ctx.lineTo(SIZE * 0.15, SIZE * 0.65); // port wingtip
+  ctx.closePath();
+  ctx.fill();
+  return canvas;
+}
+export const AIRCRAFT_ICON = drawAircraftIcon();
+
+// ---------------------------------------------------------------------------
 // Pure filter helper — module-level, no React deps
 // ---------------------------------------------------------------------------
 
