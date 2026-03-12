@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: completed
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-06-PLAN.md
-last_updated: "2026-03-12T08:57:51.989Z"
+stopped_at: Completed 09-gps-jamming-street-traffic/09-01-PLAN.md
+last_updated: "2026-03-12T09:45:51.937Z"
 last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 16
+  completed_plans: 12
   percent: 40
 ---
 
@@ -96,6 +96,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 08-new-data-pipelines-military-maritime P06 | ~10min | 2 tasks | 1 files |
 - [Phase 08-new-data-pipelines-military-maritime]: pv === null guard placed before typeof pv.position === 'boolean' check — satellite.js returns null (not { position: false }) for decayed TLEs
 - [Phase 08-new-data-pipelines-military-maritime]: All three call sites patched in single commit (PROPAGATE, COMPUTE_ORBIT, GET_POSITION) — split-site patch would leave crash paths open
+| Phase 09-gps-jamming-street-traffic P01 | 4min | 2 tasks | 3 files |
+- [Phase 09-gps-jamming-street-traffic]: Backend GPS jamming tests use deferred import pattern so ModuleNotFoundError is the RED signal (not a collection error)
+- [Phase 09-gps-jamming-street-traffic]: test_missing_nic_excluded: aircraft with nic=None treated as GOOD per gpsjam.org formula; None means no degradation data
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T07:15:00.000Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-06-PLAN.md
+Last session: 2026-03-12T09:45:51.934Z
+Stopped at: Completed 09-gps-jamming-street-traffic/09-01-PLAN.md
 Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
