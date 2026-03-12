@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 08-new-data-pipelines-military-maritime
 source: [08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md, 08-05-SUMMARY.md]
 started: 2026-03-12T09:00:00Z
@@ -66,7 +66,11 @@ skipped: 0
   reason: "User reported: Uncaught TypeError: Cannot read properties of null (reading 'position') at self.onmessage (propagation.worker.ts:64:21) — repeating, with SES_UNCAUGHT_EXCEPTION: null also logged repeatedly"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "satellite.propagate() returns null for decayed/invalid TLEs (ecc out of range, mean motion < 0, etc.) but propagation.worker.ts line 64 reads pv.position without first checking pv === null. The guard `typeof pv.position === 'boolean' || pv.position === undefined` throws before it evaluates. Pre-existing bug from Phase 04, not introduced by Phase 08."
+  artifacts:
+    - path: "frontend/src/workers/propagation.worker.ts"
+      issue: "line 64 (PROPAGATE loop) and line 93 (COMPUTE_ORBIT loop) missing pv === null guard before accessing pv.position"
+  missing:
+    - "Add `pv === null ||` to the existing guard condition at line 64 in PROPAGATE handler"
+    - "Add same null guard at analogous line in COMPUTE_ORBIT handler"
+  debug_session: ".planning/debug/propagation-worker-null-crash.md"
