@@ -168,13 +168,14 @@ def sync_ingest_military() -> None:
     the job as failed — but self-re-enqueue still fires so the next poll
     attempt happens at the scheduled interval.
     """
+    ingest_succeeded = False
     try:
         asyncio.run(ingest_military_aircraft())
+        ingest_succeeded = True
     except Exception as exc:
         logger.exception("Military aircraft ingest failed: %s", exc)
         raise
     finally:
-        # Always re-enqueue, even after failure, so the task loop keeps running
         from redis import Redis
         from rq import Queue
 
@@ -186,3 +187,10 @@ def sync_ingest_military() -> None:
             "Re-enqueued military aircraft ingest; next run in %ds",
             POLL_INTERVAL_SECONDS,
         )
+
+        # Trigger GPS jamming re-aggregation on successful ingest so NIC/NACp data
+        # is reflected immediately rather than waiting for the daily schedule.
+        if ingest_succeeded:
+            from app.tasks.ingest_gps_jamming import sync_aggregate_gps_jamming
+            q.enqueue(sync_aggregate_gps_jamming)
+            logger.info("Enqueued GPS jamming re-aggregation after military ingest")

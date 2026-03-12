@@ -17,13 +17,33 @@ from app.models.satellite import Satellite
 router = APIRouter()
 
 
+_OMM_PROPAGATION_KEYS = {
+    "EPOCH", "MEAN_MOTION", "ECCENTRICITY", "INCLINATION",
+    "RA_OF_ASC_NODE", "ARG_OF_PERICENTER", "MEAN_ANOMALY",
+    "BSTAR", "MEAN_MOTION_DOT", "MEAN_MOTION_DDOT", "OBJECT_NAME",
+}
+
+# LEO threshold: mean_motion >= 11.25 rev/day ≈ altitude < 2000 km
+_LEO_MIN_MEAN_MOTION = 11.25
+
+
 @router.get("")
 @router.get("/")
 async def list_satellites(db: AsyncSession = Depends(get_db)):
-    """Return a lightweight list of all satellites (norad_cat_id + raw OMM)."""
-    result = await db.execute(select(Satellite.norad_cat_id, Satellite.raw_omm))
+    """Return LEO-only satellites with propagation-essential OMM fields only."""
+    result = await db.execute(
+        select(Satellite.norad_cat_id, Satellite.raw_omm).where(
+            Satellite.mean_motion >= _LEO_MIN_MEAN_MOTION
+        )
+    )
     rows = result.all()
-    return [{"norad_cat_id": r.norad_cat_id, "omm": r.raw_omm} for r in rows]
+    return [
+        {
+            "norad_cat_id": r.norad_cat_id,
+            "omm": {k: v for k, v in r.raw_omm.items() if k in _OMM_PROPAGATION_KEYS},
+        }
+        for r in rows
+    ]
 
 
 @router.get("/freshness")
