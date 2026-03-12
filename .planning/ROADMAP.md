@@ -50,7 +50,7 @@ Plans:
 - [ ] 07-05-PLAN.md — App.tsx wiring and human verification of all 7 requirements
 
 ### Phase 8: New Data Pipelines — Military + Maritime
-**Goal**: Users see military aircraft as distinct orange icons and ships as cyan icons, both toggleable independently, with click-to-inspect metadata
+**Goal**: Users see military aircraft as distinct amber icons and ships as cyan icons, both toggleable independently, with click-to-inspect metadata
 **Depends on**: Phase 7
 **Requirements**: LAY-01, LAY-03
 **Success Criteria** (what must be TRUE):
@@ -58,7 +58,14 @@ Plans:
   2. User can click any military aircraft icon and see a metadata panel (callsign, ICAO24, type, altitude, speed, heading)
   3. User can enable a Maritime Traffic toggle and see ship icons populate from AIS data, with the layer recovering gracefully from backend WebSocket reconnections without freezing the globe
   4. User can click any ship icon and see a metadata panel (MMSI, vessel name, type, speed, heading, last update time)
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Wave 0 test scaffolds: 4 backend + 2 frontend smoke tests (RED phase)
+- [ ] 08-02-PLAN.md — Military aircraft backend: MilitaryAircraft model, Alembic migration, RQ ingest worker, /api/military/ routes
+- [ ] 08-03-PLAN.md — Maritime ships backend: Ship model, Alembic migration, AIS async WebSocket worker, /api/ships/ routes, Docker Compose ais-worker service
+- [ ] 08-04-PLAN.md — Frontend layer components: store extension, hooks, MilitaryAircraftLayer, ShipLayer, detail panels, click routing
+- [ ] 08-05-PLAN.md — App.tsx wiring, LeftSidebar MIL/SHIP toggles, and human verification of all 4 requirements
 
 ### Phase 9: GPS Jamming + Street Traffic
 **Goal**: Users see a GPS degradation heatmap derived from live ADS-B signal quality fields, and can view street-level traffic particle flow when zoomed into a city
@@ -113,8 +120,8 @@ Plans:
 | 4. Controls and Polish | v1.0 | 3/3 | Complete | 2026-03-11 |
 | 5. Performance | v1.0 | 3/3 | Complete | 2026-03-11 |
 | 6. Deploy Hardening | v1.0 | 1/1 | Complete | 2026-03-11 |
-| 7. Visual Engine + Navigation | 5/5 | Complete   | 2026-03-12 | — |
-| 8. New Data Pipelines — Military + Maritime | v2.0 | 0/? | Not started | — |
+| 7. Visual Engine + Navigation | v2.0 | 5/5 | Complete | 2026-03-12 |
+| 8. New Data Pipelines — Military + Maritime | v2.0 | 0/5 | Not started | — |
 | 9. GPS Jamming + Street Traffic | v2.0 | 0/? | Not started | — |
 | 10. Snapshot Infrastructure | v2.0 | 0/? | Not started | — |
 | 11. Replay Engine | v2.0 | 0/? | Not started | — |
