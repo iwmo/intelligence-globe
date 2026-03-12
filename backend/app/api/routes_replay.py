@@ -22,7 +22,7 @@ router = APIRouter()
 VALID_LAYERS = {"aircraft", "military", "ship", "all"}
 
 
-@router.get("")
+@router.get("/snapshots")
 async def get_snapshots(
     layer: str = Query("all"),
     start: datetime = Query(...),
