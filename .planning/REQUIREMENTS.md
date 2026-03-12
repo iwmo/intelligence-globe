@@ -10,13 +10,13 @@
 
 - [x] **LAYOUT-01**: User can collapse and expand each sidebar section independently with smooth animation
 - [x] **LAYOUT-02**: Visual preset sliders and aircraft filter panels no longer visually overlap
-- [ ] **LAYOUT-03**: Sidebar content is grouped into named sections (LAYERS / FILTERS / NAVIGATION / PRESETS) with clear visual hierarchy
+- [x] **LAYOUT-03**: Sidebar content is grouped into named sections (LAYERS / FILTERS / NAVIGATION / PRESETS) with clear visual hierarchy
 
 ### ICONS — Entity Icons
 
-- [ ] **ICONS-01**: Commercial aircraft displayed as airplane-shaped SVG billboard icons on the globe
-- [ ] **ICONS-02**: Military flights displayed as a distinct military aircraft SVG billboard icon
-- [ ] **ICONS-03**: Ships displayed as vessel-shaped SVG billboard icons
+- [x] **ICONS-01**: Commercial aircraft displayed as airplane-shaped SVG billboard icons on the globe
+- [x] **ICONS-02**: Military flights displayed as a distinct military aircraft SVG billboard icon
+- [x] **ICONS-03**: Ships displayed as vessel-shaped SVG billboard icons
 - [ ] **ICONS-04**: Satellites displayed as improved orbital-cross markers (PointPrimitive — billboard not used at 5,000+ entity count due to GPU texture limit)
 - [ ] **ICONS-05**: Aircraft, military, and ship icons scale proportionally with camera altitude
 
@@ -58,10 +58,10 @@
 |-------------|-------|--------|
 | LAYOUT-01 | Phase 13 | Complete |
 | LAYOUT-02 | Phase 13 | Complete |
-| LAYOUT-03 | Phase 13 | Pending |
-| ICONS-01 | Phase 14 | Pending |
-| ICONS-02 | Phase 14 | Pending |
-| ICONS-03 | Phase 14 | Pending |
+| LAYOUT-03 | Phase 13 | Complete |
+| ICONS-01 | Phase 14 | Complete |
+| ICONS-02 | Phase 14 | Complete |
+| ICONS-03 | Phase 14 | Complete |
 | ICONS-04 | Phase 14 | Pending |
 | ICONS-05 | Phase 14 | Pending |
 | NAV-01 | Phase 15 | Pending |
