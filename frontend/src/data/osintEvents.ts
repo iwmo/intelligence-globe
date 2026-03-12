@@ -1,16 +1,18 @@
 export interface OsintEvent {
   id: string;
   ts: number;          // ms epoch
-  category: 'KINETIC' | 'AIRSPACE' | 'MARITIME' | 'JAMMING' | 'BLACKOUT';
+  category: 'KINETIC' | 'AIRSPACE' | 'MARITIME' | 'SEISMIC' | 'JAMMING';
   label: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export const EVENT_COLORS: Record<string, string> = {
   KINETIC:  '#ff3333',   // red
   AIRSPACE: '#ffaa00',   // amber
   MARITIME: '#00aaff',   // blue
+  SEISMIC:  '#ffff00',   // yellow
   JAMMING:  '#ff00ff',   // magenta
-  BLACKOUT: '#888888',   // grey
 };
 
 /**
