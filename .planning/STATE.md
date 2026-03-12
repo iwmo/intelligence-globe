@@ -1,42 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: WorldView Parity
-status: completed
-stopped_at: Completed 12-osint-event-correlation/12-05-PLAN.md
-last_updated: "2026-03-12T14:48:22.260Z"
-last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
+milestone: v3.0
+milestone_name: Extended Layers
+status: planning
+stopped_at: v2.0 milestone archived
+last_updated: "2026-03-12T00:00:00.000Z"
+last_activity: 2026-03-12 — v2.0 WorldView Parity milestone archived
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 28
-  completed_plans: 28
-  percent: 40
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11 after v2.0 milestone start)
+See: .planning/PROJECT.md (updated 2026-03-12 after v2.0 milestone)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v2.0 WorldView Parity — ready to begin Phase 7 planning
+**Current focus:** Planning v3.0 Extended Layers milestone (earthquake layer, weather radar)
 
 ## Current Position
 
-Phase: 08 — New Data Pipelines: Military + Maritime
-Plan: 06 (complete)
-Status: Complete — Plans 01, 02, 03, 04, 05, 06 all complete; Phase 8 fully done
-Last activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
+Phase: — (no active phase)
+Status: Milestone complete — v2.0 WorldView Parity archived. Ready to start v3.0 planning.
+Last activity: 2026-03-12 — v2.0 milestone archived (28 plans, 6 phases)
 
-Progress: [####______] 40% (v2.0 milestone)
+Progress: [__________] 0% (v3.0 milestone — not yet started)
 
 ## Performance Metrics
 
 - Plans complete: 0
 - Plans in progress: 0
-- Phases complete: 0 / 6
+- Phases complete: 0 / 0
 
 ## Accumulated Context
 
