@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import {
   Viewer,
-  PointPrimitiveCollection,
+  BillboardCollection,
   Cartesian3,
   BlendOption,
-  Color,
+  NearFarScalar,
+  Math as CesiumMath,
 } from 'cesium';
 import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
@@ -38,11 +39,11 @@ export const MILITARY_ICON = drawMilitaryIcon();
 
 // Module-scope map — military updates every 300s, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const militaryPointsByHex = new Map<string, any>();
+const militaryBillboardsByHex = new Map<string, any>(); // Billboard reference
 
 export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const militaryAircraft = useMilitaryAircraft();
-  const collectionRef = useRef<PointPrimitiveCollection | null>(null);
+  const collectionRef = useRef<BillboardCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.militaryAircraft);
 
@@ -60,13 +61,13 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
     replayMode === 'playback',
   );
 
-  // Effect 1: Initialize PointPrimitiveCollection
+  // Effect 1: Initialize BillboardCollection
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
     if (!collectionRef.current || collectionRef.current.isDestroyed()) {
       collectionRef.current = viewer.scene.primitives.add(
-        new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE })
+        new BillboardCollection({ blendOption: BlendOption.OPAQUE })
       );
     }
 
@@ -76,11 +77,11 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
         viewer.scene.primitives.remove(col);
       }
       collectionRef.current = null;
-      militaryPointsByHex.clear();
+      militaryBillboardsByHex.clear();
     };
   }, [viewer]);
 
-  // Effect 2: Update point positions when new data arrives
+  // Effect 2: Update billboard positions when new data arrives
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !militaryAircraft.data?.length || !collectionRef.current) return;
 
@@ -93,26 +94,34 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const altMeters = (ac.alt_baro ?? 0) * 0.3048 + 1000;
       const pos = Cartesian3.fromDegrees(ac.lon, ac.lat, altMeters);
 
-      const existing = militaryPointsByHex.get(ac.hex);
+      // Military heading from track field (degrees clockwise from north)
+      const rot = ac.track ?? 0;
+
+      const existing = militaryBillboardsByHex.get(ac.hex);
       if (existing) {
         existing.position = pos;
+        existing.rotation = CesiumMath.toRadians(-rot);
       } else {
-        const point = collection.add({
+        const bb = collection.add({
           position: pos,
-          pixelSize: 5,
-          color: Color.fromCssColorString('#EF4444'), // red — distinct from aircraft orange
+          image: MILITARY_ICON,
+          width: 24,
+          height: 24,
+          rotation: CesiumMath.toRadians(-rot),
+          alignedAxis: Cartesian3.ZERO,
           id: `mil:${ac.hex}`,
+          scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
           show: layerVisible,
         });
-        militaryPointsByHex.set(ac.hex, point);
+        militaryBillboardsByHex.set(ac.hex, bb);
       }
     }
   }, [viewer, militaryAircraft.data, layerVisible]);
 
   // Effect 3: Visibility toggle
   useEffect(() => {
-    for (const [, point] of militaryPointsByHex) {
-      point.show = layerVisible;
+    for (const [, bb] of militaryBillboardsByHex) {
+      bb.show = layerVisible;
     }
   }, [layerVisible]);
 
@@ -122,8 +131,8 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
     if (replayMode !== 'playback') return;
     if (!snapshotsByEntity || snapshotsByEntity.size === 0) return;
 
-    for (const [hex, point] of militaryPointsByHex) {
-      if (!point) continue;
+    for (const [hex, bb] of militaryBillboardsByHex) {
+      if (!bb) continue;
       const snapshots = snapshotsByEntity.get(hex);
       if (!snapshots || snapshots.length === 0) continue;
 
@@ -137,7 +146,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const lon = snapA && snapB ? snapA.longitude + alpha * (snapB.longitude - snapA.longitude) : snapA.longitude;
       const alt = (snapA.altitude ?? 0) * 0.3048 + 1000;
 
-      point.position = Cartesian3.fromDegrees(lon, lat, alt);
+      bb.position = Cartesian3.fromDegrees(lon, lat, alt);
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
 
