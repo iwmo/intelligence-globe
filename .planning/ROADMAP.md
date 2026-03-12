@@ -21,7 +21,7 @@
 
 ### v2.0 WorldView Parity (Phases 7-12)
 
-- [ ] **Phase 7: Visual Engine + Navigation** — Post-processing presets, cinematic HUD, and city/landmark navigation
+- [x] **Phase 7: Visual Engine + Navigation** — Post-processing presets, cinematic HUD, and city/landmark navigation (completed 2026-03-12)
 - [ ] **Phase 8: New Data Pipelines — Military + Maritime** — Backend workers and frontend layers for military flights and AIS ships
 - [ ] **Phase 9: GPS Jamming + Street Traffic** — NIC/NACp aggregation heatmap and OSM particle simulation
 - [ ] **Phase 10: Snapshot Infrastructure** — Time-partitioned position recording for all live layers
@@ -113,7 +113,7 @@ Plans:
 | 4. Controls and Polish | v1.0 | 3/3 | Complete | 2026-03-11 |
 | 5. Performance | v1.0 | 3/3 | Complete | 2026-03-11 |
 | 6. Deploy Hardening | v1.0 | 1/1 | Complete | 2026-03-11 |
-| 7. Visual Engine + Navigation | 4/5 | In Progress|  | — |
+| 7. Visual Engine + Navigation | 5/5 | Complete   | 2026-03-12 | — |
 | 8. New Data Pipelines — Military + Maritime | v2.0 | 0/? | Not started | — |
 | 9. GPS Jamming + Street Traffic | v2.0 | 0/? | Not started | — |
 | 10. Snapshot Infrastructure | v2.0 | 0/? | Not started | — |
