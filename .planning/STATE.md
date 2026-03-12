@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
-status: ready_to_plan
-stopped_at: Roadmap created — ready to plan Phase 13
-last_updated: "2026-03-12T00:00:00.000Z"
-last_activity: 2026-03-12 — v3.0 roadmap created (4 phases, 15 requirements mapped)
+status: planning
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-12T16:08:17.858Z"
+last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 13
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -54,6 +54,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 | Billboard migration per-layer in two atomic steps (add new, remove old) | Parallel PointPrimitive + BillboardCollection for same layer causes doubled draw calls and double-pickable entities |
 
 **v2.0 decisions still valid — see PROJECT.md Key Decisions table.**
+| Phase 13-collapsible-sidebar-layout P01 | 8 | 2 tasks | 4 files |
+- [Phase 13-collapsible-sidebar-layout]: Used grid-template-rows transition (not scrollHeight) for sidebar collapse — avoids CesiumJS render thread reflow
+- [Phase 13-collapsible-sidebar-layout]: All CollapsibleSection animation via inline styles — tw-animate-css activation not confirmed
 
 ### Pending Todos
 
@@ -67,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12
-Stopped at: Roadmap created for v3.0 UI Refinement
+Last session: 2026-03-12T16:07:58.734Z
+Stopped at: Completed 13-01-PLAN.md
 Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13

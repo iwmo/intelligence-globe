@@ -127,7 +127,7 @@ Plans:
 | 10. Snapshot Infrastructure | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 11. Replay Engine | v2.0 | 4/4 | Complete | 2026-03-12 |
 | 12. OSINT Event Correlation | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 13. Collapsible Sidebar Layout | v3.0 | 0/3 | Not started | — |
+| 13. Collapsible Sidebar Layout | 1/3 | In Progress|  | — |
 | 14. Entity Icons and Altitude Scaling | v3.0 | 0/4 | Not started | — |
 | 15. Camera Navigation Controls | v3.0 | 0/3 | Not started | — |
 | 16. Persistent Settings Panel | v3.0 | 0/3 | Not started | — |

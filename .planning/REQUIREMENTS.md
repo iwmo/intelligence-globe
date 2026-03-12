@@ -8,8 +8,8 @@
 
 ### LAYOUT — Panel Organization
 
-- [ ] **LAYOUT-01**: User can collapse and expand each sidebar section independently with smooth animation
-- [ ] **LAYOUT-02**: Visual preset sliders and aircraft filter panels no longer visually overlap
+- [x] **LAYOUT-01**: User can collapse and expand each sidebar section independently with smooth animation
+- [x] **LAYOUT-02**: Visual preset sliders and aircraft filter panels no longer visually overlap
 - [ ] **LAYOUT-03**: Sidebar content is grouped into named sections (LAYERS / FILTERS / NAVIGATION / PRESETS) with clear visual hierarchy
 
 ### ICONS — Entity Icons
@@ -56,8 +56,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAYOUT-01 | Phase 13 | Pending |
-| LAYOUT-02 | Phase 13 | Pending |
+| LAYOUT-01 | Phase 13 | Complete |
+| LAYOUT-02 | Phase 13 | Complete |
 | LAYOUT-03 | Phase 13 | Pending |
 | ICONS-01 | Phase 14 | Pending |
 | ICONS-02 | Phase 14 | Pending |
