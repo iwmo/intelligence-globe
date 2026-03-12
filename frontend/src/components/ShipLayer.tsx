@@ -10,6 +10,33 @@ import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
+// ---------------------------------------------------------------------------
+// SVG-derived canvas icon — pre-rendered once at module scope.
+// Ship hull silhouette: vessel shape viewed from above. Green color matches
+// existing ship point color.
+// ---------------------------------------------------------------------------
+function drawShipIcon(): HTMLCanvasElement {
+  const SIZE = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#22C55E'; // ship green — matches existing point color
+  // Vessel hull from above: pointed bow, wider stern, rectangular midship
+  ctx.beginPath();
+  ctx.moveTo(SIZE / 2, 2);               // bow tip
+  ctx.lineTo(SIZE * 0.75, SIZE * 0.25);  // starboard shoulder
+  ctx.lineTo(SIZE * 0.75, SIZE * 0.8);   // starboard stern quarter
+  ctx.lineTo(SIZE * 0.55, SIZE - 4);     // starboard stern corner
+  ctx.lineTo(SIZE * 0.45, SIZE - 4);     // port stern corner
+  ctx.lineTo(SIZE * 0.25, SIZE * 0.8);   // port stern quarter
+  ctx.lineTo(SIZE * 0.25, SIZE * 0.25);  // port shoulder
+  ctx.closePath();
+  ctx.fill();
+  return canvas;
+}
+export const SHIP_ICON = drawShipIcon();
+
 // Module-scope map — ships are slow, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const shipPointsByMmsi = new Map<string, any>(); // PointPrimitive reference
