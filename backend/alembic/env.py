@@ -22,6 +22,7 @@ import app.models.aircraft  # noqa: F401
 import app.models.ship  # noqa: F401
 import app.models.military_aircraft  # noqa: F401
 import app.models.gps_jamming  # noqa: F401
+import app.models.osint_event  # noqa: F401
 
 # Alembic Config object
 config = context.config
