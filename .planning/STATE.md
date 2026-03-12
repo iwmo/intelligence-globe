@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: executing
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-05-PLAN.md (awaiting human-verify checkpoint)
-last_updated: "2026-03-12T06:56:34.235Z"
-last_activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-06-PLAN.md
+last_updated: "2026-03-12T07:15:00.000Z"
+last_activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard in propagation.worker.ts; all 9 UAT tests pass)
 progress:
   total_phases: 6
   completed_phases: 2
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-11 after v2.0 milestone start)
 ## Current Position
 
 Phase: 08 — New Data Pipelines: Military + Maritime
-Plan: 03 (complete)
-Status: In progress — Plans 01, 02, 03 complete; Plans 04, 05 remaining
-Last activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
+Plan: 06 (complete)
+Status: Complete — Plans 01, 02, 03, 04, 05, 06 all complete; Phase 8 fully done
+Last activity: 2026-03-12 — Phase 8 gap closure complete (pv === null null guard; all UAT tests pass)
 
-Progress: [###_______] 35% (v2.0 milestone)
+Progress: [####______] 40% (v2.0 milestone)
 
 ## Performance Metrics
 
@@ -93,6 +93,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 | Phase 08-new-data-pipelines-military-maritime P05 | 5 | 1 tasks | 2 files |
 - [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraftLayer and ShipLayer mounted always-on in App.tsx — manage own visibility via store (no conditional mount gate)
 - [Phase 08-new-data-pipelines-military-maritime]: ShieldAlert and Anchor icons used for MIL/SHIP toggles — confirmed present in installed lucide-react before editing
+| Phase 08-new-data-pipelines-military-maritime P06 | ~10min | 2 tasks | 1 files |
+- [Phase 08-new-data-pipelines-military-maritime]: pv === null guard placed before typeof pv.position === 'boolean' check — satellite.js returns null (not { position: false }) for decayed TLEs
+- [Phase 08-new-data-pipelines-military-maritime]: All three call sites patched in single commit (PROPAGATE, COMPUTE_ORBIT, GET_POSITION) — split-site patch would leave crash paths open
 
 ### Pending Todos
 
@@ -111,6 +114,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:56:34.231Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-05-PLAN.md (awaiting human-verify checkpoint)
-Resume: Execute 08-04-PLAN.md (ShipLayer frontend component)
+Last session: 2026-03-12T07:15:00.000Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-06-PLAN.md
+Resume: Phase 8 complete — begin Phase 9 planning (GPS Jamming layer)
