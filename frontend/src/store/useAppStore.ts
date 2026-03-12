@@ -13,7 +13,7 @@ export interface PostProcessUniforms {
 interface AppState {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  layers: { satellites: boolean; aircraft: boolean };
+  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean };
   setLayerVisible: (layer: keyof AppState['layers'], visible: boolean) => void;
   selectedSatelliteId: number | null;
   setSelectedSatelliteId: (id: number | null) => void;
@@ -21,6 +21,10 @@ interface AppState {
   setTleLastUpdated: (ts: string | null) => void;
   selectedAircraftId: string | null;
   setSelectedAircraftId: (id: string | null) => void;
+  selectedMilitaryId: string | null;
+  setSelectedMilitaryId: (id: string | null) => void;
+  selectedShipId: string | null;
+  setSelectedShipId: (id: string | null) => void;
 
   satelliteFilter: {
     constellation: string | null;
@@ -51,7 +55,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  layers: { satellites: true, aircraft: true },
+  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false },
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
@@ -60,6 +64,10 @@ export const useAppStore = create<AppState>((set) => ({
   setTleLastUpdated: (ts) => set({ tleLastUpdated: ts }),
   selectedAircraftId: null,
   setSelectedAircraftId: (id) => set({ selectedAircraftId: id }),
+  selectedMilitaryId: null,
+  setSelectedMilitaryId: (id) => set({ selectedMilitaryId: id }),
+  selectedShipId: null,
+  setSelectedShipId: (id) => set({ selectedShipId: id }),
 
   satelliteFilter: { constellation: null, altitudeBand: null },
   setSatelliteFilter: (f) =>

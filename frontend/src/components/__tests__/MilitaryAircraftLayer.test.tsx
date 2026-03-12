@@ -9,7 +9,7 @@ vi.mock('cesium', () => ({
   ScreenSpaceEventHandler: class { setInputAction = vi.fn(); destroy = vi.fn(); },
   ScreenSpaceEventType: { LEFT_CLICK: 'LEFT_CLICK' },
 }));
-vi.mock('../../../store/useAppStore', () => ({
+vi.mock('../../store/useAppStore', () => ({
   useAppStore: vi.fn((selector) => selector({
     layers: { militaryAircraft: true },
     selectedMilitaryId: null,
@@ -19,7 +19,7 @@ vi.mock('../../../store/useAppStore', () => ({
     setSelectedShipId: vi.fn(),
   })),
 }));
-vi.mock('../../../hooks/useMilitaryAircraft', () => ({
+vi.mock('../../hooks/useMilitaryAircraft', () => ({
   useMilitaryAircraft: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 

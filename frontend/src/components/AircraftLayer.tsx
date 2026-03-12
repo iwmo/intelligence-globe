@@ -81,17 +81,37 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
         const picked = viewer.scene.pick(click.position);
         if (!picked) return;
         if (typeof picked.id === 'string') {
-          // Aircraft: ICAO24 is a hex string (e.g. "3c6581")
-          useAppStore.getState().setSelectedAircraftId(picked.id);
-          useAppStore.getState().setSelectedSatelliteId(null);
+          if (picked.id.startsWith('mmsi:')) {
+            const mmsi = picked.id.slice(5);
+            useAppStore.getState().setSelectedShipId(mmsi);
+            useAppStore.getState().setSelectedMilitaryId(null);
+            useAppStore.getState().setSelectedAircraftId(null);
+            useAppStore.getState().setSelectedSatelliteId(null);
+          } else if (picked.id.startsWith('mil:')) {
+            const hex = picked.id.slice(4);
+            useAppStore.getState().setSelectedMilitaryId(hex);
+            useAppStore.getState().setSelectedShipId(null);
+            useAppStore.getState().setSelectedAircraftId(null);
+            useAppStore.getState().setSelectedSatelliteId(null);
+          } else {
+            // Commercial aircraft: bare ICAO24 string (no prefix)
+            useAppStore.getState().setSelectedAircraftId(picked.id);
+            useAppStore.getState().setSelectedMilitaryId(null);
+            useAppStore.getState().setSelectedShipId(null);
+            useAppStore.getState().setSelectedSatelliteId(null);
+          }
         } else if (typeof picked.id === 'number' && picked.id > 1000) {
           // Satellite: NORAD catalog ID is a number > 1000
           useAppStore.getState().setSelectedSatelliteId(picked.id);
           useAppStore.getState().setSelectedAircraftId(null);
+          useAppStore.getState().setSelectedMilitaryId(null);
+          useAppStore.getState().setSelectedShipId(null);
         } else {
-          // Clicked globe background or unrecognised primitive — clear both
+          // Clicked globe background or unrecognised primitive — clear all
           useAppStore.getState().setSelectedSatelliteId(null);
           useAppStore.getState().setSelectedAircraftId(null);
+          useAppStore.getState().setSelectedMilitaryId(null);
+          useAppStore.getState().setSelectedShipId(null);
         }
       }, ScreenSpaceEventType.LEFT_CLICK);
     }
