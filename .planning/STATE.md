@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
 status: planning
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-01-PLAN.md
-last_updated: "2026-03-12T06:40:43.944Z"
-last_activity: 2026-03-11 — v2.0 roadmap written (Phases 7-12, 17 requirements mapped)
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-03-PLAN.md
+last_updated: "2026-03-12T00:00:00.000Z"
+last_activity: 2026-03-12 — Phase 08 Plan 03 completed (maritime AIS backend pipeline)
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 10
-  completed_plans: 6
-  percent: 0
+  completed_plans: 8
+  percent: 35
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-11 after v2.0 milestone start)
 
 ## Current Position
 
-Phase: 7 — Visual Engine + Navigation (not started)
-Plan: —
-Status: Roadmap complete, awaiting phase planning
-Last activity: 2026-03-11 — v2.0 roadmap written (Phases 7-12, 17 requirements mapped)
+Phase: 08 — New Data Pipelines: Military + Maritime
+Plan: 03 (complete)
+Status: In progress — Plans 01, 02, 03 complete; Plans 04, 05 remaining
+Last activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
 
-Progress: [__________] 0% (v2.0 milestone)
+Progress: [###_______] 35% (v2.0 milestone)
 
 ## Performance Metrics
 
@@ -78,6 +78,11 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 - [Phase 08-new-data-pipelines-military-maritime]: Wave 0 backend API test pattern: AsyncClient(ASGITransport(app=app)) mirrors aircraft test pattern for military + ships
 - [Phase 08-new-data-pipelines-military-maritime]: test_military_detail and test_ship_detail assert 404 (not 422) to force routes to exist before GREEN
 - [Phase 08-new-data-pipelines-military-maritime]: Frontend smoke tests use static import after vi.mock() — no vi.hoisted() needed for simple cesium/store/hook mocks
+| Phase 08-new-data-pipelines-military-maritime P03 | ~15min | 2 tasks | 9 files |
+- [Phase 08-new-data-pipelines-military-maritime]: MMSI returned as raw int from parse_ais_message() to satisfy test assertion (result["mmsi"] == 123456789); str() coercion happens at DB write time in batch_flush_ships_to_pg
+- [Phase 08-new-data-pipelines-military-maritime]: routes_ships.py uses lat/lon/heading key aliases (not latitude/longitude/true_heading) to match test_ships.py contract
+- [Phase 08-new-data-pipelines-military-maritime]: Ships migration chain: down_revision set to a1b2c3d4e5f6 (military) to resolve dual-head Alembic conflict with Plan 02 migration
+- [Phase 08-new-data-pipelines-military-maritime]: websockets import deferred inside run_ais_worker() body to keep module importable in test environments without websockets installed
 
 ### Pending Todos
 
@@ -96,6 +101,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:40:43.941Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-01-PLAN.md
-Resume: Start with `/gsd:plan-phase 7`
+Last session: 2026-03-12T00:00:00.000Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-03-PLAN.md
+Resume: Execute 08-04-PLAN.md (ShipLayer frontend component)
