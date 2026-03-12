@@ -37,10 +37,31 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Satellite overpass arc lines to area of interest during replay — v2.0
 - ✓ OSINT event entry panel (location, timestamp, category, source URL) — v2.0
 
+## Current Milestone: v3.0 UI Refinement
+
+**Goal:** Refine the globe UI with radar-style visual language, collapsible sidebar panels, zoom-scalable entity icons, and improved camera navigation controls.
+
+**Target features:**
+- Radar aesthetic on panels (angular brackets, scan decorations, pulsing active indicators)
+- Collapsible sidebar sections with logical grouping and no overlap
+- Custom SVG billboard icons for satellites, aircraft, military flights, and ships — scaling with camera altitude
+- Double-click zoom toward cursor (Google Earth / FlightRadar24 style)
+- Tilt/pitch control widget and on-screen zoom buttons
+
 ### Active
 
-- [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
-- [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
+- [ ] Radar-style visual language applied to all UI panels (STYLE-01, STYLE-02)
+- [ ] Collapsible sidebar sections with animated expand/collapse (LAYOUT-01)
+- [ ] Panel overlap eliminated, logical grouping of controls (LAYOUT-02, LAYOUT-03)
+- [ ] Custom SVG billboard icons for all entity types (ICONS-01–04)
+- [ ] Entity icons scale proportionally with camera altitude (ICONS-05)
+- [ ] Double-click globe zooms camera toward clicked point (NAV-01)
+- [ ] Tilt/pitch control widget and zoom buttons in UI (NAV-02, NAV-03)
+
+### Deferred to v3.1
+
+- Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
+- Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
 
 ### Out of Scope
 
@@ -106,4 +127,4 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Category filter on event markers only (not layer visibility) | Avoids regression risk in complex multi-layer system | ⚠️ Revisit — full layer gating deferred |
 
 ---
-*Last updated: 2026-03-12 after v2.0 WorldView Parity milestone*
+*Last updated: 2026-03-12 after v3.0 UI Refinement milestone start*

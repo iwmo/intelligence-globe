@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.0
-milestone_name: Extended Layers
+milestone_name: UI Refinement
 status: planning
-stopped_at: v2.0 milestone archived
+stopped_at: Defining requirements
 last_updated: "2026-03-12T00:00:00.000Z"
-last_activity: 2026-03-12 — v2.0 WorldView Parity milestone archived
+last_activity: 2026-03-12 — Milestone v3.0 UI Refinement started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -18,16 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-12 after v2.0 milestone)
+See: .planning/PROJECT.md (updated 2026-03-12 after v3.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Planning v3.0 Extended Layers milestone (earthquake layer, weather radar)
+**Current focus:** Defining requirements for v3.0 UI Refinement milestone
 
 ## Current Position
 
-Phase: — (no active phase)
-Status: Milestone complete — v2.0 WorldView Parity archived. Ready to start v3.0 planning.
-Last activity: 2026-03-12 — v2.0 milestone archived (28 plans, 6 phases)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v3.0 UI Refinement started
 
 Progress: [__________] 0% (v3.0 milestone — not yet started)
 
