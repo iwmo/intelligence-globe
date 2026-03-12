@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: WorldView Parity
-status: planning
-stopped_at: Completed 08-new-data-pipelines-military-maritime/08-03-PLAN.md
-last_updated: "2026-03-12T00:00:00.000Z"
-last_activity: 2026-03-12 — Phase 08 Plan 03 completed (maritime AIS backend pipeline)
+status: executing
+stopped_at: Completed 08-new-data-pipelines-military-maritime/08-02-PLAN.md
+last_updated: "2026-03-12T06:47:36.879Z"
+last_activity: 2026-03-12 — AIS backend pipeline complete (Ship model, ingest worker, /api/ships/ routes)
 progress:
   total_phases: 6
   completed_phases: 1
@@ -83,6 +83,9 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 - [Phase 08-new-data-pipelines-military-maritime]: routes_ships.py uses lat/lon/heading key aliases (not latitude/longitude/true_heading) to match test_ships.py contract
 - [Phase 08-new-data-pipelines-military-maritime]: Ships migration chain: down_revision set to a1b2c3d4e5f6 (military) to resolve dual-head Alembic conflict with Plan 02 migration
 - [Phase 08-new-data-pipelines-military-maritime]: websockets import deferred inside run_ais_worker() body to keep module importable in test environments without websockets installed
+| Phase 08-new-data-pipelines-military-maritime P02 | 15 | 2 tasks | 6 files |
+- [Phase 08-new-data-pipelines-military-maritime]: routes_military.py returns lat/lon keys (matching test contract) not latitude/longitude
+- [Phase 08-new-data-pipelines-military-maritime]: MilitaryAircraft model stores altitude in FEET as received from airplanes.live (not normalised to metres)
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ All v1.0 key decisions remain valid — see PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-12T00:00:00.000Z
-Stopped at: Completed 08-new-data-pipelines-military-maritime/08-03-PLAN.md
+Last session: 2026-03-12T06:47:36.876Z
+Stopped at: Completed 08-new-data-pipelines-military-maritime/08-02-PLAN.md
 Resume: Execute 08-04-PLAN.md (ShipLayer frontend component)
