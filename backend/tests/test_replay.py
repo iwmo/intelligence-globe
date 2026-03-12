@@ -67,3 +67,20 @@ async def test_replay_invalid_layer():
             },
         )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_replay_window_route():
+    """GET /api/replay/window must return 200 with oldest_ts and newest_ts keys.
+
+    Returns 200 with null values when no snapshot data exists (empty DB in test).
+    RED signal: route does not exist yet — expect 404 until Plan 02 implements it.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/replay/window")
+    assert response.status_code == 200
+    body = response.json()
+    assert "oldest_ts" in body
+    assert "newest_ts" in body
