@@ -10,7 +10,7 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 ### Playback Engine
 
 - [x] **PLAY-01**: `isPlaying` promoted from `PlaybackBar` local state to `useAppStore` so all layer components can read it
-- [ ] **PLAY-02**: Satellites propagate at `replayTs` during playback; propagation loop skips dispatch when `isPlaying` is false
+- [x] **PLAY-02**: Satellites propagate at `replayTs` during playback; propagation loop skips dispatch when `isPlaying` is false
 - [x] **PLAY-03**: Globe day/night shading follows `replayTs` via new `useViewerClock` hook syncing `viewer.clock.currentTime`
 - [ ] **PLAY-04**: Returning to LIVE triggers `queryClient.invalidateQueries()` — no 90-second stale-data window after mode switch
 
@@ -73,7 +73,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAY-03 | Phase 23 | Complete |
 | VIS-02 | Phase 23 | Complete |
 | VIS-03 | Phase 23 | Complete |
-| PLAY-02 | Phase 24 | Pending |
+| PLAY-02 | Phase 24 | Complete |
 | PLAY-04 | Phase 25 | Pending |
 | LAYR-01 | Phase 25 | Pending |
 | LAYR-02 | Phase 25 | Pending |

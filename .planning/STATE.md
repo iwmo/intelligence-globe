@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
 status: planning
-stopped_at: Completed 23-03-PLAN.md
-last_updated: "2026-03-13T19:01:29.652Z"
+stopped_at: Completed 24-01-PLAN.md
+last_updated: "2026-03-13T19:24:13.041Z"
 last_activity: 2026-03-13 — v5.0 roadmap created; phases 23-26 defined
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 68
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Phase 23 — Store Foundation + Viewer Clock
+**Current focus:** Phase 24 — Satellite Propagation Fix
 
 ## Current Position
 
-Phase: 23 of 26 (Store Foundation + Viewer Clock)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — v5.0 roadmap created; phases 23-26 defined
+Phase: 24 of 26 (Satellite Propagation Fix)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-13 — Plan 24-01 complete: resolveTimestamp pure function + PLAY-02 tests
 
 Progress: [████████████████████░░░░░░░░░░] 68% (v4.0 complete, v5.0 starting)
 
@@ -54,6 +54,7 @@ Progress: [████████████████████░░░
 | Phase 23 P02 | 8 | 2 tasks | 3 files |
 | Phase 23 P04 | 3 min | 2 tasks | 3 files |
 | Phase 23-store-foundation-viewer-clock P03 | 6 | 2 tasks | 3 files |
+| Phase 24-satellite-propagation-fix P01 | 7 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Progress: [████████████████████░░░
 - `viewer.clock` sync via `viewer.scene.postUpdate.addEventListener` not React `useEffect` on `replayTs` — avoids one-frame render lag
 - Aircraft lerp loop must stay alive in playback (return early, not cancel rAF) — enables instant resume without loop restart
 - `refetchInterval: false` alone insufficient — focus-triggered React Query refetches bypass it; add `replayMode` guard inside Effect 2 as defense in depth
+- `resolveTimestamp` returns null (not 0) for pause guard — null is a deliberate skip-dispatch signal, not a timestamp [24-01]
+- PLAY-02 tests use deterministic 2026-01-01T12:00:00Z reference time to avoid wall-clock flakiness [24-01]
 
 ### Preserved from v4.0
 
@@ -81,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T18:58:00.294Z
-Stopped at: Completed 23-03-PLAN.md
+Last session: 2026-03-13T19:24:13.037Z
+Stopped at: Completed 24-01-PLAN.md
 Resume file: None
