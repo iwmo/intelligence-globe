@@ -61,6 +61,9 @@ async def list_aircraft(db: AsyncSession = Depends(get_db)):
             "fetched_at": r.fetched_at.isoformat() if r.fetched_at else None,
             "is_stale": is_stale(r.fetched_at, settings.AIRCRAFT_STALE_SECONDS),
             "position_age_seconds": _position_age_seconds(r),
+            "geo_altitude": r.geo_altitude,
+            "vertical_rate": r.vertical_rate,
+            "position_source": r.position_source,
         }
         for r in rows
     ]
