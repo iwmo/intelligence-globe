@@ -77,7 +77,9 @@ Plans:
   2. `stale_cutoff(120)` returns a timezone-aware datetime exactly 120 seconds before `datetime.now(UTC)`
   3. Setting `AIRCRAFT_STALE_SECONDS=300` in the environment changes the aircraft threshold without a code change
   4. `Settings` class exposes `AIRCRAFT_STALE_SECONDS`, `MILITARY_STALE_SECONDS`, `SHIP_STALE_SECONDS`, `GPS_JAMMING_STALE_SECONDS` with correct defaults (120, 600, 900, 600)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 18-01-PLAN.md — freshness.py module + Settings extension + unit tests (TDD)
 
 ### Phase 19: Aircraft Ingest + Route
 **Goal**: Commercial aircraft data is honest — stale positions are excluded from the API, and richer OpenSky fields are stored and returned
@@ -147,8 +149,8 @@ Plans:
 | 14. Entity Icons and Altitude Scaling | v3.0 | 4/4 | Complete | 2026-03-12 |
 | 15. Camera Navigation Controls | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
-| 17. Schema Migration | 1/1 | Complete    | 2026-03-13 | - |
-| 18. Shared Freshness Helper | v4.0 | 0/TBD | Not started | - |
+| 17. Schema Migration | v4.0 | 1/1 | Complete | 2026-03-13 |
+| 18. Shared Freshness Helper | v4.0 | 0/1 | Not started | - |
 | 19. Aircraft Ingest + Route | v4.0 | 0/TBD | Not started | - |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
 | 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
