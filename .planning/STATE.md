@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: completed
-stopped_at: Completed 15-01-PLAN.md — zoomStep/setPitchPreset + CameraControlWidget
-last_updated: "2026-03-13T08:36:59.953Z"
+stopped_at: Completed 15-02-PLAN.md — double-click zoom + LEFT_CLICK debounce + CameraControlWidget mount
+last_updated: "2026-03-13T08:41:24.706Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -80,6 +80,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 15-camera-navigation-controls]: zoomStep factor=0.3 for button zoom (vs 0.12 for wheel) — deliberate, perceptible step
 - [Phase 15-camera-navigation-controls]: CameraControlWidget positioned at bottom:120px right:12px — clears all existing bottom-right HUD elements
 - [Phase 15-camera-navigation-controls]: cancelFlight before setView in setPitchPreset — consistent with flyToLandmark pattern already in registry
+| Phase 15 P02 | 3 | 2 tasks | 4 files |
+- [Phase 15]: removeInputAction(LEFT_DOUBLE_CLICK) before custom handler — prevents dual flyTo conflict (CesiumJS architecture constraint)
+- [Phase 15]: clickTimer at module scope — persists across re-renders, cleared on cleanup; 200ms debounce matches CesiumJS issue #1171 double-click window
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T08:36:59.950Z
-Stopped at: Completed 15-01-PLAN.md — zoomStep/setPitchPreset + CameraControlWidget
+Last session: 2026-03-13T08:41:24.703Z
+Stopped at: Completed 15-02-PLAN.md — double-click zoom + LEFT_CLICK debounce + CameraControlWidget mount
 Resume: Run `/gsd:plan-phase 14` or proceed to next phase
