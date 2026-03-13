@@ -39,7 +39,7 @@
 - [x] **Phase 13: Collapsible Sidebar Layout** — Sidebar restructured into named collapsible sections with smooth animation and no panel overlap (completed 2026-03-13)
 - [x] **Phase 14: Entity Icons and Altitude Scaling** — Custom icons for aircraft, military, ships, and improved satellite markers, all scaling with camera altitude (completed 2026-03-12)
 - [x] **Phase 15: Camera Navigation Controls** — Double-click zoom toward cursor, tilt/pitch widget, and on-screen zoom buttons (completed 2026-03-13)
-- [ ] **Phase 16: Persistent Settings Panel** — Hidden settings panel with configurable defaults for layers, preset, camera position, and start mode
+- [x] **Phase 16: Persistent Settings Panel** — Hidden settings panel with configurable defaults for layers, preset, camera position, and start mode (completed 2026-03-13)
 
 ## Phase Details
 
@@ -130,4 +130,4 @@ Plans:
 | 13. Collapsible Sidebar Layout | 3/3 | Complete    | 2026-03-13 | — |
 | 14. Entity Icons and Altitude Scaling | 4/4 | Complete    | 2026-03-12 | — |
 | 15. Camera Navigation Controls | 3/3 | Complete   | 2026-03-13 | — |
-| 16. Persistent Settings Panel | 2/3 | In Progress|  | — |
+| 16. Persistent Settings Panel | 3/3 | Complete   | 2026-03-13 | — |

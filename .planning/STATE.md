@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: executing
-stopped_at: Completed 16-02-PLAN.md — SettingsPanel UI built, 7 tests green, App.tsx wired
-last_updated: "2026-03-13T09:35:30.996Z"
+stopped_at: Completed 16-03-PLAN.md — Phase 16 complete, all CONFIG requirements satisfied, 8/8 browser checks passed
+last_updated: "2026-03-13T09:48:50.518Z"
 last_activity: 2026-03-13 — Phase 16 Plan 01 complete
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -94,6 +94,9 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 16-persistent-settings-panel]: radToDeg inline helper replaces CesiumMath.toDegrees in SettingsPanel — eliminates cesium mock complexity in unit tests
 - [Phase 16-persistent-settings-panel]: Gear icon NOT gated by cleanUI — settings must remain accessible in cinematic mode
 - [Phase 16-persistent-settings-panel]: SettingsPanel uses unmount-based toggle (not display:none) — consistent with DraggablePanel pattern
+| Phase 16-persistent-settings-panel P03 | 15 | 2 tasks | 2 files |
+- [Phase 16-persistent-settings-panel]: import type { VisualPreset } required in useSettingsStore — isolatedModules rejects value-import of type-only export
+- [Phase 16-persistent-settings-panel]: All four settings boot wiring in single onViewerReady callback — camera requires registered viewer, co-locating all settings eliminates ordering bugs
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:35:30.993Z
-Stopped at: Completed 16-02-PLAN.md — SettingsPanel UI built, 7 tests green, App.tsx wired
+Last session: 2026-03-13T09:48:50.516Z
+Stopped at: Completed 16-03-PLAN.md — Phase 16 complete, all CONFIG requirements satisfied, 8/8 browser checks passed
 Resume: Execute 16-02-PLAN.md (Settings Panel UI)
