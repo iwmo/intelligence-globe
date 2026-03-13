@@ -6,6 +6,7 @@ import {
   BlendOption,
   NearFarScalar,
   Math as CesiumMath,
+  Color,
 } from 'cesium';
 import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
@@ -150,6 +151,17 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       bb.position = Cartesian3.fromDegrees(lon, lat, alt);
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
+
+  // Effect: Stale billboard tint (VIS-01)
+  useEffect(() => {
+    if (replayMode === 'playback') return;
+    const byId = new Map(militaryAircraft.data?.map(m => [m.hex, m]) ?? []);
+    for (const [hex, bb] of militaryBillboardsByHex) {
+      const ac = byId.get(hex);
+      if (!ac || !bb) continue;
+      bb.color = ac.is_stale ? Color.GRAY.withAlpha(0.4) : Color.WHITE.clone();
+    }
+  }, [militaryAircraft.data, replayMode]);
 
   return null;
 }

@@ -342,5 +342,19 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
 
+  // Effect: Stale billboard tint (VIS-01)
+  // LIVE mode only — in playback mode, snapshot data has no is_stale field.
+  // Uses Color.GRAY.withAlpha(0.4) for stale entities (returns new Color instance).
+  // Uses Color.WHITE.clone() for fresh entities (avoids mutating Color.WHITE singleton).
+  useEffect(() => {
+    if (replayMode === 'playback') return;
+    const byId = new Map(aircraft.data?.map(a => [a.icao24, a]) ?? []);
+    for (const [icao24, bb] of billboardsByIcao24) {
+      const ac = byId.get(icao24);
+      if (!ac || !bb) continue;
+      bb.color = ac.is_stale ? Color.GRAY.withAlpha(0.4) : Color.WHITE.clone();
+    }
+  }, [aircraft.data, replayMode]);
+
   return null;
 }

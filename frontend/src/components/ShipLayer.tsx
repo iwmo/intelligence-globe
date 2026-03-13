@@ -6,6 +6,7 @@ import {
   BlendOption,
   NearFarScalar,
   Math as CesiumMath,
+  Color,
 } from 'cesium';
 import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
@@ -158,6 +159,17 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       bb.position = Cartesian3.fromDegrees(lon, lat, 100);
     }
   }, [replayMode, replayTs, snapshotsByEntity]);
+
+  // Effect: Stale billboard tint (VIS-01)
+  useEffect(() => {
+    if (replayMode === 'playback') return;
+    const byId = new Map(ships.data?.map(s => [s.mmsi, s]) ?? []);
+    for (const [mmsi, bb] of shipBillboardsByMmsi) {
+      const ship = byId.get(mmsi);
+      if (!ship || !bb) continue;
+      bb.color = ship.is_stale ? Color.GRAY.withAlpha(0.4) : Color.WHITE.clone();
+    }
+  }, [ships.data, replayMode]);
 
   return null;
 }
