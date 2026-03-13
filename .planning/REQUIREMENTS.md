@@ -10,8 +10,8 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 ### Schema & Configuration
 
 - [x] **MIG-01**: Alembic hand-written migration adds `is_active`, `fetched_at`, `last_seen_at`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source` to `aircraft`; `fetched_at`, `last_seen_at`, `is_active` to `military_aircraft`; `last_seen_at`, `is_active` to `ships`; `aggregated_at`, `source_fetched_at`, `source_is_stale` to `gps_jamming_cells` — all with safe `server_default`/nullable settings, hand-written only (no autogenerate)
-- [ ] **FRESH-01**: New `app/freshness.py` module provides `stale_cutoff(threshold_s) -> datetime` and `is_stale(ts, threshold_s) -> bool` reused by all routes
-- [ ] **FRESH-02**: `Settings` class gains `AIRCRAFT_STALE_SECONDS` (120), `MILITARY_STALE_SECONDS` (600), `SHIP_STALE_SECONDS` (900), `GPS_JAMMING_STALE_SECONDS` (600) with automatic env var coercion via pydantic-settings
+- [x] **FRESH-01**: New `app/freshness.py` module provides `stale_cutoff(threshold_s) -> datetime` and `is_stale(ts, threshold_s) -> bool` reused by all routes
+- [x] **FRESH-02**: `Settings` class gains `AIRCRAFT_STALE_SECONDS` (120), `MILITARY_STALE_SECONDS` (600), `SHIP_STALE_SECONDS` (900), `GPS_JAMMING_STALE_SECONDS` (600) with automatic env var coercion via pydantic-settings
 
 ### Commercial Aircraft (OpenSky)
 
@@ -76,8 +76,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MIG-01 | Phase 17 | Complete |
-| FRESH-01 | Phase 18 | Pending |
-| FRESH-02 | Phase 18 | Pending |
+| FRESH-01 | Phase 18 | Complete |
+| FRESH-02 | Phase 18 | Complete |
 | ACFT-01 | Phase 19 | Pending |
 | ACFT-02 | Phase 19 | Pending |
 | ACFT-03 | Phase 19 | Pending |
