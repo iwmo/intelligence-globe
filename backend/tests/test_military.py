@@ -34,11 +34,26 @@ async def test_list_military():
 
 @pytest.mark.asyncio
 async def test_military_detail():
-    """GET /api/military/{hex} returns 404 for unknown hex; route must exist (not 422)."""
+    """GET /api/military/{hex} returns 404 for unknown hex; route must exist (not 422).
+
+    Uses 'zz9999' — contains non-hex chars so it can never appear in live ICAO data
+    (valid ICAO hex codes use only [0-9a-f]).
+    Pre-deletes the sentinel value to guard against prior test pollution.
+    """
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+
+    sentinel_hex = "zz9999"
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": sentinel_hex}
+        )
+        await session.commit()
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.get("/api/military/ae1234")
+        response = await client.get(f"/api/military/{sentinel_hex}")
     # Route must exist and return 404 for unknown hex (not 422 or 404 from no route)
     assert response.status_code == 404
 

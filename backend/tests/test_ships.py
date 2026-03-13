@@ -33,11 +33,26 @@ async def test_list_ships():
 
 @pytest.mark.asyncio
 async def test_ship_detail():
-    """GET /api/ships/{mmsi} returns 404 for unknown MMSI; route must exist (not 422)."""
+    """GET /api/ships/{mmsi} returns 404 for unknown MMSI; route must exist (not 422).
+
+    Uses '000000000' — MMSI codes are 9-digit numbers starting with 1-9 (country code),
+    so all-zeros is structurally invalid and can never appear in live AIS data.
+    Pre-deletes the sentinel value to guard against prior test pollution.
+    """
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+
+    sentinel_mmsi = "000000000"
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": sentinel_mmsi}
+        )
+        await session.commit()
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.get("/api/ships/123456789")
+        response = await client.get(f"/api/ships/{sentinel_mmsi}")
     # Route must exist and return 404 for unknown MMSI (not 422 or 404 from no route)
     assert response.status_code == 404
 
