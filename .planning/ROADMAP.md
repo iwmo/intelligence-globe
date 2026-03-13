@@ -89,9 +89,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Add `zoomStep` and `setPitchPreset` helpers to `viewerRegistry.ts`; build `CameraControlWidget.tsx` with zoom +/− and tilt preset buttons (TDD)
-- [ ] 15-02-PLAN.md — Register custom `LEFT_DOUBLE_CLICK` handler in `GlobeView.tsx`; apply 200ms debounce to `LEFT_CLICK` in `AircraftLayer.tsx`; mount widget in `App.tsx`
-- [ ] 15-03-PLAN.md — Human browser validation: double-click zoom on terrain/water/sky, entity panel debounce, widget layout
+- [x] 15-01-PLAN.md — Add `zoomStep` and `setPitchPreset` helpers to `viewerRegistry.ts`; build `CameraControlWidget.tsx` with zoom +/− and tilt preset buttons (TDD)
+- [x] 15-02-PLAN.md — Register custom `LEFT_DOUBLE_CLICK` handler in `GlobeView.tsx`; apply 200ms debounce to `LEFT_CLICK` in `AircraftLayer.tsx`; mount widget in `App.tsx`
+- [x] 15-03-PLAN.md — Human browser validation: double-click zoom on terrain/water/sky, entity panel debounce, widget layout
 
 ### Phase 16: Persistent Settings Panel
 **Goal**: Users can configure the application's startup defaults through a hidden settings panel — which layers load, which visual preset is active, where the camera starts, and whether the app opens in LIVE or PLAYBACK mode — and those settings survive page reload
