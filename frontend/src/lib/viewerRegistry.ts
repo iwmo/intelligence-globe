@@ -82,5 +82,30 @@ export function flyToLandmark(landmark: LandmarkTarget): void {
   });
 }
 
+/** Zoom in or out by reducing/increasing altitude proportionally.
+ *  factor=0.3 gives a deliberate button step (wheel uses 0.12).
+ *  Consistent with existing altitude * factor pattern in GlobeView.tsx. */
+export function zoomStep(direction: 'in' | 'out', factor = 0.3): void {
+  if (!_viewer || _viewer.isDestroyed()) return;
+  const alt = _viewer.camera.positionCartographic.height;
+  const step = alt * factor;
+  if (direction === 'in') _viewer.camera.zoomIn(step);
+  else _viewer.camera.zoomOut(step);
+}
+
+/** Set camera pitch to a preset angle in degrees.
+ *  Cancels any in-progress flight first (prevents setView stutter mid-flight). */
+export function setPitchPreset(pitchDeg: number): void {
+  if (!_viewer || _viewer.isDestroyed()) return;
+  _viewer.camera.cancelFlight();
+  _viewer.camera.setView({
+    orientation: {
+      heading: _viewer.camera.heading,
+      pitch: CesiumMath.toRadians(pitchDeg),
+      roll: 0,
+    },
+  });
+}
+
 // Re-export Cartographic for consumers that need it without importing cesium directly
 export { Cartographic };
