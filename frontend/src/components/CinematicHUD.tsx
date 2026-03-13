@@ -32,7 +32,11 @@ interface CinematicHUDProps {
  * Only the Clean UI toggle button re-enables pointer events.
  */
 export function CinematicHUD({ viewer }: CinematicHUDProps) {
-  const { cleanUI, setCleanUI, selectedSatelliteId } = useAppStore();
+  const cleanUI             = useAppStore(s => s.cleanUI);
+  const setCleanUI          = useAppStore(s => s.setCleanUI);
+  const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
+  const replayMode          = useAppStore(s => s.replayMode);
+  const replayTs            = useAppStore(s => s.replayTs);
   const [mgrsStr, setMgrsStr] = useState('...');
   const [altKm, setAltKm] = useState(0);
   const [latLon, setLatLon] = useState<[string, string]>(['0.0000', '0.0000']);
@@ -106,11 +110,11 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         TOP SECRET // SI // TK // NOFORN
       </div>
 
-      {/* 2. MGRS Readout — top-right */}
+      {/* 2. MGRS Readout — top-right, below PlaybackBar */}
       <div
         style={{
           position: 'absolute',
-          top: 36,
+          top: 62,
           right: 12,
           color: '#00ff00',
           fontSize: '12px',
@@ -150,23 +154,32 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         <div>SUN EL: --</div>
       </div>
 
-      {/* 4. REC Timestamp — top-left, offset right to clear hamburger button */}
+      {/* 4. REC / REPLAY Timestamp — top-left, below PlaybackBar */}
       <div
         style={{
           position: 'absolute',
-          top: 36,
-          left: 56,
+          top: 62,
+          left: 8,
           color: '#00ff00',
           fontSize: '12px',
           lineHeight: '1.6',
           userSelect: 'none',
         }}
       >
-        <div>
-          <span style={pulseStyle}>&#9679;</span>
-          {' '}REC
-        </div>
-        <div>{utcTime}</div>
+        {replayMode === 'live' ? (
+          <>
+            <div>
+              <span style={pulseStyle}>&#9679;</span>
+              {' '}REC
+            </div>
+            <div>{utcTime}</div>
+          </>
+        ) : (
+          <>
+            <div>REPLAY</div>
+            <div>{new Date(replayTs).toISOString().slice(0, 19) + 'Z'}</div>
+          </>
+        )}
       </div>
 
       {/* 5. Clean UI Toggle — bottom-left, offset right to clear SAT/AIR layer toggles */}
