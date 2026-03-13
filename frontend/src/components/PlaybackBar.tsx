@@ -63,7 +63,9 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   // replayWindowEnd is used as the center; fetch ±1 hour around it
   const snapshotWindowStart = replayWindowEnd ? replayWindowEnd - 2 * 60 * 60 * 1000 : null;
   const snapshotWindowEnd   = replayWindowEnd;
-  useReplaySnapshots('all', snapshotWindowStart, snapshotWindowEnd, replayMode === 'playback');
+  const { isLoading: snapshotsLoading } = useReplaySnapshots(
+    'all', snapshotWindowStart, snapshotWindowEnd, replayMode === 'playback'
+  );
 
   // rAF playback advancement loop
   const rafRef         = useRef<number>(0);
@@ -173,19 +175,19 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
           {/* Play / Pause */}
           <button
             onClick={() => setIsPlaying(p => !p)}
-            disabled={!hasWindow}
+            disabled={!hasWindow || snapshotsLoading}
             style={{
               background: 'rgba(255,255,255,0.1)',
               color: '#ccc',
               border: '1px solid rgba(255,255,255,0.2)',
               padding: '2px 6px',
               borderRadius: '3px',
-              cursor: hasWindow ? 'pointer' : 'not-allowed',
+              cursor: (hasWindow && !snapshotsLoading) ? 'pointer' : 'not-allowed',
               fontFamily: 'monospace',
               fontSize: '10px',
             }}
           >
-            {isPlaying ? 'PAUSE' : 'PLAY'}
+            {snapshotsLoading ? 'Loading snapshots...' : isPlaying ? 'PAUSE' : 'PLAY'}
           </button>
 
           {/* Timeline scrubber + event markers */}

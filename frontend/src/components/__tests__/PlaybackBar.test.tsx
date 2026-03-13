@@ -21,11 +21,14 @@ const mockState = {
   setIsPlaying: vi.fn(),
 };
 
+// Mutable so individual tests can set isLoading
+const mockSnapshotsResult = { data: new Map(), isLoading: false };
+
 vi.mock('../../store/useAppStore', () => ({
   useAppStore: vi.fn((selector: (s: typeof mockState) => unknown) => selector(mockState)),
 }));
 vi.mock('../../hooks/useReplaySnapshots', () => ({
-  useReplaySnapshots: vi.fn(() => ({ data: new Map(), isLoading: false })),
+  useReplaySnapshots: vi.fn(() => mockSnapshotsResult),
 }));
 vi.mock('../../hooks/useOsintEvents', () => ({
   useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
@@ -52,5 +55,41 @@ describe('PlaybackBar playback mode', () => {
     expect(getByText('5m/s')).toBeTruthy();
     expect(getByText('15m/s')).toBeTruthy();
     expect(getByText('1h/s')).toBeTruthy();
+  });
+});
+
+describe('PlaybackBar — snapshot loading gate', () => {
+  it('shows "Loading snapshots..." and disables play button when snapshotsLoading=true', () => {
+    mockState.replayMode = 'playback';
+    mockState.replayWindowStart = Date.now() - 3600_000;
+    mockState.replayWindowEnd = Date.now();
+    mockSnapshotsResult.isLoading = true;
+
+    const { getByText } = render(<PlaybackBar />);
+    const btn = getByText('Loading snapshots...');
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+
+    // reset
+    mockSnapshotsResult.isLoading = false;
+    mockState.replayWindowStart = null;
+    mockState.replayWindowEnd = null;
+  });
+
+  it('shows PLAY and is enabled when snapshotsLoading=false and hasWindow=true', () => {
+    mockState.replayMode = 'playback';
+    mockState.isPlaying = false;
+    mockState.replayWindowStart = Date.now() - 3600_000;
+    mockState.replayWindowEnd = Date.now();
+    mockSnapshotsResult.isLoading = false;
+
+    const { getByText } = render(<PlaybackBar />);
+    const btn = getByText('PLAY');
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+
+    // reset
+    mockState.replayWindowStart = null;
+    mockState.replayWindowEnd = null;
   });
 });
