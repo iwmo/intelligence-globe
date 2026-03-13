@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models.military_aircraft import MilitaryAircraft
+from app.freshness import stale_cutoff, is_stale
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,14 @@ router = APIRouter()
 @router.get("")
 @router.get("/")
 async def list_military_aircraft(db: AsyncSession = Depends(get_db)):
-    """Return all military aircraft with valid positions."""
+    """Return fresh, active military aircraft with freshness metadata."""
+    cutoff = stale_cutoff(settings.MILITARY_STALE_SECONDS)
     result = await db.execute(
         select(MilitaryAircraft).where(
+            MilitaryAircraft.is_active == True,
             MilitaryAircraft.latitude.is_not(None),
             MilitaryAircraft.longitude.is_not(None),
+            MilitaryAircraft.fetched_at >= cutoff,
         )
     )
     rows = result.scalars().all()
@@ -45,6 +50,8 @@ async def list_military_aircraft(db: AsyncSession = Depends(get_db)):
             "lon": r.longitude,
             "squawk": r.squawk,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "fetched_at": r.fetched_at.isoformat() if r.fetched_at else None,
+            "is_stale": is_stale(r.fetched_at, settings.MILITARY_STALE_SECONDS),
         }
         for r in rows
     ]
