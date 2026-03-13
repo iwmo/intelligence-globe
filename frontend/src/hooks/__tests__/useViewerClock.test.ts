@@ -1,26 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useViewerClock } from '../useViewerClock';
 
 // Mock cesium — JulianDate.fromDate must be a spy
-const mockFromDate = vi.fn((d: Date) => ({ julianDate: d.getTime() }));
+// vi.mock is hoisted, so factories must use inline vi.fn() (not external variables)
 vi.mock('cesium', () => ({
   JulianDate: {
-    fromDate: mockFromDate,
+    fromDate: vi.fn((d: Date) => ({ julianDate: d.getTime() })),
   },
 }));
 
-// Mock useAppStore
-const mockGetState = vi.fn(() => ({
-  replayMode: 'playback' as 'live' | 'playback',
-  replayTs: new Date('2026-01-01T00:00:00Z').getTime(),
-}));
+// Mock useAppStore — getState returns playback state by default
 vi.mock('../../store/useAppStore', () => ({
-  useAppStore: Object.assign(vi.fn(), { getState: mockGetState }),
+  useAppStore: Object.assign(vi.fn(), {
+    getState: vi.fn(() => ({
+      replayMode: 'playback' as 'live' | 'playback',
+      replayTs: new Date('2026-01-01T00:00:00Z').getTime(),
+    })),
+  }),
 }));
 
+import { JulianDate } from 'cesium';
+import { useAppStore } from '../../store/useAppStore';
+import { useViewerClock } from '../useViewerClock';
+
+const mockFromDate = JulianDate.fromDate as ReturnType<typeof vi.fn>;
+const mockGetState = useAppStore.getState as ReturnType<typeof vi.fn>;
+
 function makeViewer(overrides: Partial<{
-  postUpdateListeners: ((handler: () => void) => void)[];
   isDestroyed: () => boolean;
 }> = {}) {
   const listeners: (() => void)[] = [];
@@ -40,6 +46,10 @@ describe('useViewerClock', () => {
   beforeEach(() => {
     mockFromDate.mockClear();
     mockGetState.mockClear();
+    mockGetState.mockReturnValue({
+      replayMode: 'playback' as 'live' | 'playback',
+      replayTs: new Date('2026-01-01T00:00:00Z').getTime(),
+    });
   });
 
   it('attaches postUpdate listener when viewer is provided', () => {
