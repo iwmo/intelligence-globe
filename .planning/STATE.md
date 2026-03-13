@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
 status: executing
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-03-13T19:57:46.500Z"
-last_activity: "2026-03-13 — Plan 24-02 complete: four propagation mutations wired to replayTs"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-03-13T20:03:32.791Z"
+last_activity: "2026-03-13 — Plan 25-01 complete: queryClient extracted, 7 RED tests written for all Phase 25 guards"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 8
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 25 of 26 (Layer Audit)
-Plan: 1 of 4 complete in current phase
+Plan: 2 of 4 complete in current phase
 Status: In Progress
-Last activity: 2026-03-13 — Plan 25-01 complete: queryClient extracted, 7 RED tests written for all Phase 25 guards
+Last activity: 2026-03-13 — Plan 25-02 complete: playback guards wired into AircraftLayer lerp and ShipLayer/MilitaryAircraftLayer Effect 2, LAYR-01+LAYR-02 GREEN
 
 Progress: [██████████████████████████████] 100% (v5.0 phase 24 complete)
 
@@ -57,6 +57,7 @@ Progress: [███████████████████████
 | Phase 24-satellite-propagation-fix P01 | 7 | 2 tasks | 3 files |
 | Phase 24-satellite-propagation-fix P02 | 8 | 4 tasks | 4 files |
 | Phase 25-layer-audit P01 | 8 | 2 tasks | 9 files |
+| Phase 25-layer-audit P02 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Progress: [███████████████████████
 - GET_POSITION added to Effect 2 alongside COMPUTE_ORBIT — globe click fly-to fixed without any change to AircraftLayer [24-02]
 - queryClient extracted to frontend/src/lib/queryClient.ts as zero-behavior-change refactor enabling PLAY-04 test mocking [25-01]
 - Contract-test helper pattern for lerp/Effect guard RED tests: standalone helpers mirror unguarded production logic, assertions check guarded outcome [25-01]
+- AircraftLayer lerp reads replayMode via getState() inside rAF body — not captured closure — prevents stale value after effect re-creation [25-02]
+- ShipLayer/MilitaryAircraftLayer Effect 2 guard placed before null checks, replayMode in deps for live-resume reactivity [25-02]
 
 ### Preserved from v4.0
 
@@ -90,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T19:57:46.496Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-03-13T20:03:32.787Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None

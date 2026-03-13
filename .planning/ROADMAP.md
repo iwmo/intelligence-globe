@@ -155,5 +155,5 @@ Plans:
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 23. Store Foundation + Viewer Clock | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
-| 25. Layer Audit | 1/4 | In Progress|  | - |
+| 25. Layer Audit | 2/4 | In Progress|  | - |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |
