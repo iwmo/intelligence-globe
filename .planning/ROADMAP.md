@@ -105,7 +105,11 @@ Plans:
   2. After each AIS batch flush, ships not present in the current flush have `is_active = false` in `ships` — bridging Redis TTL expiry to PostgreSQL
   3. GPS jamming ingest only aggregates rows where `military_aircraft.is_active = true`
   4. Every GPS jamming cell row written includes `aggregated_at`, `source_fetched_at`, and `source_is_stale` values from the current aggregation cycle
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 20-01-PLAN.md — Military ingest: fetched_at/last_seen_at/is_active upsert + tombstone sweep (MIL-01)
+- [ ] 20-02-PLAN.md — AIS batch flush: last_seen_at/is_active upsert + deactivation sweep + parse_time_utc helper (SHIP-01)
+- [ ] 20-03-PLAN.md — GPS jamming: is_active filter + aggregated_at/source_fetched_at/source_is_stale metadata (JAM-01)
 
 ### Phase 21: API Route Filtering
 **Goal**: All four list endpoints only return fresh, active entities — and every response tells the caller exactly how fresh the data is
@@ -154,7 +158,7 @@ Plans:
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 17. Schema Migration | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
-| 19. Aircraft Ingest + Route | 2/2 | Complete    | 2026-03-13 | - |
-| 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
+| 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
+| 20. Military, Ships, and Jamming Ingest | v4.0 | 0/3 | Not started | - |
 | 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
 | 22. Tests | v4.0 | 0/TBD | Not started | - |
