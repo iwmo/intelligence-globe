@@ -91,3 +91,105 @@ async def test_ships_list_shape_preserved():
         assert "nav_status" in item, f"nav_status missing from item: {item}"
         assert "last_update" in item, f"last_update missing from item: {item}"
         assert "updated_at" in item, f"updated_at missing from item: {item}"
+
+
+# ---------------------------------------------------------------------------
+# TEST-04: Ships stale row exclusion
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_ships_list_excludes_stale_rows():
+    """TEST-04: GET /api/ships/ must exclude rows where last_seen_at is older than SHIP_STALE_SECONDS.
+
+    Inserts a Ship row with last_seen_at 1 hour ago (well past the 900s default)
+    and asserts that it does NOT appear in the list response.
+
+    NOTE: Ship model has NO fetched_at column — use last_seen_at (AIS is streamed, not polled).
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.ship import Ship
+
+    mmsi = "999000001"
+    stale_ts = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": mmsi}
+        )
+        await session.commit()
+        row = Ship(
+            mmsi=mmsi,
+            latitude=51.5,
+            longitude=-0.1,
+            is_active=True,
+            last_seen_at=stale_ts,
+        )
+        session.add(row)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/ships/")
+        assert response.status_code == 200
+        body = response.json()
+        assert mmsi not in [item["mmsi"] for item in body], (
+            f"Stale ship {mmsi!r} should be excluded from /api/ships/ response"
+        )
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": mmsi}
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_ships_list_excludes_inactive_rows():
+    """TEST-04: GET /api/ships/ must exclude rows where is_active=False, even when last_seen_at is fresh.
+
+    Inserts a Ship row with is_active=False and a fresh last_seen_at timestamp
+    and asserts that it does NOT appear in the list response.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.ship import Ship
+
+    mmsi = "999000002"
+    fresh_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": mmsi}
+        )
+        await session.commit()
+        row = Ship(
+            mmsi=mmsi,
+            latitude=51.5,
+            longitude=-0.1,
+            is_active=False,
+            last_seen_at=fresh_ts,
+        )
+        session.add(row)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/ships/")
+        assert response.status_code == 200
+        body = response.json()
+        assert mmsi not in [item["mmsi"] for item in body], (
+            f"Inactive ship {mmsi!r} should be excluded from /api/ships/ response"
+        )
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": mmsi}
+            )
+            await session.commit()
