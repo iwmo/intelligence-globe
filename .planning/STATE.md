@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: completed
-stopped_at: Completed 13-03-PLAN.md — Phase 13 complete
-last_updated: "2026-03-13T08:15:26.102Z"
+stopped_at: Completed 15-01-PLAN.md — zoomStep/setPitchPreset + CameraControlWidget
+last_updated: "2026-03-13T08:36:59.953Z"
 last_activity: 2026-03-12 — v3.0 roadmap created
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
   percent: 0
 ---
 
@@ -76,6 +76,10 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 13-collapsible-sidebar-layout]: Replaced sliding sidebar with free-floating DraggablePanel components — hamburger eliminated, each section independent
 - [Phase 13-collapsible-sidebar-layout]: DraggablePanel persists {x, y, width, height} in localStorage keyed by panel id — survives page reload
 - [Phase 13-collapsible-sidebar-layout]: +/- collapse replaces chevron/grid-template-rows — simpler in floating context
+| Phase 15-camera-navigation-controls P01 | 6 | 3 tasks | 4 files |
+- [Phase 15-camera-navigation-controls]: zoomStep factor=0.3 for button zoom (vs 0.12 for wheel) — deliberate, perceptible step
+- [Phase 15-camera-navigation-controls]: CameraControlWidget positioned at bottom:120px right:12px — clears all existing bottom-right HUD elements
+- [Phase 15-camera-navigation-controls]: cancelFlight before setView in setPitchPreset — consistent with flyToLandmark pattern already in registry
 
 ### Pending Todos
 
@@ -89,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:00:00.000Z
-Stopped at: Completed 13-03-PLAN.md — Phase 13 complete
+Last session: 2026-03-13T08:36:59.950Z
+Stopped at: Completed 15-01-PLAN.md — zoomStep/setPitchPreset + CameraControlWidget
 Resume: Run `/gsd:plan-phase 14` or proceed to next phase

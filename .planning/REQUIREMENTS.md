@@ -23,8 +23,8 @@
 ### NAV — Navigation Controls
 
 - [ ] **NAV-01**: Double-clicking the globe zooms the camera smoothly toward the clicked point
-- [ ] **NAV-02**: Tilt/pitch control widget visible on globe with Top-down / 45° Oblique / Horizon presets
-- [ ] **NAV-03**: On-screen +/− zoom buttons as alternative to scroll wheel
+- [x] **NAV-02**: Tilt/pitch control widget visible on globe with Top-down / 45° Oblique / Horizon presets
+- [x] **NAV-03**: On-screen +/− zoom buttons as alternative to scroll wheel
 
 ### CONFIG — Default Settings Panel
 
@@ -65,8 +65,8 @@
 | ICONS-04 | Phase 14 | Complete |
 | ICONS-05 | Phase 14 | Complete |
 | NAV-01 | Phase 15 | Pending |
-| NAV-02 | Phase 15 | Pending |
-| NAV-03 | Phase 15 | Pending |
+| NAV-02 | Phase 15 | Complete |
+| NAV-03 | Phase 15 | Complete |
 | CONFIG-01 | Phase 16 | Pending |
 | CONFIG-02 | Phase 16 | Pending |
 | CONFIG-03 | Phase 16 | Pending |
