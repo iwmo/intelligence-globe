@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
 status: completed
-stopped_at: Completed 25-04-PLAN.md
-last_updated: "2026-03-13T20:18:48.959Z"
+stopped_at: Completed 26-01-PLAN.md
+last_updated: "2026-03-13T20:42:35.198Z"
 last_activity: "2026-03-13 — Plan 25-04 complete: street traffic particles hidden in playback, rAF loop frozen, road fetch debounced blocked, invalidateQueries wired on LIVE return — LAYR-04 and PLAY-04 GREEN; full 192-test suite green"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 14
+  completed_plans: 11
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: 25 of 26 (Layer Audit)
-Plan: 4 of 4 complete in current phase
-Status: Phase Complete
-Last activity: 2026-03-13 — Plan 25-04 complete: street traffic particles hidden in playback, rAF loop frozen, road fetch debounced blocked, invalidateQueries wired on LIVE return — LAYR-04 and PLAY-04 GREEN; full 192-test suite green
+Phase: 26 of 26 (End-to-End Verification + Stale Indicators)
+Plan: 1 of 4 complete in current phase
+Status: In Progress
+Last activity: 2026-03-13 — Plan 26-01 complete: VIS-01 stale-tint contract tests (12 tests across 3 layer files) and VRFY-01 tick boundary contract tests (9 tests in PlaybackBar) — 213-test suite green
 
 Progress: [██████████████████████████████] 100% (v5.0 phase 24 complete)
 
@@ -60,6 +60,7 @@ Progress: [███████████████████████
 | Phase 25-layer-audit P02 | 8 | 2 tasks | 6 files |
 | Phase 25-layer-audit P03 | 7 | 2 tasks | 3 files |
 | Phase 25-layer-audit P04 | 5 | 2 tasks | 5 files |
+| Phase 26-end-to-end-verification-stale-indicators P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Progress: [███████████████████████
 - Effect 5 added alongside Effect 4 in StreetTrafficLayer — replayMode and layerVisible change handling kept separate with independent reactive deps [25-04]
 - vi.hoisted used for mockInvalidateQueries — avoids temporal dead zone when vi.mock factory is hoisted before module-level const declarations [25-04]
 - useAppStore mock requires .getState() for components that call getState() imperatively — selector mock alone insufficient for handleModeToggle [25-04]
+- VIS-01 contract helpers encode guard inline — tests GREEN as written, document expected 26-02 behavior, any regression requires explicit helper update [26-01]
+- VRFY-01 simulateTickAdvance mirrors PlaybackBar tick() arithmetic exactly — speed-preset ratios locked as contract, regressions surfaced by helper mismatch [26-01]
 
 ### Preserved from v4.0
 
@@ -100,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T20:14:53.732Z
-Stopped at: Completed 25-04-PLAN.md
+Last session: 2026-03-13T20:42:35.193Z
+Stopped at: Completed 26-01-PLAN.md
 Resume file: None

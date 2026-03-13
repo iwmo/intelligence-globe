@@ -23,13 +23,13 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 
 ### Visual Feedback
 
-- [ ] **VIS-01**: Stale entities show visual degradation (grey tint / opacity reduction) in LIVE mode — requires backend to serialise `is_stale` per entity from v4.0 freshness columns
+- [x] **VIS-01**: Stale entities show visual degradation (grey tint / opacity reduction) in LIVE mode — requires backend to serialise `is_stale` per entity from v4.0 freshness columns
 - [x] **VIS-02**: CinematicHUD shows `REPLAY [ISO timestamp]` instead of `REC` when in playback mode
 - [x] **VIS-03**: Play button disabled with "Loading snapshots…" indicator while snapshot fetch is in progress
 
 ### Verification
 
-- [ ] **VRFY-01**: End-to-end scrub test across 2-hour window — pause freeze, all speed presets, auto-stop at window end, all layers correct
+- [x] **VRFY-01**: End-to-end scrub test across 2-hour window — pause freeze, all speed presets, auto-stop at window end, all layers correct
 - [ ] **VRFY-02**: FPS gate above 30 at 15m/s+ with aircraft + ships active; optimisation applied if gate fails
 
 ## v6.0 Requirements
@@ -79,8 +79,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAYR-02 | Phase 25 | Complete |
 | LAYR-03 | Phase 25 | Complete |
 | LAYR-04 | Phase 25 | Complete |
-| VIS-01 | Phase 26 | Pending |
-| VRFY-01 | Phase 26 | Pending |
+| VIS-01 | Phase 26 | Complete |
+| VRFY-01 | Phase 26 | Complete |
 | VRFY-02 | Phase 26 | Pending |
 
 **Coverage:**
