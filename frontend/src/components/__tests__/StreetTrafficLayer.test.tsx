@@ -47,12 +47,11 @@ function simulateStreetTrafficVisibilityEffect(
   layerVisible: boolean,
   particles: { primitive: { show: boolean } }[],
 ) {
-  // Current Effect 4: only sets show = layerVisible — no replayMode check
-  // Contract: show must be false when replayMode='playback', regardless of layerVisible
+  // LAYR-04 guarded Effect 5: hide when replayMode='playback', regardless of layerVisible.
+  // Mirrors: p.primitive.show = layerVisible && replayMode !== 'playback'
   for (const p of particles) {
-    p.primitive.show = layerVisible; // existing logic — no replayMode guard
+    p.primitive.show = layerVisible && replayMode !== 'playback';
   }
-  void replayMode; // production code ignores replayMode — this is the bug
 }
 
 describe('LAYR-04: hide particles in playback', () => {

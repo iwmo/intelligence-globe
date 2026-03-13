@@ -5,7 +5,7 @@ import {
   Cartesian3,
   Color,
 } from 'cesium';
-import { useStreetTraffic, RoadSegment } from '../hooks/useStreetTraffic';
+import { useStreetTraffic, type RoadSegment } from '../hooks/useStreetTraffic';
 import { useAppStore } from '../store/useAppStore';
 
 const MAX_PARTICLES = 500;
@@ -44,17 +44,20 @@ function getPosition(roads: RoadSegment[], roadIndex: number, segIndex: number, 
 
 export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
   const layerVisible = useAppStore(s => s.layers.streetTraffic);
-  const { roads } = useStreetTraffic(viewer);
+  const replayMode   = useAppStore(s => s.replayMode);
+  const { roads } = useStreetTraffic(viewer, layerVisible);
 
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const rafHandleRef = useRef<number | null>(null);
   const layerVisibleRef = useRef<boolean>(layerVisible);
   const roadsRef = useRef<RoadSegment[] | null>(roads);
+  const replayModeRef  = useRef<string>(replayMode);
 
   // Keep refs in sync with latest props/state for rAF loop
   layerVisibleRef.current = layerVisible;
   roadsRef.current = roads;
+  replayModeRef.current = replayMode;
 
   // Effect 1: Initialize PointPrimitiveCollection
   useEffect(() => {
@@ -158,18 +161,28 @@ export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
         return;
       }
 
+      // LAYR-04: freeze particle animation during playback
+      if (replayModeRef.current === 'playback') {
+        rafHandleRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
       const validCurrentRoads = currentRoads.filter(r => r.coordinates.length >= 2);
 
       for (const p of particlesRef.current) {
         if (p.roadIndex >= validCurrentRoads.length) continue;
         const road = validCurrentRoads[p.roadIndex];
+        const maxSeg = road.coordinates.length - 2;
+        if (maxSeg < 0) continue;
+
+        // Clamp segIndex in case roads changed and this road is shorter
+        if (p.segIndex > maxSeg) p.segIndex = 0;
 
         p.t += p.speed;
 
         // When t reaches 1.0, advance to next segment or wrap to start
         if (p.t >= 1.0) {
           p.t = 0.0;
-          const maxSeg = road.coordinates.length - 2;
           if (maxSeg > 0) {
             p.segIndex = (p.segIndex + 1) % (maxSeg + 1);
           }
@@ -193,6 +206,13 @@ export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
       p.primitive.show = layerVisible;
     }
   }, [layerVisible]);
+
+  // Effect 5: Hide particles during playback (LAYR-04)
+  useEffect(() => {
+    for (const p of particlesRef.current) {
+      p.primitive.show = layerVisible && replayMode !== 'playback';
+    }
+  }, [replayMode, layerVisible]);
 
   return null;
 }
