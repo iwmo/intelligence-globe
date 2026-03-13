@@ -12,14 +12,14 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 - [x] **PLAY-01**: `isPlaying` promoted from `PlaybackBar` local state to `useAppStore` so all layer components can read it
 - [x] **PLAY-02**: Satellites propagate at `replayTs` during playback; propagation loop skips dispatch when `isPlaying` is false
 - [x] **PLAY-03**: Globe day/night shading follows `replayTs` via new `useViewerClock` hook syncing `viewer.clock.currentTime`
-- [ ] **PLAY-04**: Returning to LIVE triggers `queryClient.invalidateQueries()` — no 90-second stale-data window after mode switch
+- [x] **PLAY-04**: Returning to LIVE triggers `queryClient.invalidateQueries()` — no 90-second stale-data window after mode switch
 
 ### Layer Behaviour
 
-- [ ] **LAYR-01**: Aircraft live lerp returns early in playback mode; snapshot interpolation has exclusive `bb.position` ownership in playback
-- [ ] **LAYR-02**: Ships + military `Effect 2` gated by `replayMode` — background React Query refetches cannot overwrite snapshot positions
-- [ ] **LAYR-03**: GPS jamming `refetchInterval` frozen in playback; amber "LIVE DATA" badge visible when layer is on in playback
-- [ ] **LAYR-04**: Street traffic particles hidden during playback (no historical road data exists)
+- [x] **LAYR-01**: Aircraft live lerp returns early in playback mode; snapshot interpolation has exclusive `bb.position` ownership in playback
+- [x] **LAYR-02**: Ships + military `Effect 2` gated by `replayMode` — background React Query refetches cannot overwrite snapshot positions
+- [x] **LAYR-03**: GPS jamming `refetchInterval` frozen in playback; amber "LIVE DATA" badge visible when layer is on in playback
+- [x] **LAYR-04**: Street traffic particles hidden during playback (no historical road data exists)
 
 ### Visual Feedback
 
@@ -74,11 +74,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIS-02 | Phase 23 | Complete |
 | VIS-03 | Phase 23 | Complete |
 | PLAY-02 | Phase 24 | Complete |
-| PLAY-04 | Phase 25 | Pending |
-| LAYR-01 | Phase 25 | Pending |
-| LAYR-02 | Phase 25 | Pending |
-| LAYR-03 | Phase 25 | Pending |
-| LAYR-04 | Phase 25 | Pending |
+| PLAY-04 | Phase 25 | Complete |
+| LAYR-01 | Phase 25 | Complete |
+| LAYR-02 | Phase 25 | Complete |
+| LAYR-03 | Phase 25 | Complete |
+| LAYR-04 | Phase 25 | Complete |
 | VIS-01 | Phase 26 | Pending |
 | VRFY-01 | Phase 26 | Pending |
 | VRFY-02 | Phase 26 | Pending |

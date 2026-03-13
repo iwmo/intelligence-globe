@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
 status: executing
-stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-03-13T19:36:43.280Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-03-13T19:57:46.500Z"
 last_activity: "2026-03-13 — Plan 24-02 complete: four propagation mutations wired to replayTs"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 10
+  completed_plans: 7
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Phase 24 — Satellite Propagation Fix
+**Current focus:** Phase 25 — Layer Audit
 
 ## Current Position
 
-Phase: 24 of 26 (Satellite Propagation Fix)
-Plan: 1 of 2 in current phase
+Phase: 25 of 26 (Layer Audit)
+Plan: 1 of 4 complete in current phase
 Status: In Progress
-Last activity: 2026-03-13 — Plan 24-02 complete: four propagation mutations wired to replayTs
+Last activity: 2026-03-13 — Plan 25-01 complete: queryClient extracted, 7 RED tests written for all Phase 25 guards
 
 Progress: [██████████████████████████████] 100% (v5.0 phase 24 complete)
 
@@ -56,6 +56,7 @@ Progress: [███████████████████████
 | Phase 23-store-foundation-viewer-clock P03 | 6 | 2 tasks | 3 files |
 | Phase 24-satellite-propagation-fix P01 | 7 | 2 tasks | 3 files |
 | Phase 24-satellite-propagation-fix P02 | 8 | 4 tasks | 4 files |
+| Phase 25-layer-audit P01 | 8 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Progress: [███████████████████████
 - PLAY-02 tests use deterministic 2026-01-01T12:00:00Z reference time to avoid wall-clock flakiness [24-01]
 - orbitTimestamp read via getState() inside Effect 2 body (not in deps) — orbit anchored to satellite selection moment, not latest scrub [24-02]
 - GET_POSITION added to Effect 2 alongside COMPUTE_ORBIT — globe click fly-to fixed without any change to AircraftLayer [24-02]
+- queryClient extracted to frontend/src/lib/queryClient.ts as zero-behavior-change refactor enabling PLAY-04 test mocking [25-01]
+- Contract-test helper pattern for lerp/Effect guard RED tests: standalone helpers mirror unguarded production logic, assertions check guarded outcome [25-01]
 
 ### Preserved from v4.0
 
@@ -87,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T19:28:34.141Z
-Stopped at: Completed 24-02-PLAN.md
+Last session: 2026-03-13T19:57:46.496Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
