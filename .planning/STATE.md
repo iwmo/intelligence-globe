@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
-status: completed
-stopped_at: Completed 16-01-PLAN.md — useSettingsStore persist store built, 16 tests green
-last_updated: "2026-03-13T09:33:00Z"
+status: executing
+stopped_at: Completed 16-02-PLAN.md — SettingsPanel UI built, 7 tests green, App.tsx wired
+last_updated: "2026-03-13T09:35:30.996Z"
 last_activity: 2026-03-13 — Phase 16 Plan 01 complete
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 12
   percent: 0
 ---
 
@@ -90,6 +90,10 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 16-persistent-settings-panel]: persist name 'globe-settings' — no partialize needed, entire state is configuration
 - [Phase 16-persistent-settings-panel]: defaultCamera: null is the sentinel for 'no flyTo on boot' — null is explicitly typed and preserved in localStorage
 - [Phase 16-persistent-settings-panel]: Initial defaultLayers exactly mirrors useAppStore initial defaults so first-ever load produces identical behavior
+| Phase 16-persistent-settings-panel P02 | 2 | 2 tasks | 3 files |
+- [Phase 16-persistent-settings-panel]: radToDeg inline helper replaces CesiumMath.toDegrees in SettingsPanel — eliminates cesium mock complexity in unit tests
+- [Phase 16-persistent-settings-panel]: Gear icon NOT gated by cleanUI — settings must remain accessible in cinematic mode
+- [Phase 16-persistent-settings-panel]: SettingsPanel uses unmount-based toggle (not display:none) — consistent with DraggablePanel pattern
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:33:00Z
-Stopped at: Completed 16-01-PLAN.md — useSettingsStore persist store built, 16 tests green
+Last session: 2026-03-13T09:35:30.993Z
+Stopped at: Completed 16-02-PLAN.md — SettingsPanel UI built, 7 tests green, App.tsx wired
 Resume: Execute 16-02-PLAN.md (Settings Panel UI)
