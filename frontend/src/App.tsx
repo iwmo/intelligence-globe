@@ -19,6 +19,7 @@ import { PlaybackBar } from './components/PlaybackBar';
 import { OsintEventPanel } from './components/OsintEventPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useViewerClock } from './hooks/useViewerClock';
 import { useAppStore } from './store/useAppStore';
 import { CameraControlWidget } from './components/CameraControlWidget';
 import { Settings } from 'lucide-react';
@@ -32,6 +33,7 @@ export default function App() {
   const { cleanUI } = useAppStore();
 
   useKeyboardShortcuts();
+  useViewerClock(cesiumViewer);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
