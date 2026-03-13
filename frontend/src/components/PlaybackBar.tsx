@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { queryClient } from '../lib/queryClient';
 import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
 import { useOsintEvents } from '../hooks/useOsintEvents';
 import { EVENT_COLORS } from '../data/osintEvents';
@@ -130,6 +131,8 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
       setReplayMode('live');
       // Reset replayTs to now on return to live
       useAppStore.getState().setReplayTs(Date.now());
+      // PLAY-04: flush stale cache — live entity positions appear within 5s
+      queryClient.invalidateQueries();
     }
   }
 

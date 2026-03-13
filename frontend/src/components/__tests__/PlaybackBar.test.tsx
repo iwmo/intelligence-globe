@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 
+const mockInvalidateQueries = vi.hoisted(() => vi.fn());
+
 vi.mock('cesium', () => ({}));
 
 const mockState = {
@@ -24,14 +26,28 @@ const mockState = {
 // Mutable so individual tests can set isLoading
 const mockSnapshotsResult = { data: new Map(), isLoading: false };
 
+// useAppStore mock: selector hook + getState() for imperative calls in handleModeToggle
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mockUseAppStore(selector: (s: any) => unknown) {
+  return selector(mockState);
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(mockUseAppStore as any).getState = () => mockState;
+
 vi.mock('../../store/useAppStore', () => ({
-  useAppStore: vi.fn((selector: (s: typeof mockState) => unknown) => selector(mockState)),
+  useAppStore: mockUseAppStore,
 }));
 vi.mock('../../hooks/useReplaySnapshots', () => ({
   useReplaySnapshots: vi.fn(() => mockSnapshotsResult),
 }));
 vi.mock('../../hooks/useOsintEvents', () => ({
   useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
+}));
+
+vi.mock('../../lib/queryClient', () => ({
+  queryClient: {
+    invalidateQueries: mockInvalidateQueries,
+  },
 }));
 
 // Static import after vi.mock — produces ModuleNotFoundError when PlaybackBar.tsx does not exist
@@ -104,14 +120,6 @@ describe('PlaybackBar — snapshot loading gate', () => {
 // This test FAILS until PlaybackBar imports queryClient from '../lib/queryClient'
 // and calls queryClient.invalidateQueries() inside the else branch of handleModeToggle.
 // ---------------------------------------------------------------------------
-
-const mockInvalidateQueries = vi.fn();
-
-vi.mock('../../lib/queryClient', () => ({
-  queryClient: {
-    invalidateQueries: mockInvalidateQueries,
-  },
-}));
 
 describe('PLAY-04: invalidateQueries on return to LIVE', () => {
   it('calls queryClient.invalidateQueries exactly once when switching from playback to live (RED)', () => {
