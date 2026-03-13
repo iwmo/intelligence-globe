@@ -47,12 +47,14 @@ export function SearchBar({ workerRef }: SearchBarProps) {
     if (satMatch) {
       setSelectedSatelliteId(satMatch.norad_cat_id);
       setSelectedAircraftId(null);
-      // Request live ECEF position from worker; fly-to handled by POSITION_RESULT
+      // Request ECEF position from worker; fly-to handled by POSITION_RESULT
       if (workerRef.current) {
         setStatus(`Satellite: ${(satMatch.omm as Record<string, string>).OBJECT_NAME ?? satMatch.norad_cat_id}`);
+        const { replayMode: srm, replayTs: srts } = useAppStore.getState();
+        const satTimestamp = srm === 'playback' ? srts : Date.now();
         workerRef.current.postMessage({
           type: 'GET_POSITION',
-          payload: { norad: satMatch.norad_cat_id },
+          payload: { norad: satMatch.norad_cat_id, timestamp: satTimestamp },
         });
       } else {
         // Worker not yet ready — TLE data still loading. Status remains visible.
@@ -79,7 +81,7 @@ export function SearchBar({ workerRef }: SearchBarProps) {
   };
 
   return (
-    <div style={{ padding: '12px 12px 0' }}>
+    <div style={{ padding: '12px 12px 10px' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '6px',
         background: 'rgba(0,212,255,0.06)',

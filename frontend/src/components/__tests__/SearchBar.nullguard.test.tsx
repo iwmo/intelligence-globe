@@ -14,10 +14,15 @@ vi.mock('../../hooks/useAircraft', () => ({
 vi.mock('../../store/useAppStore', () => {
   const setSelectedSatelliteId = vi.fn();
   const setSelectedAircraftId = vi.fn();
-  return {
+  const mockStore = {
     useAppStore: (selector: (s: any) => any) =>
       selector({ setSelectedSatelliteId, setSelectedAircraftId }),
   };
+  (mockStore.useAppStore as any).getState = () => ({
+    replayMode: 'live' as const,
+    replayTs: 0,
+  });
+  return mockStore;
 });
 vi.mock('../../lib/viewerRegistry', () => ({ flyToPosition: vi.fn() }));
 
@@ -43,7 +48,7 @@ describe('SearchBar — null worker guard', () => {
     await act(async () => { vi.advanceTimersByTime(400); });
     expect(mockWorker.postMessage).toHaveBeenCalledWith({
       type: 'GET_POSITION',
-      payload: { norad: 25544 },
+      payload: { norad: 25544, timestamp: expect.any(Number) },
     });
   });
 });
