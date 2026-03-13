@@ -60,7 +60,7 @@
 
 **Milestone Goal:** Audit and fix the 4D replay engine so all layers behave correctly — satellites use `replayTs`, nothing moves when paused, and end-to-end playback is verified reliable.
 
-- [ ] **Phase 23: Store Foundation + Viewer Clock** — Promote `isPlaying` to `useAppStore`, create `useViewerClock` hook, wire HUD and play button loading state
+- [x] **Phase 23: Store Foundation + Viewer Clock** — Promote `isPlaying` to `useAppStore`, create `useViewerClock` hook, wire HUD and play button loading state (completed 2026-03-13)
 - [ ] **Phase 24: Satellite Propagation Fix** — Satellites propagate at `replayTs` in playback; propagation loop skips dispatch when paused
 - [ ] **Phase 25: Layer Audit** — Aircraft, ships, military, GPS jamming, and street traffic all gated on `replayMode`; return-to-live triggers cache invalidation
 - [ ] **Phase 26: End-to-End Verification + Stale Indicators** — Full scrub test across 2-hour window, FPS gate, frontend stale entity visual degradation
@@ -143,7 +143,7 @@ Plans:
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 23. Store Foundation + Viewer Clock | 2/4 | In Progress|  | - |
+| 23. Store Foundation + Viewer Clock | 4/4 | Complete   | 2026-03-13 | - |
 | 24. Satellite Propagation Fix | v5.0 | 0/? | Not started | - |
 | 25. Layer Audit | v5.0 | 0/? | Not started | - |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |
