@@ -13,6 +13,8 @@ export interface ShipRecord {
   nav_status: number | null;
   last_update: string | null;
   updated_at: string | null;
+  // v4.0 freshness — serialised by backend routes_ships.py
+  is_stale: boolean;
 }
 
 export function useShips() {

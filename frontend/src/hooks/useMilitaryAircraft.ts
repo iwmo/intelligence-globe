@@ -12,6 +12,8 @@ export interface MilitaryAircraftRecord {
   lon: number;
   squawk: string | null;
   updated_at: string | null;
+  // v4.0 freshness — serialised by backend routes_military.py
+  is_stale: boolean;
 }
 
 export function useMilitaryAircraft() {

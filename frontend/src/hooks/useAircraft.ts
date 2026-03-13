@@ -11,6 +11,8 @@ export interface AircraftRecord {
   velocity: number | null;
   true_track: number | null;
   trail: Array<{ lon: number; lat: number; alt: number | null; ts: number | null }>;
+  // v4.0 freshness — serialised by backend routes_aircraft.py
+  is_stale: boolean;
 }
 
 export function useAircraft() {
