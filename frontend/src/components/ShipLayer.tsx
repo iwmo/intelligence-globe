@@ -85,6 +85,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
 
   // Effect 2: Update billboard positions directly on data refresh (no lerp — ships move slowly)
   useEffect(() => {
+    if (replayMode === 'playback') return;  // LAYR-02: guard — snapshot interpolation owns positions
     if (!viewer || viewer.isDestroyed() || !ships.data || !collectionRef.current) return;
 
     const collection = collectionRef.current;
@@ -124,7 +125,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         shipBillboardsByMmsi.set(ship.mmsi, bb);
       }
     }
-  }, [viewer, ships.data, layerVisible]);
+  }, [viewer, ships.data, layerVisible, replayMode]);
 
   // Effect 3: Visibility toggle
   useEffect(() => {

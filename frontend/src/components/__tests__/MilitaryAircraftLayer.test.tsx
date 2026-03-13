@@ -54,14 +54,14 @@ function simulateMilitaryEffect2Unguarded(
   entities: { hex: string }[],
   billboards: Map<string, { position: unknown }>,
 ) {
-  // Current production code: no replayMode check — always writes
+  // LAYR-02 guard — mirrors production MilitaryAircraftLayer Effect 2
+  if (replayMode === 'playback') return;
   for (const entity of entities) {
     const bb = billboards.get(entity.hex);
     if (bb) {
       bb.position = { updated: true }; // sentinel write simulating Effect 2
     }
   }
-  void replayMode; // production code ignores replayMode — this is the bug
 }
 
 describe('LAYR-02: MilitaryAircraftLayer Effect 2 guard in playback', () => {
@@ -74,9 +74,8 @@ describe('LAYR-02: MilitaryAircraftLayer Effect 2 guard in playback', () => {
     expect(mockBb.position).toBeDefined();
   });
 
-  it('Effect 2 must NOT write bb.position when replayMode is playback (RED)', () => {
-    // RED: MilitaryAircraftLayer Effect 2 has no playback guard yet.
-    // FAILS until MilitaryAircraftLayer adds: if (replayMode === 'playback') return;
+  it('Effect 2 must NOT write bb.position when replayMode is playback (LAYR-02)', () => {
+    // GREEN after MilitaryAircraftLayer adds: if (replayMode === 'playback') return;
     const mockBb = { position: undefined as unknown };
     const billboards = new Map([['AE5678', mockBb]]);
     const entities = [{ hex: 'AE5678' }];

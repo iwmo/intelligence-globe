@@ -83,6 +83,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
 
   // Effect 2: Update billboard positions when new data arrives
   useEffect(() => {
+    if (replayMode === 'playback') return;  // LAYR-02: guard — snapshot interpolation owns positions
     if (!viewer || viewer.isDestroyed() || !militaryAircraft.data?.length || !collectionRef.current) return;
 
     const collection = collectionRef.current;
@@ -116,7 +117,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
         militaryBillboardsByHex.set(ac.hex, bb);
       }
     }
-  }, [viewer, militaryAircraft.data, layerVisible]);
+  }, [viewer, militaryAircraft.data, layerVisible, replayMode]);
 
   // Effect 3: Visibility toggle
   useEffect(() => {

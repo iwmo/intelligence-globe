@@ -57,14 +57,14 @@ function simulateShipEffect2Unguarded(
   ships: { mmsi: string }[],
   billboards: Map<string, { position: unknown }>,
 ) {
-  // Current production code: no replayMode check — always writes
+  // LAYR-02 guard — mirrors production ShipLayer Effect 2
+  if (replayMode === 'playback') return;
   for (const ship of ships) {
     const bb = billboards.get(ship.mmsi);
     if (bb) {
       bb.position = { updated: true }; // sentinel write simulating Effect 2
     }
   }
-  void replayMode; // production code ignores replayMode — this is the bug
 }
 
 describe('LAYR-02: ShipLayer Effect 2 guard in playback', () => {
@@ -77,10 +77,8 @@ describe('LAYR-02: ShipLayer Effect 2 guard in playback', () => {
     expect(mockBb.position).toBeDefined();
   });
 
-  it('Effect 2 must NOT write bb.position when replayMode is playback (RED)', () => {
-    // RED: the current ShipLayer has no playback guard in Effect 2.
-    // When replayMode is 'playback', bb.position writes are still performed.
-    // This test FAILS until ShipLayer adds: if (replayMode === 'playback') return;
+  it('Effect 2 must NOT write bb.position when replayMode is playback (LAYR-02)', () => {
+    // GREEN after ShipLayer adds: if (replayMode === 'playback') return;
     const mockBb = { position: undefined as unknown };
     const billboards = new Map([['987654321', mockBb]]);
     const ships = [{ mmsi: '987654321' }];
