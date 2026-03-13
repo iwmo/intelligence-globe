@@ -125,7 +125,13 @@ Plans:
   2. Playback auto-stops at the window end boundary and the play button returns to its initial state
   3. Frame rate stays at or above 30 FPS at 15m/s playback speed with aircraft and ships layers visible; if it fails, an optimisation pass is applied and the gate is re-run
   4. In LIVE mode, entities whose backend `is_stale=true` are rendered with visible grey tint or reduced opacity, distinguishing them from fresh entities without removing them from the globe
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Wave 0: VIS-01 stale-tint contract tests + VRFY-01 tick boundary contracts
+- [ ] 26-02-PLAN.md — VIS-01: extend 3 hook interfaces with is_stale + stale-tint effects in 3 layer components
+- [ ] 26-03-PLAN.md — VRFY-01: start app + manual 2h scrub verification checkpoint
+- [ ] 26-04-PLAN.md — VRFY-02: FPS gate measurement + conditional interpolation throttle optimisation
 
 ## Progress
 
