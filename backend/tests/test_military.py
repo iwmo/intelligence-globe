@@ -90,3 +90,103 @@ async def test_military_list_shape_preserved():
         assert "lon" in item, f"lon missing from item: {item}"
         assert "squawk" in item, f"squawk missing from item: {item}"
         assert "updated_at" in item, f"updated_at missing from item: {item}"
+
+
+# ---------------------------------------------------------------------------
+# TEST-03: Military stale row exclusion
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_military_list_excludes_stale_rows():
+    """TEST-03: GET /api/military/ must exclude rows where fetched_at is older than MILITARY_STALE_SECONDS.
+
+    Inserts a MilitaryAircraft row with fetched_at 15 minutes ago (well past the 600s default)
+    and asserts that it does NOT appear in the list response.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.military_aircraft import MilitaryAircraft
+
+    hex_id = "stl001"
+    stale_ts = datetime.now(timezone.utc) - timedelta(minutes=15)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": hex_id}
+        )
+        await session.commit()
+        row = MilitaryAircraft(
+            hex=hex_id,
+            latitude=48.0,
+            longitude=2.0,
+            is_active=True,
+            fetched_at=stale_ts,
+        )
+        session.add(row)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/military/")
+        assert response.status_code == 200
+        body = response.json()
+        assert hex_id not in [item["hex"] for item in body], (
+            f"Stale military row {hex_id!r} should be excluded from /api/military/ response"
+        )
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": hex_id}
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_military_list_excludes_inactive_rows():
+    """TEST-03: GET /api/military/ must exclude rows where is_active=False, even when fetched_at is fresh.
+
+    Inserts a MilitaryAircraft row with is_active=False and a fresh fetched_at timestamp
+    and asserts that it does NOT appear in the list response.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.military_aircraft import MilitaryAircraft
+
+    hex_id = "inact1"
+    fresh_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": hex_id}
+        )
+        await session.commit()
+        row = MilitaryAircraft(
+            hex=hex_id,
+            latitude=48.0,
+            longitude=2.0,
+            is_active=False,
+            fetched_at=fresh_ts,
+        )
+        session.add(row)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/military/")
+        assert response.status_code == 200
+        body = response.json()
+        assert hex_id not in [item["hex"] for item in body], (
+            f"Inactive military row {hex_id!r} should be excluded from /api/military/ response"
+        )
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": hex_id}
+            )
+            await session.commit()
