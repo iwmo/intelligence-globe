@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: planning
-stopped_at: Completed 14-04-PLAN.md — Phase 14 complete
-last_updated: "2026-03-12T18:16:32.480Z"
-last_activity: 2026-03-12 — v3.0 roadmap created
+stopped_at: Completed 13-03-PLAN.md — Phase 13 complete
+last_updated: "2026-03-13T00:00:00.000Z"
+last_activity: 2026-03-13 — Phase 13 complete: draggable floating panels delivered and browser-approved
 progress:
   total_phases: 4
   completed_phases: 1
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-12 after v3.0 milestone start)
 ## Current Position
 
 Phase: 13 of 16 (Collapsible Sidebar Layout)
-Plan: — of 3 in current phase
-Status: Ready to plan
+Plan: 3 of 3 in current phase — COMPLETE
+Status: Phase complete
 Last activity: 2026-03-12 — v3.0 roadmap created
 
 Progress: [__________] 0% (v3.0 — 0/13 plans complete)
@@ -72,6 +72,10 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 14-entity-icons-altitude-scaling]: scaleByDistance set post-add on PointPrimitive instance (not in collection.add options) — NearFarScalar(5e5, 1.5, 5e7, 0.3) on satellites
 | Phase 14-entity-icons-altitude-scaling P04 | 10 | 2 tasks | 1 files |
 - [Phase 14-entity-icons-altitude-scaling]: NearFarScalar(5e5, 1.5, 5e7, 0.3) starting values passed human zoom test without tuning — approved as-is
+| Phase 13-collapsible-sidebar-layout P03 | 30 | 2 tasks | 2 files |
+- [Phase 13-collapsible-sidebar-layout]: Replaced sliding sidebar with free-floating DraggablePanel components — hamburger eliminated, each section independent
+- [Phase 13-collapsible-sidebar-layout]: DraggablePanel persists {x, y, width, height} in localStorage keyed by panel id — survives page reload
+- [Phase 13-collapsible-sidebar-layout]: +/- collapse replaces chevron/grid-template-rows — simpler in floating context
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T18:10:40.702Z
-Stopped at: Completed 14-04-PLAN.md — Phase 14 complete
-Resume: Run `/gsd:plan-phase 13` to begin planning Phase 13
+Last session: 2026-03-13T00:00:00.000Z
+Stopped at: Completed 13-03-PLAN.md — Phase 13 complete
+Resume: Run `/gsd:plan-phase 14` or proceed to next phase
