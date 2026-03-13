@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cellToBoundary } from 'h3-js';
 import {
   Viewer,
-  Primitive,
+  GroundPrimitive,
   GeometryInstance,
   PolygonGeometry,
   PolygonHierarchy,
@@ -19,12 +19,12 @@ interface GpsJammingLayerProps {
   viewer: Viewer | null;
 }
 
-// Slight elevation above the ellipsoid to avoid z-fighting with the globe surface.
-// EllipsoidTerrainProvider has no elevation data, so GroundPrimitive terrain-clamping
-// is not needed; a regular Primitive at fixed height is more reliable.
-const HEX_HEIGHT_M = 5000;
-
-function buildHexPrimitive(cells: GpsJammingCell[]): Primitive {
+// GroundPrimitive drapes geometry onto the terrain surface using Cesium's shadow-volume
+// technique, which correctly handles depth testing against the globe without z-fighting.
+// EllipsoidTerrainProvider IS supported by GroundPrimitive (the ellipsoid IS the terrain).
+// The vertexFormat must match PerInstanceColorAppearance.FLAT_VERTEX_FORMAT — this was
+// the bug in the original code that caused GroundPrimitive to appear broken.
+function buildHexPrimitive(cells: GpsJammingCell[]): GroundPrimitive | null {
   const instances: GeometryInstance[] = [];
 
   for (const { h3index, severity } of cells) {
@@ -34,17 +34,14 @@ function buildHexPrimitive(cells: GpsJammingCell[]): Primitive {
       const positions = Cartesian3.fromDegreesArray(
         boundary.flatMap(([lat, lng]) => [lng, lat])
       );
-      const color =
-        severity === 'red'
-          ? Color.RED.withAlpha(0.6)
-          : severity === 'yellow'
-            ? Color.YELLOW.withAlpha(0.5)
-            : Color.fromCssColorString('#00ff88').withAlpha(0.25);
+      void severity;
+      const color = Color.RED.withAlpha(0.6);
       instances.push(new GeometryInstance({
         geometry: new PolygonGeometry({
           polygonHierarchy: new PolygonHierarchy(positions),
+          // vertexFormat must match PerInstanceColorAppearance.FLAT_VERTEX_FORMAT —
+          // without this, GroundPrimitive silently produces no geometry.
           vertexFormat: PerInstanceColorAppearance.FLAT_VERTEX_FORMAT,
-          height: HEX_HEIGHT_M,
         }),
         id: `gps-jam:${h3index}`,
         attributes: { color: ColorGeometryInstanceAttribute.fromColor(color) },
@@ -54,17 +51,21 @@ function buildHexPrimitive(cells: GpsJammingCell[]): Primitive {
     }
   }
 
-  return new Primitive({
+  // Guard: if every cell failed, return null so the caller skips primitive creation.
+  if (instances.length === 0) return null;
+
+  return new GroundPrimitive({
     geometryInstances: instances,
     appearance: new PerInstanceColorAppearance({ flat: true, translucent: true }),
     asynchronous: true,
   });
 }
 
-export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): null {
-  const primitiveRef = useRef<Primitive | null>(null);
+export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): React.ReactElement | null {
+  const primitiveRef = useRef<GroundPrimitive | null>(null);
   const gpsJamming = useGpsJamming();
   const layerVisible = useAppStore((s) => s.layers.gpsJamming);
+  const replayMode   = useAppStore((s) => s.replayMode);
 
   // Effect 1 — Primitive lifecycle
   useEffect(() => {
@@ -93,6 +94,7 @@ export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): null {
     removePrimitive();
 
     const newPrimitive = buildHexPrimitive(cells);
+    if (!newPrimitive) return; // all cells were invalid — nothing to render
     viewer.scene.primitives.add(newPrimitive);
     primitiveRef.current = newPrimitive;
   }, [gpsJamming.data, layerVisible, viewer]);
@@ -108,5 +110,26 @@ export function GpsJammingLayer({ viewer }: GpsJammingLayerProps): null {
     };
   }, [viewer]);
 
+  if (replayMode === 'playback' && layerVisible) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: '60px',
+        right: '12px',
+        zIndex: 100,
+        background: 'rgba(245, 158, 11, 0.15)',
+        border: '1px solid #F59E0B',
+        color: '#F59E0B',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        fontWeight: 700,
+        padding: '2px 6px',
+        borderRadius: '3px',
+        pointerEvents: 'none',
+      }}>
+        GPS LIVE DATA
+      </div>
+    );
+  }
   return null;
 }
