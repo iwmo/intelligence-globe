@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T13:27:36.468Z"
+last_updated: "2026-03-13T13:28:23.486Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -52,6 +52,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 20-military-ships-jamming-ingest P03 | 3m | 2 tasks | 2 files |
 | Phase 21-api-route-filtering P03 | 8 | 1 tasks | 2 files |
 | Phase 21-api-route-filtering P01 | 4 | 2 tasks | 2 files |
+| Phase 21-api-route-filtering P02 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 21-api-route-filtering]: Envelope metadata lifted from cells[0] — all cells in a single aggregation batch share identical aggregated_at/source_fetched_at/source_is_stale values
 - [Phase 21-api-route-filtering]: No staleness WHERE filter on GPS jamming list endpoint — JAM-03 contract requires stale cells returned with source_is_stale=true, not empty set
 - [Phase 21-api-route-filtering]: TDD RED tests appended to test files without modifying existing tests — regression guards expected to pass immediately, freshness-key tests fail RED until route implementations
+- [Phase 21-api-route-filtering]: Ship fetched_at hardcoded to None in response — Ship model has no fetched_at column (AIS is streamed, not polled)
+- [Phase 21-api-route-filtering]: Military list filters by fetched_at >= cutoff; ships list filters by last_seen_at >= cutoff (model asymmetry from ingest architecture)
+- [Phase 21-api-route-filtering]: Detail endpoints /api/military/{hex} and /api/ships/{mmsi} left unchanged per architectural decision (replay/detail panels need historical rows)
 
 ### Pending Todos
 
