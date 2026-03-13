@@ -1,302 +1,304 @@
 # Pitfalls Research
 
-**Domain:** Geospatial real-time tracking — adding freshness/staleness metadata to existing production layers (v4.0 Data Reliability & Freshness)
+**Domain:** 4D Replay Engine — retrofitting playback correctness into an existing CesiumJS + React + Zustand + satellite.js Web Worker stack (v5.0 Playback)
 **Researched:** 2026-03-13
-**Confidence:** HIGH (all findings grounded in direct codebase inspection + verified against official SQLAlchemy, OpenSky, ITU-R, and Alembic sources)
+**Confidence:** HIGH — all findings are grounded in direct inspection of the live codebase; every pitfall cites the specific file and line where the bug or risk exists
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: SQLAlchemy `onupdate` Is Silently Ignored by `on_conflict_do_update`
+### Pitfall 1: Worker `PROPAGATE` loop hardcodes `Date.now()` — ignores `replayTs`
 
 **What goes wrong:**
-All four live models (`Aircraft`, `MilitaryAircraft`, `Ship`, `GpsJammingCell`) define `updated_at` with `onupdate=func.now()`. Every ingest worker uses `pg_insert(...).on_conflict_do_update(...)`. The `onupdate` callback is **never invoked** on the conflict-update path — only a bare INSERT triggers it. UPDATE via `on_conflict_do_update` uses only whatever appears in `set_={}`.
+`SatelliteLayer.tsx` Effect 1, line 260 always sends:
+```
+worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: Date.now() } });
+```
+`replayTs` is read from the store (line 115) and correctly wired to overpass dispatch and staleness checks, but is never passed to the 1 Hz `PROPAGATE` message. In playback mode, satellites continue orbiting at real-world current time while every other layer shows historical data. The globe shows aircraft at a past snapshot position while satellites orbit at the current moment — visually incoherent.
 
-The aircraft and military ingest workers already work around this by explicitly including `"updated_at": func.now()` in their `set_` dict. The AIS worker's `batch_flush_ships_to_pg` does **not** include `updated_at` in its conflict update set, so `ships.updated_at` reflects only the first INSERT time — it never advances when a position refreshes. Any freshness check against `ships.updated_at` will be wrong from the moment the second AIS message arrives for a given MMSI.
-
-When `last_seen_at` and `fetched_at` columns are added in this milestone, the same omission will silently corrupt freshness data if those columns are not included in every upsert `set_={}`.
+The worker already accepts the timestamp correctly: it creates `new Date(timestamp)` from the payload. The entire worker side is correct. Only the caller is broken.
 
 **Why it happens:**
-SQLAlchemy documents this limitation explicitly: "Insert.on_conflict_do_update() does not take into account Python-side default UPDATE values or generation functions, such as those specified using Column.onupdate." Developers assume the column definition handles all update paths. It does not. (Source: [SQLAlchemy GitHub discussion #5903](https://github.com/sqlalchemy/sqlalchemy/discussions/5903))
+The `loop()` rAF function was written before the replay store slice existed and was never updated. The `PROPAGATE` contract has accepted an external timestamp from day one, but the caller never wired `replayTs` into it.
 
 **How to avoid:**
-Every `on_conflict_do_update` `set_={}` dict that should advance a timestamp must include it explicitly: `"updated_at": func.now()`, `"last_seen_at": func.now()`, `"fetched_at": <value>`. Do not rely on `onupdate=` at the model level for upsert paths.
+Inside the `loop()` function, replace `Date.now()` with a conditional read via `getState()`:
+```
+const { replayMode, replayTs } = useAppStore.getState();
+const ts = replayMode === 'playback' ? replayTs : Date.now();
+worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: ts } });
+```
+Use `getState()` inside the rAF callback, never a closure-captured variable. This is the pattern already used by `PlaybackBar.tsx` tick() function for the same reason.
 
 **Warning signs:**
-- Query `SELECT mmsi, updated_at FROM ships ORDER BY updated_at LIMIT 10` after several hours of uptime. If timestamps are all clustered at boot time, the `onupdate` is not firing.
-- Any new column added with `onupdate=func.now()` that is not also present in the ingest worker's `set_={}`.
+- Satellites continue orbiting while the scrubber is paused at a past timestamp
+- Overpass arc lines point to correct historical satellite positions but the rendered satellite dot is elsewhere
+- `Date.now() !== replayTs` while paused in playback — satellite dot and overpass arc disagree
 
-**Phase to address:** MIG-01 (schema migrations) and ACFT-01/MIL-01/SHIP-01 (ingest changes) — audit every `set_={}` dict before writing freshness queries.
+**Phase to address:** PLAY-01 (Satellite propagation uses `replayTs` in playback mode)
 
 ---
 
-### Pitfall 2: Stale Threshold Too Aggressive Causes an Empty Globe
+### Pitfall 2: Worker `COMPUTE_ORBIT` and `GET_POSITION` hardcode `Date.now()` / `new Date()` — no virtual clock path exists in the worker for these handlers
 
 **What goes wrong:**
-Adding `WHERE is_active = true` or `WHERE updated_at > NOW() - INTERVAL '5 minutes'` to list endpoints (`/api/aircraft`, `/api/military`, `/api/ships`) will return an empty list whenever:
-- The ingest worker is temporarily stopped (Docker restart, rate-limit backoff)
-- The RQ queue stalls (Redis restart, worker crash)
-- The upstream source API is down (OpenSky 429, aisstream.io disconnect)
+Two worker message handlers bypass the timestamp entirely:
 
-The globe renders zero entities with no error. There is no user-visible distinction between "nothing tracked" and "ingest feed is stale." The existing endpoints have zero staleness filtering — adding one without a fallback creates an availability regression that looks like a blank globe with no console error.
+- `COMPUTE_ORBIT` (propagation.worker.ts line 94): `const now = Date.now();` — orbit path is always computed from real time, not replay time
+- `GET_POSITION` (propagation.worker.ts line 133): `const now = new Date();` — satellite fly-to destination is always computed from real time
+
+During playback, clicking a satellite to fly to it sends `GET_POSITION`, which propagates the satellite to where it is now, not where it was at the scrubber timestamp. The camera flies to the wrong location. Similarly, the orbit ring displayed when a satellite is selected shows the future orbit path, not the orbit path at the replay moment.
 
 **Why it happens:**
-Hard freshness filters applied at the DB query layer silently convert a data-availability problem into an empty API response. The frontend has no signal to distinguish empty-due-to-filter from empty-due-to-no-data.
+Both message types predate the replay slice. Only `PROPAGATE` was designed to accept an external timestamp. The worker has no concept of a virtual clock — it simply calls `Date.now()` or `new Date()` wherever time is needed.
 
 **How to avoid:**
-Use soft expiry: expose `is_active` and freshness metadata in the response payload, but do not filter `is_active = false` rows from the globe list. Let the frontend dim or badge stale entities rather than removing them. If hard filtering is required, include a response envelope:
+Add an optional `timestamp?: number` field to both message payload types. Worker handlers fall back to `Date.now()` when `timestamp` is absent (backward-compatible). Callers in playback mode pass `useAppStore.getState().replayTs`. The fix is a two-line change per handler: replace `const now = Date.now()` with `const now = payload.timestamp ?? Date.now()`.
 
-```json
-{
-  "items": [...],
-  "freshness": {
-    "last_updated": "2026-03-13T12:00:00Z",
-    "stale": false,
-    "stale_count": 0
+**Warning signs:**
+- Orbit ring around a selected satellite doesn't align with the satellite's replayed position
+- Camera fly-to on satellite click in playback mode targets the satellite's current real-world position, not its historical position
+- `POSITION_RESULT.position` diverges from the corresponding `POSITIONS.buf` entry for the same NORAD ID when in playback
+
+**Phase to address:** PLAY-01
+
+---
+
+### Pitfall 3: Live lerp loop in `AircraftLayer` continues running in playback mode — fights the snapshot interpolation effect
+
+**What goes wrong:**
+`AircraftLayer.tsx` Effect 2 (lines 250–264) starts a rAF lerp loop that runs unconditionally whenever `aircraft.data` changes. It writes `bb.position` on every animation frame using `Cartesian3.lerp()` between the previous and current live data positions.
+
+The playback snapshot interpolation effect (lines 317–338) separately writes `bb.position` on every `replayTs` change, setting the correct historical position.
+
+Both effects write to the same `bb.position` field. On every rAF frame:
+1. Snapshot effect: sets correct historical position (runs when `replayTs` changes)
+2. Lerp loop: overwrites it with the live lerp position (runs every 16ms)
+
+Result: aircraft positions continuously snap back to live data during playback. The correct snapshot position is visible for one frame, then immediately overwritten. At 60 FPS, this appears as a rapid oscillation or as the aircraft permanently stuck at the live position.
+
+**Why it happens:**
+The lerp loop has no mode awareness. `rafRunningRef.current = true` is set unconditionally in Effect 2 when `aircraft.data` arrives. The snapshot effect was added as an additive fix, assuming the lerp loop would be inert — it is not, because `aircraft.data` continues updating in playback mode (refetchInterval only stops polling; it doesn't clear cached data from React Query).
+
+**How to avoid:**
+Add a mode check inside the `lerp()` function body using `getState()`:
+```
+function lerp() {
+  if (!rafRunningRef.current) return;
+  if (useAppStore.getState().replayMode === 'playback') {
+    // Snapshot effect owns bb.position in playback — lerp yields.
+    rafRef.current = requestAnimationFrame(lerp);
+    return;
+  }
+  // ... existing lerp logic
+}
+```
+This preserves the rAF loop structure (avoids unmount/remount on mode switch) while guaranteeing the lerp never writes position in playback mode. Do not add `replayMode` to Effect 2's dependency array — that would restart the entire billboard setup on every mode toggle.
+
+An equivalent approach is to check `rafRunningRef.current` as a tri-state: `null` (unstarted), `true` (live), `false` (paused). But the single `getState()` call inside the loop is simpler and matches the existing pattern used by `PlaybackBar.tsx`.
+
+**Warning signs:**
+- Aircraft positions flash at correct replay location for one frame, then snap back to live position
+- During playback with aircraft layer visible: scrubbing the timeline causes aircraft to briefly move, then return to their live coordinates
+- DevTools animation profiler shows two simultaneous writes to the same Cesium primitive position each frame
+
+**Phase to address:** PLAY-03 (Live lerp guards)
+
+---
+
+### Pitfall 4: `useAircraft` / `useShips` `refetchInterval: false` stops polling but does NOT invalidate the cache — stale live data persists after switching back to live mode
+
+**What goes wrong:**
+`useAircraft` sets `refetchInterval: replayMode === 'live' ? 90_000 : false`. This correctly stops the polling interval when in playback. However, `staleTime: 90_000` means the cached live positions are still considered fresh for 90 seconds from when they were last fetched. When the user switches back to live mode, React Query resumes the polling interval but does not immediately trigger a refetch — it waits until `staleTime` expires.
+
+Consequence: for up to 90 seconds after returning to live mode, the aircraft displayed on the globe are from a snapshot up to 90 seconds old. For ships (`staleTime: 30_000`), the window is 30 seconds. The globe appears "live" (the LIVE label is shown, no indicators suggest staleness) but the data is not current.
+
+There is a second issue: on switching to playback mode, `aircraft.data` from the React Query cache is still present and non-null. Effect 2 in `AircraftLayer` fires on `aircraft.data` change. If React Query performs a background refetch during playback (it may, since `staleTime` will eventually expire), Effect 2 runs again, shifting `prevPositions`/`currPositions` and restarting the lerp loop with new live data.
+
+**Why it happens:**
+React Query's `refetchInterval` controls only the polling timer. `staleTime` and the cache are orthogonal. Developers assume that `refetchInterval: false` also freezes the cache — it does not. Background refetches triggered by window focus or cache invalidation events can still fire.
+
+**How to avoid:**
+In `PlaybackBar.tsx`'s `handleModeToggle` function (line 123), add explicit cache invalidation on returning to live mode:
+```
+import { useQueryClient } from '@tanstack/react-query';
+// Inside component:
+const queryClient = useQueryClient();
+
+function handleModeToggle() {
+  if (replayMode === 'playback') {
+    setIsPlaying(false);
+    setReplayMode('live');
+    useAppStore.getState().setReplayTs(Date.now());
+    // Force immediate refetch of live data
+    queryClient.invalidateQueries({ queryKey: ['aircraft'] });
+    queryClient.invalidateQueries({ queryKey: ['ships'] });
+    queryClient.invalidateQueries({ queryKey: ['military'] });
+  } else {
+    setReplayMode('playback');
   }
 }
 ```
-
-This lets the frontend render "feed stale — showing last-known positions" rather than a blank globe.
+Use `invalidateQueries` rather than `removeQueries`. `removeQueries` clears the cache, causing a loading state flash. `invalidateQueries` marks the cache stale and triggers a background refetch while the existing data continues to render.
 
 **Warning signs:**
-- Any filter of the form `WHERE updated_at > NOW() - INTERVAL X` applied directly to the list endpoint with no fallback
-- No `last_updated` envelope in the API response
-- Globe goes blank after Docker restart with no console error
+- Aircraft positions after returning to live mode don't match current positions for 60–90 seconds
+- Ship positions frozen at playback-era coordinates after mode switch
+- No visible loading state or staleness indicator despite data being up to 90 seconds old on return to live
 
-**Phase to address:** ACFT-04 (stale filtering), MIL-03 (stale filtering), SHIP-03 (stale filtering) — design the API response envelope before writing the WHERE clause.
+**Phase to address:** PLAY-02 (Layer audit: no live movement in playback), PLAY-04 (End-to-end verification)
 
 ---
 
-### Pitfall 3: `updated_at` (DB Write Time) Is Not Source Data Age
+### Pitfall 5: `replayTs` initialises to `Date.now()` at store creation — snapshot window starts as `null` — race condition on immediate mode switch
 
 **What goes wrong:**
-All four models stamp `updated_at` via PostgreSQL `now()` at write time. This measures when the row was written to the database — not when the underlying source data was observed. Using `updated_at` as a freshness proxy produces incorrect results:
+`useAppStore.ts` line 130: `replayTs: Date.now()`. The replay window (`replayWindowStart`, `replayWindowEnd`) starts as `null`. `useReplaySnapshots` is enabled when `replayMode === 'playback'`, but `windowStart`/`windowEnd` are `null` until `PlaybackBar` mounts and the `/api/replay/window` fetch resolves.
 
-- OpenSky state vectors include `time_position` (Unix epoch of last GPS fix, index 3 in state vector) and `last_contact` (epoch of last transponder ping). OpenSky documents: "OpenSky continues generating state vectors for 300 seconds after the last contact." A row flushed right now (`updated_at = now()`) may carry a position from 297 seconds ago (`time_position = now - 297`).
-- The AIS worker stores `time_utc` from aisstream.io metadata as a raw string in `ships.last_update`. This is the vessel's transmitted timestamp, not the reception time. The PG flush runs every 30 seconds; `ships.updated_at` reflects the batch flush time, not when aisstream.io received the AIS message.
+If the user clicks "PLAYBACK" before that fetch completes — for example, immediately after page load — `useReplaySnapshots` is enabled with `null` params. The `queryFn` guard `if (!windowStart || !windowEnd) return new Map()` handles this gracefully (no crash), but the snapshot Map is empty. All aircraft/ship billboards have no snapshot data and display nothing in playback mode.
 
-Filtering on `updated_at` for "position freshness" will mark a 5-minute-old position as fresh if the ingest worker happened to flush it 10 seconds ago.
+The window fetch is in a `useEffect` with no debounce or explicit loading state. On slow connections or cold Docker starts, the fetch takes several seconds. The PLAYBACK button is not disabled during this window.
 
 **Why it happens:**
-`updated_at` is the cheapest staleness proxy — it requires no schema change. Teams reach for it first without auditing what the ingest pipeline actually writes there.
+`PlaybackBar` initiates the window fetch on mount; if the user enters playback before mount completes (or before the fetch resolves), the precondition for snapshot availability is not met. There is no guard on the PLAYBACK toggle button.
 
 **How to avoid:**
-- Aircraft: store `time_position` (source GPS timestamp as INTEGER Unix epoch) and `fetched_at` (wall clock of HTTP fetch) as separate columns. Filter on `time_position` for positional freshness.
-- Ships: store `last_seen_at` as a proper `TIMESTAMPTZ` parsed from `time_utc` string, not the raw string. Current schema has `last_update: str` — this cannot be used in `NOW() - last_seen_at` arithmetic without a CAST.
-- Military: store `fetched_at` (wall clock of the airplanes.live HTTP fetch, set once per ingest cycle) and `last_seen_at` (set per aircraft each time it appears in the response).
-- Reserve `updated_at` for ingest health monitoring only, not user-visible freshness.
+Disable the PLAYBACK toggle button until `replayWindowStart !== null && replayWindowEnd !== null`. Show a loading indicator in the PlaybackBar during the window fetch. Both are purely UX guards — the data layer already handles `null` window gracefully. The alternative (pre-fetching the window in a global effect outside `PlaybackBar`) would work but adds complexity.
 
 **Warning signs:**
-- Freshness query using only `updated_at` and ignoring `time_position`, `time_utc`, or source-provided timestamps
-- `last_update` column stored as `String` type when arithmetic on it is needed
+- Clicking PLAYBACK immediately on app load results in empty aircraft/ship layers
+- Layers repopulate several seconds later without user action (window fetch resolved)
+- "No historical data" message appears briefly, then layers appear (correct recovery, but jarring)
 
-**Phase to address:** ACFT-01 (new ingest fields), SHIP-01 (last_seen_at as TIMESTAMPTZ), MIL-01 (fetched_at/last_seen_at).
+**Phase to address:** PLAY-04 (End-to-end verification)
 
 ---
 
-### Pitfall 4: AIS Ships in Port Are Legitimately Stale — Same Threshold Breaks Port Traffic
+### Pitfall 6: CesiumJS `viewer.clock` is never wired to `replayTs` — day/night shading and atmosphere reflect current real time, not replay time
 
 **What goes wrong:**
-Ships at anchor or moored report position updates far less frequently than underway vessels. Per ITU-R M.1371, Class A AIS transponders transmit position every **3 minutes or less** when anchored/moored, vs every 2–10 seconds when underway at speed. A stale threshold of "inactive after 10 minutes" will correctly prune departed vessels but will also incorrectly mark moored vessels as inactive during every normal reporting cycle.
+`GlobeView.tsx` creates the viewer with `useDefaultRenderLoop: true` and never modifies `viewer.clock`. CesiumJS drives its day/night shading, atmosphere colour, and shadow direction from `viewer.clock.currentTime` (a `JulianDate`). The clock ticks in real time by default.
 
-Additionally, AIS coverage is not global. Ships in areas with poor terrestrial receiver coverage (open ocean, polar regions, certain coastal zones) may be transmitting correctly but aisstream.io may not relay messages for hours. A legitimate active vessel appears stale under any uniform ingest-side threshold.
+`viewer.scene.globe.enableLighting = true` and `dynamicAtmosphereLighting = true` are both set (GlobeView.tsx lines 70–71). This means the globe appearance is visually driven by the real-world current time, not by `replayTs`. During playback of a historical event at night (e.g. a 02:00 UTC event), the globe may render in daylight if the current real-world time is 14:00 UTC.
 
-The `nav_status` field (0=underway, 1=at anchor, 5=moored, etc.) is already present in the `Ship` model and populated via `parse_ais_message`. It provides ground truth for threshold differentiation.
+The PROJECT.md key decisions explicitly state "LIVE/PLAYBACK drives viewer.clock directly" as the intended pattern — it is not yet implemented.
 
 **Why it happens:**
-Freshness logic is designed around aircraft (which update every few seconds when airborne). Applying the same threshold to AIS data ignores protocol-defined update intervals and reception coverage gaps.
+`viewer.clock` synchronisation requires a `JulianDate` conversion from a Unix ms timestamp. This was deferred from v2.0 when the replay UI was added. The custom React `PlaybackBar` advances `replayTs` in Zustand but has no integration with the Cesium clock object.
 
 **How to avoid:**
-Apply nav_status-aware stale thresholds. Suggested minimums:
-- `nav_status` 0 (underway engines): stale after 30 minutes
-- `nav_status` 1 (at anchor) or 5 (moored): stale after 4 hours, or never set `is_active = false`
-- `nav_status` unknown/NULL: stale after 2 hours
-
-Alternatively: derive `is_active` from Redis key presence only, not from DB timestamp. Redis TTL (600s) already models the protocol update interval correctly. If aisstream.io stops sending messages for a vessel, the key expires naturally.
+Subscribe to Zustand `replayTs` + `replayMode` changes and propagate them to `viewer.clock`. Use `useAppStore.subscribe()` (external Zustand subscriber) rather than a `useEffect`, to avoid triggering React re-renders on every `replayTs` change:
+```
+// In GlobeView.tsx, after viewer is created:
+import { JulianDate } from 'cesium';
+const unsub = useAppStore.subscribe(
+  state => ({ mode: state.replayMode, ts: state.replayTs }),
+  ({ mode, ts }) => {
+    if (!viewer || viewer.isDestroyed()) return;
+    if (mode === 'playback') {
+      viewer.clock.currentTime = JulianDate.fromDate(new Date(ts));
+      viewer.clock.shouldAnimate = false;
+    } else {
+      viewer.clock.shouldAnimate = true;
+      viewer.clock.multiplier = 1;
+    }
+  },
+  { equalityFn: (a, b) => a.mode === b.mode && a.ts === b.ts }
+);
+```
+The `JulianDate.fromDate(new Date(replayTs))` conversion is the correct path — never divide by 1000 manually; `JulianDate.fromDate()` handles the epoch.
 
 **Warning signs:**
-- Single stale threshold applied uniformly to all ships regardless of `nav_status`
-- Ports in coverage-limited regions showing no ships
-- `is_active` churn: ship flips active/inactive repeatedly within a 30-minute window
-- No nav_status consideration in the FRESH-01 threshold config
+- Scrubbing to a historical nighttime event: globe renders in daytime (or vice versa)
+- Day/night terminator line position doesn't match the replay timestamp date
+- `viewer.clock.currentTime` when logged in playback mode returns the current real-world time, not the `replayTs`-derived time
 
-**Phase to address:** SHIP-01 (is_active lifecycle), FRESH-01 (configurable thresholds per source).
+**Phase to address:** PLAY-04 (End-to-end verification)
 
 ---
 
-### Pitfall 5: Alembic Migration Adds NOT NULL Column Without `server_default` — Fails on Live Table With Data
+### Pitfall 7: Snapshot interpolation effect runs on every Zustand `replayTs` write — at 1h/s, this saturates the main thread
 
 **What goes wrong:**
-Adding `is_active BOOLEAN NOT NULL` to `aircraft`, `military_aircraft`, or `ships` without a `server_default` in the Alembic migration raises `IntegrityError: NOT NULL constraint violated` if the table has any rows. The Python-side `default=True` on the SQLAlchemy Column does not generate a DDL-level DEFAULT clause — Alembic does not automatically convert Python defaults to `server_default`.
+The playback snapshot effect in `AircraftLayer` (lines 317–338) and `ShipLayer` (lines 138–159) runs on every `replayTs` change. At 1h/s replay speed, the `PlaybackBar` rAF loop advances `replayTs` by 3600 virtual seconds per real second, firing 60 `setReplayTs()` calls per second (60 FPS). Each call triggers the snapshot interpolation effect in both layers.
 
-The distinction:
-- `op.add_column('aircraft', sa.Column('is_active', sa.Boolean(), nullable=False))` — fails on live data
-- `op.add_column('aircraft', sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')))` — succeeds; PostgreSQL fills existing rows with `true` at DDL time with no table rewrite (non-volatile DEFAULT optimization in PostgreSQL 11+)
+Each effect iterates all entities in `billboardsByIcao24` (potentially thousands) and computes `findAdjacentSnapshots` + lerp per entity. At 60 Hz with 1,000 aircraft: 60,000 binary searches and 60,000 `Cartesian3.fromDegrees()` calls per second on the main thread.
+
+CesiumJS must consume all those position writes in its render loop. Above approximately 500 aircraft at 15m/s speed, frame rate visibly drops. At 1h/s with both layers, it can fall to single digits.
 
 **Why it happens:**
-Developers copy the SQLAlchemy model definition's `default=True` into the Alembic `add_column` call verbatim. Python `default=` is an ORM-level default evaluated at `session.add()` time. It is not a DDL DEFAULT clause. (Source: [squawkhq.com — adding NOT NULL fields](https://squawkhq.com/docs/adding-not-nullable-field))
+React `useEffect` runs synchronously on every state change that matches its dependency array. `replayTs` changes at the rAF frame rate, making the effect fire at rAF cadence. The effect was designed for correctness, not for render-loop integration.
 
 **How to avoid:**
-For `is_active` and any other NOT NULL boolean: use `nullable=True` initially (PostgreSQL fills NULLs, no table rewrite). Then backfill: `op.execute("UPDATE aircraft SET is_active = true WHERE is_active IS NULL")`. Then add the NOT NULL constraint in a follow-up step. This three-step pattern is safe on live tables of any size. Alternatively, use `server_default=sa.text('true')` in the single `add_column` call — also safe.
+Decouple the "time tick" (advancing `replayTs` in Zustand at rAF speed) from the "position render" (writing `bb.position` to CesiumJS primitives at render cadence). One approach: convert the snapshot position computation into a per-frame operation driven by the rAF loop in `PlaybackBar`, which could call a shared `updateEntityPositions(replayTs)` function once per frame rather than relying on `useEffect` re-runs. Alternatively, add a dirty flag — only recompute positions when `replayTs` has changed by more than one snapshot interval (60,000ms) since the last write.
 
-For nullable columns (`fetched_at`, `last_seen_at`, `time_position`): `nullable=True` with no `server_default` is correct — PostgreSQL uses NULL for existing rows, no table rewrite.
+For the current milestone scope (audit and fix correctness), the performance issue only manifests at 15m/s+ with many entities. The correctness fix (wiring `replayTs` to the snapshot effect) should be done first. Performance optimisation is a secondary concern unless it causes visible FPS regression during end-to-end verification.
 
 **Warning signs:**
-- `op.add_column` with `nullable=False` and no `server_default`
-- Migration tested only on empty test DB (passes) but fails on staging/production with rows
-- Python `default=` used inside the Alembic migration column definition (not `server_default=`)
+- FPS drops from 60 to below 30 when playing at 15m/s with aircraft and ships both visible
+- Chrome DevTools shows main thread blocked by "React state update" and "Cesium render" interleaved at high frequency
+- CPU usage saturates a single core during 1h/s playback (not GPU — this is CPU-bound)
 
-**Phase to address:** MIG-01 — review every `add_column` call before applying to any environment with data.
+**Phase to address:** PLAY-04 (End-to-end verification) — profile during validation and apply optimisation if FPS drops below 30 at 15m/s
 
 ---
 
-### Pitfall 6: GPS Jamming Cells Are Never Pruned — Ghost Cells Persist Indefinitely
+### Pitfall 8: `AircraftLayer` Effect 2 writes `bb.position` from live data even when `replayMode === 'playback'` — live data falls through
 
 **What goes wrong:**
-The `ingest_gps_jamming` task reads all current `MilitaryAircraft` rows and upserts cells via `ON CONFLICT DO UPDATE`. It never deletes cells for H3 hexagons that no longer have any aircraft. A jamming event from yesterday persists as a red/yellow cell today because the upsert only updates rows present in the current pass — rows absent from the current pass are never touched.
+`AircraftLayer.tsx` Effect 2 (lines 202–266) runs whenever `aircraft.data` changes. It unconditionally sets `prevPositions`, `currPositions`, and starts the lerp loop. There is no `replayMode` guard.
 
-With military polling every 300s and GPS jamming aggregating daily (86400s), a cell created during a single military exercise persists up to 24 hours after the last aircraft passed through, showing jamming where none currently exists. When freshness metadata is added (JAM-01 through JAM-03), cells must expose their age so the UI can dim or suppress outdated cells.
+`useAircraft` has `refetchInterval: replayMode === 'live' ? 90_000 : false`, which stops polling in playback. However, `aircraft.data` may still change in playback mode due to:
+1. A background refetch triggered by window focus events (React Query default behaviour)
+2. A cache invalidation triggered elsewhere in the app
+3. An in-flight request that was initiated just before switching to playback
+
+When Effect 2 fires in playback mode, it resets `prevPositions` and `currPositions` to the live positions and starts (or restarts) the lerp loop — immediately showing live aircraft positions on the globe and overriding any historical positions set by the snapshot effect.
 
 **Why it happens:**
-Upsert-only patterns accumulate ghost data. The aggregation task models aircraft presence but not absence — it has no mechanism to signal "this cell is no longer active."
+Effect 2's dependency array is `[viewer, aircraft.data]`. Adding `replayMode` to this array would make Effect 2 fire on mode changes, which would reset billboard state — undesirable. The solution is not to add a dep but to guard position writes inside the effect body.
+
+**How to avoid:**
+Add an early return guard at the start of the live data processing section of Effect 2:
+```
+if (useAppStore.getState().replayMode === 'playback') return;
+```
+This prevents live position data from being written to `prevPositions`/`currPositions` when in playback. The lerp loop start is also gated by this check. The billboard setup (adding new aircraft to the collection) can still proceed — it only needs to be guarded for position writes.
+
+**Warning signs:**
+- Switching to playback mode causes aircraft to jump to their live positions after a few seconds (background refetch fired)
+- During playback, restoring window focus causes an aircraft position reset (React Query `refetchOnWindowFocus: true` default)
+- Aircraft layer shows live positions intermittently during otherwise-correct playback
+
+**Phase to address:** PLAY-02 (Layer audit), PLAY-03 (Lerp guards)
+
+---
+
+### Pitfall 9: GPS jamming and street traffic layers have no playback mode — they show live data or nothing during replay, with no indication to the user
+
+**What goes wrong:**
+`GpsJammingLayer` reads from `useGpsJamming()` which polls a live endpoint with no `replayMode` gate. During playback, the jamming heatmap continues to show current live jamming data, not historical jamming data. There are no GPS jamming snapshots in the snapshot infrastructure.
+
+`useStreetTraffic` is viewport-driven and has no mode awareness. The street traffic particle simulation runs identically in both live and playback modes.
+
+Neither layer displays any indication that it is showing live data during playback. The user sees the PLAYBACK scrubber positioned at a past time, but the jamming heatmap and street traffic reflect the current moment.
+
+**Why it happens:**
+Both layers were built without replay support. The snapshot infrastructure only covers aircraft, military, and ships (`layer: 'aircraft' | 'military' | 'ship' | 'all'`). GPS jamming and street traffic were out-of-scope for the replay architecture.
 
 **How to avoid:**
 Two options:
-1. **Prune on aggregation**: After upsert, delete all `GpsJammingCell` rows whose `h3index` was not in the current aggregation pass. Simple and correct.
-2. **Soft expiry via `aggregated_at`**: Add `aggregated_at TIMESTAMPTZ` to `GpsJammingCell`. The API endpoint filters `WHERE aggregated_at > NOW() - INTERVAL '26 hours'` (slightly longer than the 24h poll to avoid brief gaps). Frontend dims cells outside this window.
+1. **Hide the layers in playback mode**: Add a `replayMode` check in `GpsJammingLayer` and `StreetTrafficLayer` — if `replayMode === 'playback'`, return null (hide the layer entirely). Display a note in the PlaybackBar or layer panel: "GPS jamming and street traffic not available in playback."
+2. **Show with a staleness banner**: Keep the layers visible but add a visual indicator ("LIVE DATA — no historical replay"). This maintains situational awareness but clearly labels the data as non-historical.
 
-Option 2 aligns with the milestone's preference for soft expiry and does not require deleting data.
-
-**Warning signs:**
-- `SELECT COUNT(*) FROM gps_jamming_cells WHERE updated_at < NOW() - INTERVAL '25 hours'` returns non-zero after 48h uptime
-- Red cells visible over regions with no current military aircraft
-- No DELETE or `aggregated_at` column in the jamming ingest task
-
-**Phase to address:** JAM-01 (freshness metadata on jamming cells), JAM-02 (staleness documentation/UI).
-
----
-
-### Pitfall 7: Clock Skew Between Ingest Server and Source Timestamps Breaks Freshness Thresholds
-
-**What goes wrong:**
-Freshness calculations that compare `NOW()` (PostgreSQL server time) against source-provided Unix timestamps (`time_position`, `last_contact` from OpenSky, `time_utc` from aisstream.io) assume clock synchronization. In a homelab/VPS deployment — the target environment — this assumption can break:
-
-- Docker Desktop for Mac: the Linux VM's clock can drift from the macOS host after sleep/wake cycles
-- Small VPS instances: NTP may not be running or may be misconfigured
-- PostgreSQL `now()` and Python `datetime.utcnow()` on the worker host may diverge
-
-NTP typical accuracy is 5–100ms. Docker Desktop clock skew can reach several seconds after a laptop wake. A 30-second skew applied to a 5-minute staleness threshold makes a 5-minute old position appear as either 4.5 or 5.5 minutes old — enough to flip the staleness decision on borderline entries.
-
-**Why it happens:**
-Developers test on their local machine where clock skew is near zero. Threshold edge cases are invisible in local testing.
-
-**How to avoid:**
-- Add a 60–120 second grace period to all freshness thresholds: a "5-minute stale" threshold should actually be `NOW() - INTERVAL '6 minutes'`
-- Store `fetched_at` (server-side wall clock at time of HTTP fetch) alongside source timestamps — compare `fetched_at - time_position` to get source data age independent of current server clock
-- Do not use `NOW() - source_timestamp` in hot-path queries without a grace window; compute data age at ingest time and store as `data_age_seconds` if per-query arithmetic is expensive
+Option 1 is simpler and avoids showing temporally inconsistent data silently. Option 2 is better UX if the user may want approximate context.
 
 **Warning signs:**
-- All aircraft simultaneously marked stale in a single poll cycle (indicative of clock jump, not actual staleness)
-- Freshness queries returning unexpected empty results after host sleep/wake
-- `SELECT NOW()` in PostgreSQL diverging from the Python worker host clock by more than 5 seconds
+- GPS jamming layer visible during playback of a past event where no jamming occurred — user may incorrectly correlate current jamming with the past event
+- Street traffic particles animating during paused playback — any motion in a "paused" state is surprising
 
-**Phase to address:** FRESH-01 (shared freshness config and thresholds), TEST-01 (staleness behavior tests that mock clock offsets).
-
----
-
-### Pitfall 8: Redis TTL and PostgreSQL `is_active` Drift Out of Sync
-
-**What goes wrong:**
-The AIS worker caches ships in Redis with a 600-second TTL. A ship that stops transmitting will have its Redis key expire at T+600s. But its PostgreSQL row persists indefinitely with no mechanism to set `is_active = false`.
-
-When SHIP-01 adds `is_active` to the `ships` table, two sources of truth exist:
-- Redis: key expires → ship is gone from cache (implicit, event-driven)
-- PostgreSQL: row persists with `is_active = true` (explicit, must be set proactively)
-
-Any API endpoint that reads from PostgreSQL directly will show the ship as active long after it has disappeared from Redis. The current `/api/ships` list endpoint reads from PostgreSQL only — it would never see the Redis expiry.
-
-**Why it happens:**
-Redis TTL expiry is implicit; PostgreSQL state is explicit. The two systems do not communicate — the application code must bridge them during each flush cycle.
-
-**How to avoid:**
-During `batch_flush_ships_to_pg`, collect the set of MMSIs currently visible in Redis. After upserting all active ships, run a deactivation sweep:
-
-```sql
-UPDATE ships
-SET is_active = false
-WHERE mmsi NOT IN (:active_mmsi_list)
-AND is_active = true
-```
-
-This aligns PostgreSQL state with Redis reality at every flush cycle (every 30 seconds). For large NOT IN lists, use a temporary table or CTE join instead of a raw NOT IN list.
-
-Alternatively: do not use `is_active` in PostgreSQL for ships at all — serve active ships directly from Redis keys, and use the PostgreSQL table only for historical display and detail panels.
-
-**Warning signs:**
-- `SELECT COUNT(*) FROM ships WHERE is_active = true` substantially exceeds `KEYS "ship:*"` count in Redis
-- Ships visible on globe hours after their Redis TTL expired
-- No deactivation sweep anywhere in `batch_flush_ships_to_pg`
-
-**Phase to address:** SHIP-01 (is_active lifecycle), SHIP-03 (stale filtering consistent with Redis TTL).
-
----
-
-### Pitfall 9: Alembic Autogenerate Produces Destructive Diff Against Partition Child Tables
-
-**What goes wrong:**
-The `position_snapshots` table is range-partitioned by day. Alembic's `autogenerate` has documented issues with PostgreSQL partitioned tables ([issue #539](https://github.com/sqlalchemy/alembic/issues/539)): it does not model parent/child partition relationships correctly and may generate migrations that:
-- Re-create child partition tables that already exist
-- Generate `drop_table` statements for existing child partitions
-- Miss child table index propagation when `op.add_column` is run on the parent
-
-The `env.py` `include_object` hook in this project excludes reflected tables with `compare_to is None`. Child partition tables are reflected with a `compare_to` pointing to the parent metadata, so they pass this filter. Running `alembic revision --autogenerate` could silently generate a DROP against `position_snapshots_2026_03_13` and every other existing partition.
-
-This milestone adds columns only to `aircraft`, `military_aircraft`, `ships`, and `gps_jamming_cells` — none of which are partitioned. But the autogenerate risk exists for any developer who runs `alembic revision --autogenerate` to generate the migration.
-
-**Why it happens:**
-Developers use `--autogenerate` habitually. The implicit risk of partitioned table diffs is not visible until the generated migration is reviewed carefully.
-
-**How to avoid:**
-- Never use `alembic revision --autogenerate` for this project — always write migrations by hand
-- Extend `include_object` in `env.py` to exclude tables whose names match the partition pattern (e.g., prefix `position_snapshots_`)
-- Run `alembic upgrade --sql` to preview the SQL before applying any migration
-- Add a comment to every migration file: `# Do not use --autogenerate; hand-written migration only`
-
-**Warning signs:**
-- Running `alembic revision --autogenerate` produces a migration with `drop_table('position_snapshots_...')` statements
-- Any autogenerated migration that includes child partition table names
-
-**Phase to address:** MIG-01 — enforce hand-written migrations; add `include_object` partition filter to `env.py` before running any migration for this milestone.
-
----
-
-### Pitfall 10: `time_position` vs `last_contact` Confusion in Aircraft Freshness Logic
-
-**What goes wrong:**
-OpenSky state vectors expose two time fields that are commonly confused:
-- `sv[3]` = `time_position`: Unix epoch of last GPS position fix. Can be `None` if no position report received within 15 seconds. This is the correct field for positional freshness.
-- `sv[4]` = `last_contact`: Unix epoch of last received message (any type, including non-position). This can be recent even when the position is stale.
-
-OpenSky generates state vectors for 300 seconds after the last contact. An aircraft can have a recent `last_contact` but a `time_position` that is 297 seconds old. Using `last_contact` to determine position freshness will mark stale positions as fresh.
-
-The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_position` (sv[3]). When ACFT-01 adds `time_position`, it must be mapped from the correct state vector index and stored as INTEGER (Unix epoch seconds), not as a Python `datetime` object.
-
-**Why it happens:**
-`last_contact` sounds more like "when we last saw this aircraft" and is confused with positional freshness. The OpenSky API docs are clear about the distinction but it is easy to miss.
-
-**How to avoid:**
-- Store both: `time_position` (sv[3]) for positional freshness filtering, `last_contact` (sv[4]) as a secondary signal
-- Filter stale aircraft on `time_position`: `WHERE time_position IS NOT NULL AND NOW() - to_timestamp(time_position) < INTERVAL '10 minutes'`
-- Document in the model: `# time_position is NULL when no GPS fix in last 15s; use for position freshness, not last_contact`
-
-**Warning signs:**
-- Freshness filter using `last_contact` instead of `time_position`
-- `time_position` stored as `DateTime` instead of `Integer` (loses precision and requires timezone handling)
-- State vector index off-by-one (sv[3] vs sv[4]) in the ingest worker
-
-**Phase to address:** ACFT-01 (ingest new fields) and ACFT-04 (stale filtering).
+**Phase to address:** PLAY-02 (Layer audit: no live movement in playback)
 
 ---
 
@@ -304,13 +306,11 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Use `updated_at` as the only freshness signal | No schema change needed | Measures DB write time, not source observation time; misleads position freshness queries | Never for user-visible freshness signals |
-| Single stale threshold for all ship types | Simpler config | Moored/anchored vessels incorrectly marked stale; port traffic goes dark | Never — ITU-R M.1371 defines different update intervals by nav_status |
-| Skip deactivation sweep in AIS flush | Simpler batch flush code | `is_active` and Redis TTL diverge within one fleet-scale cycle | Acceptable only before `is_active` column exists |
-| Nullable `is_active` as final state | Avoids one migration step | Queries must handle NULL as well as FALSE; `WHERE is_active = true` silently excludes NULLs | Only as a transitional step; must be resolved to NOT NULL |
-| Store source timestamp as raw string (`last_update: str`) | No parsing cost at ingest | Cannot do `NOW() - last_seen_at` arithmetic; requires CAST or application-side parsing | Never for any column that drives freshness arithmetic |
-| Hard-delete stale rows instead of soft expiry | Table stays small | Replay engine loses history; detail panels return 404 on recently-stale entities | Only if storage is a hard constraint — it is not here |
-| Use `last_contact` instead of `time_position` for aircraft freshness | Already in the model | Marks stale positions as fresh (OpenSky generates state vectors for 300s after last contact) | Never |
+| `useAppStore.getState()` inside rAF callbacks | No stale closure; no deps to manage | Pattern must be applied consistently — missing one read causes subtle staleness bugs | Acceptable — it is the established pattern in this codebase |
+| `staleTime: Infinity` for snapshot data | Prevents duplicate fetches during playback | If the user changes the replay window mid-session, old snapshot data is served silently | Acceptable when the window is fixed at session start; add explicit invalidation if the window can change |
+| Module-scope `billboardsByIcao24` Map | Zero GC pressure; fast iteration | Map must be cleared on unmount; fails visibly under React Strict Mode double-mount without the `.clear()` call | Acceptable — unmount cleanup already calls `.clear()` |
+| Live lerp yield (continue rAF loop, skip writes) | Trivial mode guard; avoids rAF restart overhead | One wasted rAF callback per frame in playback | Acceptable for a single-user homelab tool |
+| `refetchInterval: false` in playback without explicit invalidation | No redundant network calls in playback | Stale live data on return to live; requires `invalidateQueries` at mode switch | Never acceptable without the corresponding `invalidateQueries` on mode exit |
 
 ---
 
@@ -318,12 +318,12 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| OpenSky REST API | Using `sv[4]` (`last_contact`) as position freshness | Use `sv[3]` (`time_position`); it is NULL when no GPS fix in 15s and is the authoritative position timestamp |
-| OpenSky REST API | Assuming state vector position is current when `last_contact` is recent | OpenSky generates state vectors for 300s after last contact; position may be 5 minutes old with a recent `last_contact` |
-| aisstream.io WebSocket | Treating `time_utc` as server-receive time | `time_utc` is the vessel's transmitted timestamp; store both `time_utc` and `fetched_at` (worker wall clock) |
-| airplanes.live /v2/mil | Assuming all returned aircraft are currently airborne | airplanes.live returns cached positions; `updated_at` is the RQ task's write time, not the source observation time |
-| Redis TTL (AIS) | Letting Redis key expiry be the sole freshness signal, with no PG update | Redis expiry is not observable from PostgreSQL; bridge it into `is_active` during `batch_flush_ships_to_pg` |
-| SQLAlchemy `on_conflict_do_update` | Relying on `onupdate=func.now()` in the Column definition | `onupdate` is never called by upsert paths; include `"updated_at": func.now()` explicitly in every `set_={}` dict |
+| satellite.js `propagate()` + replay | Caller uses `Date.now()` even though worker accepts `timestamp` in payload | Always pass `timestamp` from `replayTs` in playback; worker uses `new Date(timestamp)` — the worker side is already correct |
+| CesiumJS `viewer.clock` + Zustand `replayTs` | Using a `useEffect` on `replayTs` that triggers a React re-render cycle every 16ms | Use `useAppStore.subscribe()` at the viewer-mount scope; fires on state change without causing re-renders |
+| React Query `refetchInterval: false` | Assuming this flushes the cache or prevents background refetches | `refetchInterval: false` only stops the timer; `refetchOnWindowFocus: true` (React Query default) still triggers refetches on focus; must use `invalidateQueries` on mode switch |
+| `JulianDate` + Unix ms timestamp | Manually dividing `replayTs` by 1000 to convert ms to seconds before passing to CesiumJS | `JulianDate.fromDate(new Date(replayTs))` handles epoch conversion correctly; do not pass raw ms to JulianDate constructors |
+| `Float64Array` Transferable + replay | Sending the same buffer twice after it has been transferred (detached) | The worker creates a fresh `Float64Array` on each `PROPAGATE` call; replay does not change this — the buffer is always fresh on the worker side |
+| `findAdjacentSnapshots` binary search | Calling it with an unsorted array (returns incorrect bracket) | `useReplaySnapshots.ts` guarantees sort order via `arr.sort((a,b) => a.ts - b.ts)` at fetch time; do not skip this sort step in any future snapshot consumer |
 
 ---
 
@@ -331,10 +331,10 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| `WHERE updated_at > NOW() - INTERVAL X` with no index | Slow list endpoints as table grows | Add B-tree index on `updated_at`, or partial index `WHERE is_active = true` | ~10k aircraft rows (table grows by ingest count every 90s) |
-| Full `ships` table scan for deactivation sweep | `UPDATE ... WHERE mmsi NOT IN (...)` slow with large NOT IN list | Use a CTE or temp table join instead of NOT IN | ~5k rows in the NOT IN list |
-| GPS jamming aggregation reads all `MilitaryAircraft` with `SELECT *` | All columns fetched when only `lat`, `lon`, `nic`, `nac_p` are needed | Column-select query: `select(MilitaryAircraft.latitude, ...)` | Low risk at current scale; bad habit to continue |
-| Recomputing data age (`NOW() - time_position`) per-row in the API handler | N function calls per request | Compute and cache `data_age_seconds` at ingest time | Low risk at current entity counts |
+| Snapshot effect iterates all entities on every `replayTs` write | FPS collapses at 15m/s+ with 500+ entities | Decouple position writes from Zustand state change cadence; use rAF-gated updates | Above ~500 aircraft at 15m/s replay speed |
+| `useReplaySnapshots` fetches all layers simultaneously | Network and memory spike when entering playback with multiple layers | Fetch per-layer only when that layer is visible; `enabled` already gated on `replayMode` but not on `layerVisible` | When aircraft + ships + military all visible and all snapshot data fetched at once |
+| Both `PlaybackBar` rAF loop and `AircraftLayer` lerp rAF loop running in playback | Two rAF loops active; snapshot effect triggers on every frame | Yield in lerp loop during playback (do not cancel; just skip writes) | Acceptable overhead for two loops; avoid adding a third per additional layer |
+| `billboardsByIcao24` iteration in snapshot effect with no dirty guard | 1000 billboard updates per frame regardless of whether any entity moved | Add a skip-if-same guard using a tolerance epsilon on position | Only matters at 1h/s with thousands of entities; not a blocking correctness issue |
 
 ---
 
@@ -342,25 +342,24 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Globe goes blank when ingest pauses | User cannot distinguish "feed is down" from "nothing tracked" | Show last-known positions with a stale indicator; include `last_updated` in API envelope |
-| Freshness badge on every entity at all times | Visual noise obscures the operational picture | Show freshness only when stale (e.g., `> 5 min` for aircraft, `> 30 min` for ships) |
-| GPS jamming cells that never expire | Red hexagons persist hours after jamming event ends | Dim or suppress cells older than the last aggregation run; show "as of [timestamp]" in the layer panel |
-| Binary `is_active` filter with no grace period | Moored ships disappear and reappear every few minutes | Use a grace period: mark `is_active = false` only after N consecutive missed cycles, not on the first miss |
-| Raw Unix timestamps in API responses | Frontend must do epoch conversion and timezone handling | Expose ISO 8601 strings for all timestamps; include a pre-computed `data_age_seconds` integer |
+| No visual feedback that satellite positions reflect current real time in playback | User correlates satellite positions with the replay event incorrectly | Show a "SATELLITES: LIVE" badge on the satellite layer toggle when in playback, until PLAY-01 is fixed |
+| Live data falls through to globe in playback | User sees present-day aircraft while scrubber shows 2 hours ago | Display a "LIVE DATA" watermark if any layer is serving non-historical data in playback mode |
+| GPS jamming / street traffic continue updating in playback | User may correlate current jamming with a past event | Hide these layers in playback, or show a "LIVE — no history" label |
+| Returning to live mode shows 90-second-old aircraft | The mode toggle implies "now" but data is from up to 90s ago | Trigger immediate `invalidateQueries` on mode switch; show a loading indicator until fresh data arrives |
+| Scrubber initialises to window end (most recent data), not window start | User lands at the end of the recorded window; scrubbing feels backwards | Consider initialising to `replayWindowStart` (beginning of window) or showing a prominent "you are at the end of recording" label |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **is_active migration:** Column added with `server_default` or as `nullable=True` — verify existing rows get a value, not NULL, before applying NOT NULL constraint
-- [ ] **Ship deactivation:** `batch_flush_ships_to_pg` marks unseen ships `is_active = false` — verify via Redis key expiry simulation, not just a unit test against the DB
-- [ ] **onupdate in upsert:** Every `on_conflict_do_update` `set_={}` dict for freshness-relevant tables includes `updated_at`, `last_seen_at`, and `fetched_at` where applicable — grep for omissions
-- [ ] **Source timestamp column type:** `time_position` stored as `Integer` (Unix epoch), not `String` or `DateTime` — verify column type in the migration file
-- [ ] **GPS jamming cell expiry:** Cells absent from the latest aggregation pass are flagged stale or deleted — verify by inserting a test cell manually and confirming it ages out correctly
-- [ ] **AIS nav_status-aware threshold:** Stale logic differentiates moored/anchored from underway — verify with a test fixture using `nav_status=5`
-- [ ] **API response envelope:** List endpoints include freshness metadata (`last_updated`, `stale` flag) — verify with integration test
-- [ ] **Configurable thresholds:** Stale intervals read from config/env at startup, not hardcoded — verify `FRESH-01` config loads before any ingest cycle begins
-- [ ] **No autogenerate migration:** All migration files for this milestone are hand-written — verify no partition child table names appear in any migration
+- [ ] **Satellite propagation in playback:** The `PROPAGATE` message fires — but verify `payload.timestamp === replayTs` (not `Date.now()`) when paused. Log both values in the console.
+- [ ] **Lerp loop guard:** Aircraft appear stationary in playback — but confirm the lerp loop is yielding, not that `alpha` reached 1.0 naturally (which would also stop visible movement but for the wrong reason).
+- [ ] **React Query invalidation:** `refetchInterval: false` is set in playback — but verify that returning to live mode triggers a fetch within 5 seconds, not 90 seconds.
+- [ ] **CesiumJS clock sync:** Day/night shading changes when scrubbing — but log `viewer.clock.currentTime.toString()` in the console; it must differ from the current real-world time when scrubber is in the past.
+- [ ] **Snapshot data availability:** Snapshot effect runs in playback — but verify `snapshotsByEntity.size > 0`. Log it on first render in playback. An empty Map silently skips all interpolation with no error.
+- [ ] **Lerp vs snapshot ownership:** Verify there is only one writer of `bb.position` per frame in playback mode. Add temporary logging to confirm the lerp loop yields and the snapshot effect is the sole writer.
+- [ ] **Window boundary auto-stop:** When `replayTs` reaches `replayWindowEnd`, `isPlaying` becomes `false` — verify `replayMode` remains `'playback'` (does not auto-reset to `'live'`).
+- [ ] **GPS jamming / street traffic in playback:** Both layers should either disappear or show a "LIVE DATA" label — verify one of these outcomes, not silent serving of live data alongside historical aircraft.
 
 ---
 
@@ -368,14 +367,14 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| `onupdate` not firing in upserts | LOW | Add `"updated_at": func.now()` to `set_={}` in affected workers; redeploy; rows correct on next ingest cycle |
-| Empty globe from over-aggressive stale filter | LOW | Remove or relax the WHERE clause; redeploy; no data loss |
-| Wrong source timestamp field used for freshness | MEDIUM | Add correct column (`time_position`); backfill from source on next ingest; old rows have NULL source timestamp until refreshed |
-| `is_active` and Redis TTL drifted apart | LOW | Add deactivation sweep to flush job; run `UPDATE ships SET is_active = false WHERE ...` once manually to resync |
-| Stale GPS jamming cells never pruned | LOW | Add deletion or `aggregated_at` filter; run `DELETE FROM gps_jamming_cells WHERE updated_at < NOW() - INTERVAL '26 hours'` manually once |
-| `last_contact` used instead of `time_position` | MEDIUM | Fix state vector index in ingest worker (sv[3] not sv[4]); add `time_position` column; backfill NULL for existing rows |
-| Alembic autogenerate drops partition children | HIGH | Do NOT apply the migration; restore from backup or revert the migration file; rewrite by hand; extend `include_object` to exclude partitions |
-| Ship `last_update` as string blocks arithmetic | MEDIUM | Add `last_seen_at TIMESTAMPTZ` column via migration; backfill by CAST from existing string column; deprecate old column |
+| `PROPAGATE` uses `Date.now()` | LOW | One-line conditional in `SatelliteLayer.tsx` loop; no structural change |
+| `COMPUTE_ORBIT` / `GET_POSITION` use current time | LOW | Add optional `timestamp` field to worker message payloads; two-line change per handler |
+| Lerp loop fights snapshot effect | LOW | Add 3-line yield guard inside existing `lerp()` function; no rAF restructure |
+| React Query cache stale on mode switch | LOW | Add `queryClient.invalidateQueries()` calls to `handleModeToggle` in PlaybackBar |
+| CesiumJS clock not synced to `replayTs` | LOW | Add `useAppStore.subscribe()` callback in GlobeView after viewer creation; one-time wiring |
+| Live data falls through to playback via Effect 2 | LOW | Add `replayMode` guard at top of live-data section in Effect 2; one-line check |
+| GPS jamming / street traffic show live data in playback | LOW | Add `if (replayMode === 'playback') return null` to respective layer components |
+| Snapshot effect perf at high speed | MEDIUM | Refactor position writes to a shared rAF loop; adds coordination complexity across layers |
 
 ---
 
@@ -383,31 +382,32 @@ The current `Aircraft` model stores `last_contact` (sv[4]) but not `time_positio
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| `onupdate` not triggered in upserts | MIG-01 / ACFT-01 / SHIP-01 | Query `updated_at` and `last_seen_at` after a known ingest cycle; confirm timestamps advance |
-| Empty globe from stale filter | ACFT-04 / MIL-03 / SHIP-03 | Stop ingest worker for 10 min; confirm globe shows stale-badged entities, not blank |
-| `updated_at` vs source timestamp confusion | ACFT-01 / SHIP-01 / MIL-01 | Confirm `time_position` / `last_seen_at` columns present and populated |
-| AIS port ships falsely marked stale | SHIP-01 / FRESH-01 | Unit test with `nav_status=5` fixture; confirm threshold longer than underway |
-| NOT NULL migration fails on live table | MIG-01 | Run migration against a DB populated with production-like data before applying |
-| GPS jamming cells never pruned | JAM-01 | After 25 hours uptime, query for cells older than last aggregation; confirm zero or stale-flagged |
-| Clock skew breaking freshness threshold | FRESH-01 / TEST-01 | Test that mocks 60s clock offset; confirm threshold grace window absorbs it |
-| Redis TTL / PostgreSQL `is_active` drift | SHIP-01 | Expire a Redis key manually; confirm PG row marked `is_active = false` within one flush cycle (30s) |
-| `last_contact` vs `time_position` confusion | ACFT-01 / ACFT-04 | Assert state vector index sv[3] in ingest worker; unit test `time_position` is populated |
-| Alembic autogenerate drops partitions | MIG-01 | Run `alembic upgrade --sql` against staging; assert no `DROP TABLE position_snapshots_*` |
+| `PROPAGATE` uses `Date.now()` | PLAY-01: Satellite propagation audit | Pause at T-2h; satellite dots must hold their orbital position without drifting |
+| `COMPUTE_ORBIT` / `GET_POSITION` use current time | PLAY-01: Satellite propagation audit | Click satellite in playback; orbit ring must align with the replayed dot position |
+| Lerp loop fights snapshot effect | PLAY-03: Lerp guard audit | Scrub to T-1h; aircraft must not snap to live position between frames |
+| React Query cache stale on mode switch | PLAY-02 + PLAY-04: Layer audit + E2E | Switch live → playback → live; aircraft must match current OpenSky data within 10 seconds |
+| Snapshot window unavailable race condition | PLAY-04: E2E verification | Enable playback immediately on page load; layers must not go blank |
+| CesiumJS clock not synced | PLAY-04: E2E verification | Scrub to 02:00 UTC event; globe must show night-side shading |
+| Live data falls through via Effect 2 | PLAY-02: Layer audit | Background refetch during playback must not reset aircraft positions |
+| GPS jamming / street traffic during playback | PLAY-02: Layer audit | Enter playback; GPS jamming layer must hide or show "LIVE DATA" label |
+| Snapshot effect perf at high speed | PLAY-04: E2E verification | Play at 1h/s with aircraft + ships visible; FPS must stay above 30 |
 
 ---
 
 ## Sources
 
-- [SQLAlchemy GitHub discussion #5903 — upserts not honoring onupdate](https://github.com/sqlalchemy/sqlalchemy/discussions/5903) — HIGH confidence
-- [OpenSky REST API docs — state vector fields, time_position vs last_contact](https://openskynetwork.github.io/opensky-api/rest.html) — HIGH confidence
-- [Alembic issue #539 — partitioned table autogenerate support](https://github.com/sqlalchemy/alembic/issues/539) — HIGH confidence
-- [squawkhq.com — adding NOT NULL fields to PostgreSQL tables](https://squawkhq.com/docs/adding-not-nullable-field) — HIGH confidence
-- [DEV Community — Alembic NotNullViolation error patterns](https://dev.to/cuddi/that-dreaded-alembic-notnullviolation-error-and-how-to-survive-it-33a1) — MEDIUM confidence
-- [ITU-R M.1371-5 — AIS Class A position update intervals by navigational status](https://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1371-5-201402-I!!PDF-E.pdf) — HIGH confidence
-- [NAVCEN — Class A AIS Position Report update schedule](https://www.navcen.uscg.gov/ais-class-a-reports) — HIGH confidence
-- [Evil Martians — soft deletion with PostgreSQL](https://evilmartians.com/chronicles/soft-deletion-with-postgresql-but-with-logic-on-the-database) — MEDIUM confidence
-- Direct codebase inspection: `backend/app/workers/ingest_ais.py`, `backend/app/tasks/ingest_military.py`, `backend/app/tasks/ingest_aircraft.py`, `backend/app/tasks/ingest_gps_jamming.py`, all model definitions, all API route handlers, `backend/alembic/env.py`, all existing Alembic migrations
+- Direct inspection: `frontend/src/workers/propagation.worker.ts` — `PROPAGATE` handler uses passed `timestamp` correctly (line 64–65); `COMPUTE_ORBIT` uses `Date.now()` (line 94); `GET_POSITION` uses `new Date()` (line 133)
+- Direct inspection: `frontend/src/components/SatelliteLayer.tsx` lines 258–264 — rAF loop sends `{ timestamp: Date.now() }` unconditionally, ignoring `replayTs` read at line 115
+- Direct inspection: `frontend/src/components/AircraftLayer.tsx` lines 250–264 — lerp loop has no `replayMode` guard; lines 317–338 — snapshot effect runs independently on every `replayTs` change
+- Direct inspection: `frontend/src/hooks/useAircraft.ts` — `refetchInterval: replayMode === 'live' ? 90_000 : false`; no cache invalidation on mode switch
+- Direct inspection: `frontend/src/components/PlaybackBar.tsx` lines 84–110 — tick() uses `getState()` correctly as the reference pattern; lines 123–132 — `handleModeToggle` has no `invalidateQueries` call
+- Direct inspection: `frontend/src/components/GlobeView.tsx` — `viewer.clock` never assigned; `enableLighting: true` and `dynamicAtmosphereLighting: true` set at lines 70–71; `useDefaultRenderLoop: true` (line 62)
+- Direct inspection: `frontend/src/hooks/useReplaySnapshots.ts` — `enabled` gated on `replayMode === 'playback'` but not on `layerVisible`; `staleTime: Infinity` intentional for immutable snapshot history
+- Direct inspection: `frontend/src/store/useAppStore.ts` line 130 — `replayTs: Date.now()` at store creation; `replayWindowStart/End: null` until PlaybackBar window fetch resolves
+- PROJECT.md key decisions: "LIVE/PLAYBACK drives viewer.clock directly" — confirmed as intended pattern (not yet implemented)
+- CesiumJS API: `JulianDate.fromDate(date: Date)` is the correct conversion from JS Date to CesiumJS Julian date; `viewer.clock.shouldAnimate = false` freezes the internal clock tick
+- Zustand documentation: `store.subscribe(selector, callback, options)` fires without causing React re-renders — preferred over `useEffect` for high-frequency external synchronisation
 
 ---
-*Pitfalls research for: freshness/staleness metadata on geospatial tracking layers (v4.0 Data Reliability & Freshness)*
+*Pitfalls research for: 4D replay engine audit — CesiumJS + React + Zustand + satellite.js (v5.0 Playback)*
 *Researched: 2026-03-13*

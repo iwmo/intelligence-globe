@@ -1,638 +1,486 @@
 # Architecture Research
 
-**Domain:** FastAPI + SQLAlchemy freshness metadata and stale filtering — v4.0 Data Reliability
+**Domain:** 4D Replay Engine — Audit and Playback Correctness
 **Researched:** 2026-03-13
-**Confidence:** HIGH — based on direct codebase analysis of all existing models, routes, ingest tasks, and workers
-
-> **Scope note:** This document covers ONLY the architectural changes required for v4.0. The base architecture
-> (FastAPI, SQLAlchemy async, PostgreSQL + PostGIS, Redis, RQ, Alembic, Docker Compose) is shipped and validated.
-> This research answers three focused questions: where does stale filtering logic live, how are thresholds
-> configured, and how does the GPS jamming derived layer expose source freshness.
+**Confidence:** HIGH (all findings from direct codebase inspection)
 
 ---
 
-## Standard Architecture
-
-### System Overview — v4.0 Freshness Layer Additions
+## Current System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           config.py (Settings)                                │
-│  database_url  redis_url  frontend_origin  version                            │
-│  + stale_threshold_aircraft_s      (NEW — env var, default 120)               │
-│  + stale_threshold_military_s      (NEW — env var, default 600)               │
-│  + stale_threshold_ships_s         (NEW — env var, default 900)               │
-└──────────────────────┬───────────────────────────────────────────────────────┘
-                       │ imported by
-┌──────────────────────▼──────────────────────────────────────────────────────┐
-│                   app/freshness.py  (NEW — shared helper module)              │
-│                                                                               │
-│  is_stale(timestamp, threshold_seconds) -> bool                               │
-│  stale_cutoff(threshold_seconds) -> datetime                                  │
-└────┬──────────────┬────────────────┬───────────────────────────────────────-─┘
-     │              │                │
-     │     imported by               │
-┌────▼──────┐  ┌────▼──────┐  ┌─────▼──────┐
-│routes_    │  │routes_    │  │routes_     │
-│aircraft   │  │military   │  │ships       │
-│.py        │  │.py        │  │.py         │
-│           │  │           │  │            │
-│stale      │  │stale      │  │stale       │
-│WHERE      │  │WHERE      │  │WHERE       │
-│clause     │  │clause     │  │clause      │
-│in query   │  │in query   │  │in query    │
-└───────────┘  └───────────┘  └────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                         ingest tasks (MODIFIED)                               │
-│                                                                               │
-│  ingest_aircraft.py    — capture fetched_at (func.now()), time_position,      │
-│                          geo_altitude, vertical_rate, position_source          │
-│                                                                               │
-│  ingest_military.py    — capture fetched_at (func.now()), set is_active=True  │
-│                          run tombstone pass: is_active=False for stale rows    │
-│                                                                               │
-│  ingest_ais.py         — capture last_seen_at from Redis TTL touch,           │
-│                          set is_active from TTL-alive status during flush      │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                     ingest_gps_jamming.py (MODIFIED)                          │
-│                                                                               │
-│  reads: military_aircraft rows WHERE is_active = TRUE  (filters stale source) │
-│  adds to response: source_fetched_at (max of military_aircraft.fetched_at)    │
-│                    source_is_stale (bool — is source_fetched_at old?)          │
-│                    aggregated_at (timestamp of this aggregation run)           │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Status for v4.0 |
-|-----------|----------------|-----------------|
-| `app/config.py` | All configurable settings via pydantic-settings, loaded from env vars | MODIFY — add stale threshold fields |
-| `app/freshness.py` | Shared helpers: stale cutoff computation, is_stale boolean | NEW |
-| `app/models/aircraft.py` | Aircraft ORM model | MODIFY — add fetched_at, time_position, geo_altitude, vertical_rate, position_source, is_active |
-| `app/models/military_aircraft.py` | MilitaryAircraft ORM model | MODIFY — add fetched_at, last_seen_at, is_active |
-| `app/models/ship.py` | Ship ORM model | MODIFY — add last_seen_at, is_active |
-| `app/models/gps_jamming.py` | GpsJammingCell ORM model | MODIFY — add source_fetched_at, aggregated_at, source_is_stale |
-| `app/tasks/ingest_aircraft.py` | OpenSky ingest — batch upsert every 90s | MODIFY — write new fields; mark stale rows as is_active=False |
-| `app/tasks/ingest_military.py` | airplanes.live ingest — batch upsert every 300s | MODIFY — write fetched_at, is_active=True; tombstone stale rows |
-| `app/workers/ingest_ais.py` | AIS WebSocket worker — flush every 30s | MODIFY — write last_seen_at, is_active during flush |
-| `app/tasks/ingest_gps_jamming.py` | Aggregate military NIC/NACp into H3 cells | MODIFY — filter by is_active, write freshness metadata to cells |
-| `app/api/routes_aircraft.py` | Aircraft API routes | MODIFY — add stale WHERE clause, expose is_active/fetched_at in response |
-| `app/api/routes_military.py` | Military aircraft API routes | MODIFY — add stale WHERE clause, expose is_active/last_seen_at |
-| `app/api/routes_ships.py` | Ships API routes | MODIFY — add stale WHERE clause, expose is_active/last_seen_at |
-| `app/api/routes_gps_jamming.py` | GPS jamming API routes | MODIFY — expose source freshness fields in response |
-| `alembic/versions/` | Schema migration files | NEW migration covering all four model changes |
-
----
-
-## Recommended Project Structure
-
-```
-backend/app/
-├── config.py               # MODIFY — add 3 stale threshold fields
-├── freshness.py            # NEW — shared stale cutoff + is_stale helpers
-├── models/
-│   ├── aircraft.py         # MODIFY — add fetched_at, time_position, geo_altitude,
-│   │                       #           vertical_rate, position_source, is_active
-│   ├── military_aircraft.py# MODIFY — add fetched_at, last_seen_at, is_active
-│   ├── ship.py             # MODIFY — add last_seen_at, is_active
-│   └── gps_jamming.py      # MODIFY — add source_fetched_at, aggregated_at, source_is_stale
-├── api/
-│   ├── routes_aircraft.py  # MODIFY — stale WHERE clause in list_aircraft query
-│   ├── routes_military.py  # MODIFY — stale WHERE clause in list_military_aircraft
-│   ├── routes_ships.py     # MODIFY — stale WHERE clause in list_ships
-│   └── routes_gps_jamming.py # MODIFY — expose source_fetched_at, aggregated_at, source_is_stale
-├── tasks/
-│   ├── ingest_aircraft.py  # MODIFY — capture new OpenSky fields + is_active lifecycle
-│   ├── ingest_military.py  # MODIFY — write fetched_at + tombstone stale rows
-│   └── ingest_gps_jamming.py # MODIFY — filter source by is_active + write freshness metadata
-└── workers/
-    └── ingest_ais.py       # MODIFY — write last_seen_at + is_active during flush
-
-backend/alembic/versions/
-└── <hash>_add_freshness_fields.py  # NEW — single migration covering all four tables
-```
-
-### Structure Rationale
-
-- **`freshness.py` as shared helper:** Stale threshold logic must not be duplicated across three route files. A shared module also makes it trivially testable in isolation. It takes threshold values (in seconds) as parameters — it does not read settings directly. This makes each caller explicit about which threshold applies.
-- **Stale filtering in route query layer, not model:** See Pattern 1 below for full rationale.
-- **Single Alembic migration for all four tables:** All changes are in one milestone. A single migration is atomically applied or rolled back, avoiding partial states where some tables have freshness fields and others do not.
-
----
-
-## Architectural Patterns
-
-### Pattern 1: Stale Filtering in the Route Query, Not the Model
-
-**What:** The stale threshold comparison (`WHERE updated_at > NOW() - INTERVAL '...'` or equivalently `WHERE fetched_at >= :cutoff`) lives in the route's SQLAlchemy `select()` statement, not in a model class method or a SQLAlchemy event.
-
-**When to use:** Always, for this codebase. This is the correct placement for three reasons:
-
-1. **Threshold is configuration, not data invariant.** The stale threshold for aircraft (default 120s) differs from ships (default 900s). A model method cannot know its caller's threshold — it would need to accept a parameter, making it indistinguishable from a standalone function.
-2. **List vs detail endpoints need different behavior.** The list endpoint (`GET /api/aircraft/`) filters stale entities. The detail endpoint (`GET /api/aircraft/{icao24}`) should return any entity with its freshness metadata exposed — callers need to know *why* something is stale. Embedding filtering in the model would make detail endpoints awkward.
-3. **Async SQLAlchemy ORM models are not the right place for query logic.** `@classmethod` query methods on `Base` subclasses work but are difficult to compose with other filters. The existing codebase pattern (direct `select()` in route handlers) is consistent; maintaining that consistency reduces cognitive overhead.
-
-**Trade-off:** Route handlers accumulate more lines. Mitigated by the shared `freshness.py` helper that computes the cutoff datetime.
-
-**Correct implementation:**
-```python
-# app/freshness.py
-from datetime import datetime, timezone, timedelta
-
-def stale_cutoff(threshold_seconds: int) -> datetime:
-    """Return the datetime before which rows are considered stale."""
-    return datetime.now(timezone.utc) - timedelta(seconds=threshold_seconds)
-
-def is_stale(timestamp: datetime | None, threshold_seconds: int) -> bool:
-    """True if timestamp is None or older than threshold_seconds ago."""
-    if timestamp is None:
-        return True
-    return timestamp < stale_cutoff(threshold_seconds)
-```
-
-```python
-# app/api/routes_aircraft.py  (modified list endpoint)
-from app.freshness import stale_cutoff
-from app.config import settings
-
-@router.get("")
-async def list_aircraft(db: AsyncSession = Depends(get_db)):
-    cutoff = stale_cutoff(settings.stale_threshold_aircraft_s)
-    result = await db.execute(
-        select(Aircraft).where(
-            Aircraft.latitude.is_not(None),
-            Aircraft.longitude.is_not(None),
-            Aircraft.is_active == True,
-            Aircraft.fetched_at >= cutoff,
-        )
-    )
-    ...
-```
-
-**Anti-pattern to avoid:**
-```python
-# DO NOT put this on the model:
-class Aircraft(Base):
-    @classmethod
-    async def get_active(cls, session, threshold_s: int):
-        ...  # This is a query method masquerading as a model method
+┌──────────────────────────────────────────────────────────────────────┐
+│                        App.tsx (component tree root)                  │
+├──────────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────────┐  ┌────────────────┐  ┌────────────┐  │
+│  │GlobeView │  │ PlaybackBar  │  │ SatelliteLayer │  │AircraftLayer│ │
+│  │(Viewer)  │  │(rAF tick +   │  │(Worker + rAF)  │  │(lerp rAF)  │  │
+│  │          │  │ scrubber)    │  │                │  │            │  │
+│  └────┬─────┘  └──────┬───────┘  └──────┬─────────┘  └──────┬────┘  │
+│       │               │                 │                    │       │
+├───────┴───────────────┴─────────────────┴────────────────────┴───────┤
+│                    useAppStore (Zustand)                               │
+│   replayMode: 'live'|'playback'   replayTs: ms epoch                  │
+│   replaySpeedMultiplier           replayWindowStart / replayWindowEnd  │
+├──────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────┐  ┌──────────────┐  ┌────────────────────┐   │
+│  │MilitaryAircraftLayer│  │  ShipLayer   │  │  GpsJammingLayer   │   │
+│  │(billboard, no lerp) │  │(billboard,   │  │(GroundPrimitive,   │   │
+│  └─────────────────────┘  │  no lerp)    │  │ daily poll)        │   │
+│                           └──────────────┘  └────────────────────┘   │
+│  ┌──────────────────────┐                                             │
+│  │  StreetTrafficLayer  │                                             │
+│  │  (rAF particle sim)  │                                             │
+│  └──────────────────────┘                                             │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Pattern 2: Configurable Thresholds via pydantic-settings (Not os.getenv)
+## Bug Inventory — What is Actually Broken
 
-**What:** All stale thresholds are declared as fields in the existing `Settings` class in `config.py`. They are read from environment variables via pydantic-settings, with defaults that are safe for the intended poll cadence.
+### BUG-01: SatelliteLayer propagation loop always uses Date.now()
 
-**When to use:** Always. The `Settings` class already exists and handles the pydantic-settings + `.env` file pattern. Adding fields here is zero friction and keeps configuration in one place.
+**File:** `frontend/src/components/SatelliteLayer.tsx`, lines 257–265
 
-**Recommended defaults:**
-- Aircraft: `stale_threshold_aircraft_s = 120` — OpenSky polls every 90s; 120s allows one missed poll
-- Military: `stale_threshold_military_s = 600` — airplanes.live polls every 300s; 600s allows one missed poll
-- Ships: `stale_threshold_ships_s = 900` — Redis TTL is 600s; 900s allows for flush lag
-
-```python
-# app/config.py (modified)
-class Settings(BaseSettings):
-    model_config = ConfigDict(env_file=".env", extra="ignore")
-
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/opensignal"
-    redis_url: str = "redis://localhost:6379/0"
-    frontend_origin: str = "http://localhost:3000"
-    version: str = "0.1.0"
-
-    # Stale filtering thresholds (seconds)
-    stale_threshold_aircraft_s: int = 120
-    stale_threshold_military_s: int = 600
-    stale_threshold_ships_s: int = 900
+The rAF loop unconditionally sends:
+```typescript
+worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: Date.now() } });
 ```
 
-**Why not `os.getenv()` in the route handler:**
+In playback mode, `replayTs` is the intended time source. The worker's `PROPAGATE` handler accepts a `timestamp` parameter and builds `new Date(timestamp)` — the infrastructure already supports time injection. The loop never reads `replayMode` or `replayTs`.
 
-The tasks (`ingest_aircraft.py`, `ingest_military.py`) currently use `os.getenv("REDIS_URL")` directly inside the RQ sync wrapper. This is a known inconsistency in the codebase: tasks run in a separate RQ worker process where the FastAPI `Settings` object is not initialized. For ingest tasks, `os.getenv` is pragmatic. For API routes (which run in the FastAPI process), `settings` is already imported — use it.
+**Consequence:** Satellites continue orbiting to the real wall-clock position during playback. Satellite positions are always "now" regardless of where the scrubber is set.
 
-The thresholds only need to be read in routes (not in tasks), so declaring them in `Settings` is appropriate. Ingest tasks do not need to know the stale threshold — they write timestamps and `is_active` flags; the route layer decides what is "stale enough to filter."
+**Note also:** The `GET_POSITION` path in the worker (used for click-to-fly) hardcodes `new Date()` at line 132. This is lower severity (only fires on satellite click) but should be audited in the same phase.
 
 ---
 
-### Pattern 3: is_active Lifecycle — Tombstone on Next Poll
+### BUG-02: AircraftLayer live lerp runs during playback
 
-**What:** `is_active` is a boolean column on `military_aircraft`, `ships`, and `aircraft`. It is set to `True` when a row is created or updated with a fresh position. It is set to `False` (tombstoned) by the *same ingest task* that wrote it, on a subsequent poll, once the row's timestamp is old enough.
+**File:** `frontend/src/components/AircraftLayer.tsx`, lines 247–265
 
-**When to use:** For any entity that disappears between polls rather than sending a "gone" signal. Both airplanes.live and aisstream.io are snapshot-only sources — they send positions of entities currently transmitting, not tombstone messages for entities that stopped.
-
-**The tombstone pattern:**
-```
-Poll N:   entity A present → is_active=True, fetched_at=now()
-Poll N+1: entity A absent  → tombstone pass: set is_active=False WHERE fetched_at < (now() - interval)
-          entity A present  → is_active stays True (updated normally)
+The lerp rAF loop starts unconditionally when `aircraft.data` arrives (Effect 2). It runs every animation frame regardless of `replayMode`. The alpha calculation uses wall clock:
+```typescript
+const alpha = Math.min((Date.now() - lastUpdateTime) / POLL_INTERVAL_MS, 1.0);
 ```
 
-**Implementation location:** The tombstone pass runs at the end of `ingest_military_aircraft()` and `ingest_aircraft()`, after the upsert loop, within the same database session and commit. It uses a bulk UPDATE:
+A separate playback interpolation effect (lines 317–338) also writes `bb.position` when `replayMode === 'playback'`. Both effects write `bb.position`. The live lerp runs at 60 Hz and overwrites the position the playback effect set at the previous `replayTs` change.
 
-```python
-# At the end of the ingest function, within the same AsyncSessionLocal session:
-from sqlalchemy import update as sa_update
-
-tombstone_cutoff = datetime.now(timezone.utc) - timedelta(seconds=STALE_SECONDS_FOR_TOMBSTONE)
-await session.execute(
-    sa_update(MilitaryAircraft)
-    .where(MilitaryAircraft.fetched_at < tombstone_cutoff)
-    .values(is_active=False)
-)
-await session.commit()
-```
-
-**For ships:** The AIS worker does not run on a fixed interval that makes tombstoning clean. Ships use Redis TTL (600s) as the source of truth for "is this ship still reporting." `is_active` for ships should be set to `False` during `batch_flush_ships_to_pg` for any ship whose Redis key has expired (not found in the Redis scan). Since `batch_flush_ships_to_pg` only processes ships currently in Redis, any ship *absent* from Redis is not flushed — it stays in PostgreSQL with whatever `updated_at` it last had. The stale cutoff in the route query (`WHERE last_seen_at >= cutoff`) handles this case without a separate tombstone pass.
-
-**Distinction between `fetched_at` and `last_seen_at`:**
-- `fetched_at`: timestamp set by the ingest task when it wrote the row. Tracks when the backend last successfully polled the source.
-- `last_seen_at`: for ships, the timestamp from the AIS source itself (`time_utc` field from aisstream.io). Tracks when the vessel was last observed by the source, independent of backend polling lag.
-- For aircraft, OpenSky's `last_contact` (Unix epoch integer) maps to `last_seen_at`. `fetched_at` is the time the backend ran the ingest.
+**Consequence:** Aircraft positions flicker or revert to live-lerped positions during playback. The live lerp wins because it runs every rAF frame; the playback effect only fires on `replayTs` change.
 
 ---
 
-### Pattern 4: GPS Jamming Source Freshness — Propagate, Don't Recompute
+### BUG-03: viewer.clock is not driven by replayTs
 
-**What:** `gps_jamming_cells` is a derived table. Its freshness depends entirely on the freshness of `military_aircraft`. The route response must expose two things: when the aggregation was computed (`aggregated_at`) and whether the underlying source was stale when the aggregation ran (`source_is_stale`, `source_fetched_at`).
+**File:** `frontend/src/components/GlobeView.tsx` — no clock sync code present
 
-**How it works:**
+`GlobeView.tsx` initializes `viewer` with `animation: false, timeline: false` and never references `viewer.clock`. There is no component that writes `viewer.clock.currentTime` or `viewer.clock.shouldAnimate` when `replayTs` or `replayMode` changes.
 
-At aggregation time in `ingest_gps_jamming.py`, after loading military aircraft rows:
+**Consequence:** CesiumJS day/night shading and atmospheric lighting always reflect wall-clock time, not the replayed time. The globe looks lit for "now" even when scrubbed to midnight six hours ago.
 
-```python
-# After fetching military aircraft rows:
-source_fetched_at = max(
-    (ac.fetched_at for ac in aircraft_rows if ac.fetched_at is not None),
-    default=None,
-)
-source_is_stale = source_fetched_at is None or (
-    source_fetched_at < datetime.now(timezone.utc) - timedelta(seconds=MILITARY_STALE_THRESHOLD)
-)
-aggregated_at = datetime.now(timezone.utc)
+---
+
+### BUG-04: GpsJammingLayer has no playback behavior
+
+**File:** `frontend/src/components/GpsJammingLayer.tsx` + `frontend/src/hooks/useGpsJamming.ts`
+
+`useGpsJamming` fetches `/api/gps-jamming` with a 24-hour `refetchInterval` and no `replayMode` check. During playback the layer shows current daily jamming data and continues scheduling refetches.
+
+No snapshot table exists for GPS jamming cells. Historical jamming data is not stored in the `position_snapshots` table. Showing historical jamming data at `replayTs` precision would require new backend infrastructure (out of scope).
+
+**Decision:** Freeze the layer at its last fetched daily aggregate. Stop polling during playback. Show data as-is with an understanding that it is the current daily heatmap, not historical.
+
+---
+
+### BUG-05: StreetTrafficLayer particle simulation runs during playback
+
+**File:** `frontend/src/components/StreetTrafficLayer.tsx`, lines 152–188
+
+The `animate()` rAF loop runs continuously once roads are fetched. It reads `layerVisibleRef` but not `replayMode`. There is no check to pause particle movement during playback.
+
+**Consequence:** Traffic particles keep moving during playback, even when the scrubber is paused at a fixed `replayTs`. All other layers are static at `replayTs` but streets keep flowing — a visible contradiction.
+
+---
+
+### BUG-06: MilitaryAircraftLayer and ShipLayer live data updates not gated on replayMode (minor)
+
+**Files:** `frontend/src/components/MilitaryAircraftLayer.tsx` Effect 2, `frontend/src/components/ShipLayer.tsx` Effect 2
+
+Both layers update billboard positions directly from live data in their data-update effects without a `replayMode` guard. The `useMilitaryAircraft` and `useShips` hooks correctly gate `refetchInterval: replayMode === 'live' ? interval : false`, so no new network requests occur during playback. However, if cached data triggers a React Query re-render after entering playback (e.g., cache invalidation on focus), Effect 2 would overwrite playback-interpolated positions with live positions.
+
+**Severity:** Low — polling is halted so this only affects the frame immediately after entering playback or on window focus. The pattern should still be guarded for correctness.
+
+---
+
+## Component Responsibilities (Current State)
+
+| Component | Responsibility | Playback Bug |
+|-----------|---------------|--------------|
+| `PlaybackBar` | rAF tick advancing `replayTs`; scrubber UI; speed presets | None — correct |
+| `SatelliteLayer` | SGP4 propagation via Web Worker; 1 Hz rAF loop | BUG-01: always uses `Date.now()` |
+| `AircraftLayer` | Live lerp rAF loop; playback snapshot interpolation | BUG-02: live lerp runs during playback |
+| `MilitaryAircraftLayer` | Billboard position updates; playback snapshot interpolation | BUG-06 minor: no replayMode guard on Effect 2 |
+| `ShipLayer` | Billboard position updates; playback snapshot interpolation | BUG-06 minor: same pattern as military |
+| `GpsJammingLayer` | GroundPrimitive hex cells from daily poll | BUG-04: polls during playback, no freeze |
+| `StreetTrafficLayer` | rAF particle simulation on OSM roads | BUG-05: particles animate during playback |
+| `GlobeView` | CesiumJS Viewer initialization | BUG-03: viewer.clock never synced to replayTs |
+| `useAppStore` | Single source of truth for `replayMode`, `replayTs` | None — store is correct |
+| `useReplaySnapshots` | React Query wrapper for `/api/replay/snapshots` | None — hook is correct |
+| `propagation.worker.ts` | SGP4 batch propagation; accepts `timestamp` param | None — ready for BUG-01 fix |
+
+---
+
+## Recommended Fix Architecture
+
+### Fix Pattern 1: Satellite — Read replayTs in propagation loop
+
+The rAF loop in `SatelliteLayer` Effect 1 must read `replayMode` and `replayTs` on each tick via `useAppStore.getState()` (not a React subscription — this is inside a rAF closure, same pattern `PlaybackBar` uses for its tick loop).
+
+```typescript
+// Inside the loop() function in SatelliteLayer Effect 1:
+const { replayMode, replayTs } = useAppStore.getState();
+const ts = replayMode === 'playback' ? replayTs : Date.now();
+worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: ts } });
 ```
 
-These three values are written to **all cells in the batch** during the upsert. The `gps_jamming_cells` table gains columns: `source_fetched_at TIMESTAMPTZ`, `source_is_stale BOOLEAN`, `aggregated_at TIMESTAMPTZ`.
+The loop frequency remains 1 Hz. In playback the loop fires on each tick and uses `replayTs` as the timestamp. For scrubbing (large timestamp jumps), propagation catches up within the next 1-second interval.
 
-The route returns these fields in the response envelope:
+### Fix Pattern 2: Aircraft — Gate live lerp on replayMode
 
-```json
-{
-  "aggregated_at": "2026-03-13T10:00:00Z",
-  "source_fetched_at": "2026-03-13T09:55:00Z",
-  "source_is_stale": false,
-  "cells": [
-    { "h3index": "...", "bad_ratio": 0.6, "severity": "red", "aircraft_count": 5, "updated_at": "..." }
-  ]
+The live lerp loop in AircraftLayer Effect 2 must check `replayMode` before writing positions:
+
+```typescript
+// Inside lerp() function body, before any bb.position writes:
+const { replayMode } = useAppStore.getState();
+if (replayMode === 'playback') {
+  rafRef.current = requestAnimationFrame(lerp);
+  return; // playback effect owns bb.position
 }
 ```
 
-**Why store these on every cell row rather than in a separate metadata table:**
+The rAF loop continues running (so it re-activates immediately on return to live) but suppresses all `bb.position` writes in playback mode. The playback interpolation effect (already structurally correct) then has exclusive ownership of `bb.position` in playback mode.
 
-The existing `gps_jamming_cells` table is the natural place. A separate `gps_jamming_metadata` table would require a JOIN or a separate API call. Since all cells from one aggregation run share the same `source_fetched_at` and `aggregated_at`, storing it redundantly on each row is the least-friction approach. The values are identical across all rows in a batch — not logically different data, just denormalized for query simplicity. At the scale of this application (hundreds of H3 cells, not millions), the storage overhead is negligible.
+### Fix Pattern 3: viewer.clock sync
 
-**The route computes the response-level freshness fields from the first cell:**
+A new `useViewerClock` hook subscribes to `replayTs` and `replayMode` and syncs `viewer.clock`:
 
-```python
-# In routes_gps_jamming.py
-if cells:
-    first = cells[0]
-    aggregated_at = first.aggregated_at
-    source_fetched_at = first.source_fetched_at
-    source_is_stale = first.source_is_stale
-else:
-    aggregated_at = source_fetched_at = None
-    source_is_stale = True  # no data = stale
+```typescript
+// useViewerClock.ts
+export function useViewerClock(viewer: Viewer | null) {
+  const replayMode = useAppStore(s => s.replayMode);
+  const replayTs   = useAppStore(s => s.replayTs);
+
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+    if (replayMode === 'playback') {
+      viewer.clock.currentTime = JulianDate.fromDate(new Date(replayTs));
+      viewer.clock.shouldAnimate = false;
+    } else {
+      viewer.clock.currentTime = JulianDate.now();
+      viewer.clock.shouldAnimate = true;
+      viewer.clock.multiplier = 1;
+    }
+  }, [viewer, replayMode, replayTs]);
+}
 ```
 
----
+`viewer.clock.shouldAnimate = false` stops CesiumJS from auto-advancing the clock. The PlaybackBar rAF loop drives `replayTs`; this effect mirrors each change into `viewer.clock.currentTime`. Mount the hook in `App.tsx` alongside the other layer components, passing `cesiumViewer`.
 
-## Data Flow
+### Fix Pattern 4: GpsJammingLayer — Freeze on playback entry
 
-### Aircraft Freshness Flow
+Add `replayMode` to the `useGpsJamming` hook, gating `refetchInterval`:
 
-```
-OpenSky API (every 90s)
-    ↓
-ingest_aircraft() — async function
-    ↓ (for each state vector)
-pg_insert(Aircraft).values(
-    fetched_at=func.now(),
-    time_position=sv[3],         # Unix timestamp of last position fix
-    geo_altitude=sv[13],         # geometric altitude (metres)
-    vertical_rate=sv[11],        # m/s climb/descent
-    position_source=sv[16],      # 0=ADS-B 1=ASTERIX 2=MLAT 3=FLARM
-    is_active=True,
+```typescript
+// useGpsJamming.ts
+export function useGpsJamming() {
+  const replayMode = useAppStore(s => s.replayMode);
+  return useQuery({
     ...
-).on_conflict_do_update(...)
-    ↓ (tombstone pass at end of ingest)
-UPDATE aircraft SET is_active=False
-  WHERE fetched_at < NOW() - INTERVAL '90 seconds'
-    ↓
-GET /api/aircraft/ (route query)
-    SELECT ... WHERE latitude IS NOT NULL
-                AND longitude IS NOT NULL
-                AND is_active = TRUE
-                AND fetched_at >= NOW() - INTERVAL '120 seconds'
-    ↓
-Response includes: fetched_at, is_active, time_position, geo_altitude,
-                   vertical_rate, position_source per entity
-```
-
-### Military Freshness Flow
-
-```
-airplanes.live (every 300s)
-    ↓
-ingest_military_aircraft() — async function
-    ↓ (upsert all current aircraft)
-pg_insert(MilitaryAircraft).values(
-    fetched_at=func.now(),
-    last_seen_at=func.now(),   # source has no separate "seen_at" timestamp
-    is_active=True,
+    refetchInterval: replayMode === 'live' ? 86_400_000 : false,
     ...
-).on_conflict_do_update(...)
-    ↓ (tombstone pass)
-UPDATE military_aircraft SET is_active=False
-  WHERE fetched_at < NOW() - INTERVAL '300 seconds'
-    ↓
-ingest_gps_jamming() triggered (enqueued after successful military ingest)
-    ↓
-SELECT military_aircraft WHERE is_active = TRUE (filters stale source)
-    ↓
-aggregate_jamming_cells() — pure function, unchanged
-    ↓
-Write cells with source_fetched_at, source_is_stale, aggregated_at
-    ↓
-GET /api/military/ (route query)
-    SELECT ... WHERE latitude IS NOT NULL
-                AND longitude IS NOT NULL
-                AND is_active = TRUE
-                AND fetched_at >= NOW() - INTERVAL '600 seconds'
+  });
+}
 ```
 
-### Ship Freshness Flow
+This is the same pattern already used by `useAircraft` and `useMilitaryAircraft`. No visual change — the layer renders its last fetched daily aggregate during playback. No `GpsJammingLayer.tsx` changes required.
 
-```
-aisstream.io WebSocket (continuous)
-    ↓
-parse_ais_message() — pure function, captures time_utc
-    ↓
-Redis hset("ship:{mmsi}", ...) with TTL 600s
-    ↓ (every 30s)
-batch_flush_ships_to_pg() — scans Redis ship:* keys
-    ↓ (only ships in Redis are flushed — absent ships not touched in PG)
-pg_insert(Ship).values(
-    last_seen_at=parsed["time_utc"],  # source observation time
-    is_active=True,                   # presence in Redis = active
-    ...
-).on_conflict_do_update(...)
-    ↓
-GET /api/ships/ (route query)
-    SELECT ... WHERE latitude IS NOT NULL
-                AND longitude IS NOT NULL
-                AND last_seen_at >= NOW() - INTERVAL '900 seconds'
-    (is_active not used as primary filter — last_seen_at cutoff is equivalent
-     given ships not in Redis are never flushed with is_active=True)
+### Fix Pattern 5: StreetTrafficLayer — Pause animation during playback
+
+Add a `replayModeRef` following the same pattern as `layerVisibleRef`:
+
+```typescript
+// StreetTrafficLayer.tsx, top of component:
+const replayMode = useAppStore(s => s.replayMode);
+const replayModeRef = useRef(replayMode);
+replayModeRef.current = replayMode; // kept in sync at render time
+
+// Inside animate() body, before position writes:
+if (!currentVisible || replayModeRef.current === 'playback') {
+  rafHandleRef.current = requestAnimationFrame(animate);
+  return;
+}
 ```
 
-### GPS Jamming Source Freshness Flow
+Particles freeze at their last positions when entering playback mode. They resume moving from those positions when live mode resumes. `useStreetTraffic.ts` does not require changes — road fetching is already gated by `layerVisible` and camera altitude.
+
+---
+
+## Data Flow — Corrected Replay Path
 
 ```
-military_aircraft table (updated by ingest_military.py)
-    ↓
-ingest_gps_jamming() reads:
-    SELECT military_aircraft WHERE is_active = TRUE
-    → source_fetched_at = max(fetched_at) of loaded rows
-    → source_is_stale = source_fetched_at < NOW() - THRESHOLD
-    → aggregated_at = NOW()
-    ↓
-gps_jamming_cells upserted WITH:
-    source_fetched_at, source_is_stale, aggregated_at on every cell
-    ↓
-GET /api/gps-jamming/
-    Returns { aggregated_at, source_fetched_at, source_is_stale, cells: [...] }
-    (top-level freshness fields extracted from cells[0] if cells exist)
+PlaybackBar rAF tick
+  → setReplayTs(next)  [Zustand, 60 Hz during play]
+       │
+       ├── SatelliteLayer loop() [1 Hz interval check]
+       │     reads replayTs via getState()
+       │     → worker.postMessage({ PROPAGATE, timestamp: replayTs })
+       │     → worker returns POSITIONS buffer
+       │     → updates PointPrimitiveCollection positions
+       │
+       ├── AircraftLayer playback effect [fires on replayTs change]
+       │     reads snapshotsByEntity (React Query, staleTime: Infinity)
+       │     → findAdjacentSnapshots(snapshots, replayTs) binary search
+       │     → bb.position = lerped Cartesian3 from adjacent snapshots
+       │     live lerp loop: SKIPS position writes (replayMode guard)
+       │
+       ├── MilitaryAircraftLayer playback effect [fires on replayTs change]
+       │     same snapshot interpolation pattern as AircraftLayer
+       │     Effect 2 (live update): SKIPS writes (replayMode guard)
+       │
+       ├── ShipLayer playback effect [fires on replayTs change]
+       │     same snapshot interpolation pattern
+       │     Effect 2 (live update): SKIPS writes (replayMode guard)
+       │
+       ├── GpsJammingLayer [no change — frozen at last daily fetch]
+       │     refetchInterval: false while in playback
+       │
+       ├── StreetTrafficLayer [particles frozen]
+       │     animate() returns early without position writes
+       │
+       └── useViewerClock effect [fires on replayTs change]
+             viewer.clock.currentTime = JulianDate.fromDate(new Date(replayTs))
+             viewer.clock.shouldAnimate = false
+             → CesiumJS day/night shading follows replayTs
+```
+
+```
+Mode toggle: LIVE → PLAYBACK
+  useAppStore.setReplayMode('playback')
+  PlaybackBar: fetches /api/replay/window → sets replayWindowStart/End
+  PlaybackBar: useReplaySnapshots('all', ...) enabled=true → fetch snapshots
+  AircraftLayer / MilitaryAircraftLayer / ShipLayer: snapshot hooks enabled=true
+  useAircraft / useMilitaryAircraft / useShips: refetchInterval → false
+  useGpsJamming: refetchInterval → false
+  SatelliteLayer loop: timestamp source switches to replayTs
+  StreetTrafficLayer: particles freeze (replayModeRef guard)
+  useViewerClock: viewer.clock.shouldAnimate = false
+  viewer.clock.currentTime mirrors replayTs
+
+Mode toggle: PLAYBACK → LIVE
+  PlaybackBar.handleModeToggle(): setReplayTs(Date.now()), setReplayMode('live')
+  AircraftLayer live lerp: resumes (guard releases, replayMode === 'live')
+  SatelliteLayer loop: timestamp source switches back to Date.now()
+  useAircraft / useMilitaryAircraft / useShips: refetchInterval resumes
+  useGpsJamming: refetchInterval resumes
+  StreetTrafficLayer: particles unfreeze
+  useViewerClock: viewer.clock.shouldAnimate = true, multiplier = 1
 ```
 
 ---
 
-## Integration Points
+## Integration Points — Files to Change
 
-### New vs Modified — Explicit Inventory
+### New Files
 
-| File | Change Type | What Changes |
-|------|-------------|--------------|
-| `app/config.py` | MODIFY | Add 3 stale threshold int fields with defaults |
-| `app/freshness.py` | NEW | `stale_cutoff()`, `is_stale()` helper functions |
-| `app/models/aircraft.py` | MODIFY | Add: `fetched_at TIMESTAMPTZ`, `time_position INT`, `geo_altitude FLOAT`, `vertical_rate FLOAT`, `position_source INT`, `is_active BOOL DEFAULT TRUE` |
-| `app/models/military_aircraft.py` | MODIFY | Add: `fetched_at TIMESTAMPTZ`, `last_seen_at TIMESTAMPTZ`, `is_active BOOL DEFAULT TRUE` |
-| `app/models/ship.py` | MODIFY | Add: `last_seen_at TIMESTAMPTZ`, `is_active BOOL DEFAULT TRUE` |
-| `app/models/gps_jamming.py` | MODIFY | Add: `source_fetched_at TIMESTAMPTZ`, `source_is_stale BOOL`, `aggregated_at TIMESTAMPTZ` |
-| `app/tasks/ingest_aircraft.py` | MODIFY | Write new fields in upsert; add tombstone UPDATE at end |
-| `app/tasks/ingest_military.py` | MODIFY | Write `fetched_at`, `last_seen_at`, `is_active=True`; add tombstone UPDATE at end |
-| `app/workers/ingest_ais.py` | MODIFY | Write `last_seen_at`, `is_active=True` in batch flush |
-| `app/tasks/ingest_gps_jamming.py` | MODIFY | Filter source by `is_active`; write freshness metadata to cells |
-| `app/api/routes_aircraft.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
-| `app/api/routes_military.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
-| `app/api/routes_ships.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
-| `app/api/routes_gps_jamming.py` | MODIFY | Expose `aggregated_at`, `source_fetched_at`, `source_is_stale` in response envelope |
-| `alembic/versions/<hash>_add_freshness_fields.py` | NEW | Single migration adding all new columns |
-| `backend/tests/test_aircraft.py` | MODIFY | Extend for freshness fields in response, stale filtering behavior |
-| `backend/tests/test_military.py` | MODIFY | Extend for is_active filter, stale behavior |
-| `backend/tests/test_ships.py` | MODIFY | Extend for last_seen_at filter, stale behavior |
-| `backend/tests/test_gps_jamming.py` | MODIFY | Extend for source freshness fields in response |
-| `backend/tests/test_ingest_aircraft.py` | MODIFY | Extend for new OpenSky fields, tombstone behavior |
-| `backend/tests/test_ingest_military.py` | MODIFY | Extend for tombstone behavior |
-| `backend/tests/test_freshness.py` | NEW | Unit tests for `stale_cutoff()` and `is_stale()` helpers |
+| File | Purpose |
+|------|---------|
+| `frontend/src/hooks/useViewerClock.ts` | Syncs `viewer.clock.currentTime` and `viewer.clock.shouldAnimate` to `replayTs`/`replayMode`. New hook, mounted in `App.tsx`. |
 
-### Ingest Task ↔ Model Field Mapping
+### Modified Files
 
-| OpenSky State Vector Index | OpenSky Field | Model Column | Notes |
-|----------------------------|---------------|--------------|-------|
-| sv[3] | `time_position` (Unix int) | `Aircraft.time_position` | Time of last ADS-B position fix; None = position from network |
-| sv[7] | `baro_altitude` (m) | `Aircraft.baro_altitude` | Already exists |
-| sv[13] | `geo_altitude` (m) | `Aircraft.geo_altitude` | Geometric altitude from GNSS |
-| sv[11] | `vertical_rate` (m/s) | `Aircraft.vertical_rate` | +ve = climbing |
-| sv[16] | `position_source` (int) | `Aircraft.position_source` | 0=ADS-B, 1=ASTERIX, 2=MLAT, 3=FLARM |
-| (implicit) | poll timestamp | `Aircraft.fetched_at` | Set via `func.now()` in upsert |
+| File | Change | Bug Fixed |
+|------|--------|-----------|
+| `frontend/src/components/SatelliteLayer.tsx` | In rAF loop, read `replayMode`/`replayTs` from `getState()` each tick; pass `replayTs` to `PROPAGATE` in playback mode | BUG-01 |
+| `frontend/src/components/AircraftLayer.tsx` | In live lerp loop body, check `replayMode` via `getState()` and `return` early if `'playback'` | BUG-02 |
+| `frontend/src/components/MilitaryAircraftLayer.tsx` | Add `replayMode` guard to Effect 2 (data update effect) — skip position writes in playback | BUG-06 |
+| `frontend/src/components/ShipLayer.tsx` | Add `replayMode` guard to Effect 2 — same pattern as military | BUG-06 |
+| `frontend/src/hooks/useGpsJamming.ts` | Add `replayMode` check; `refetchInterval: replayMode === 'live' ? 86_400_000 : false` | BUG-04 |
+| `frontend/src/components/StreetTrafficLayer.tsx` | Add `replayModeRef`; skip position writes in `animate()` when `replayMode === 'playback'` | BUG-05 |
+| `frontend/src/App.tsx` | Mount `useViewerClock(cesiumViewer)` | BUG-03 |
 
-> NOTE: OpenSky state vector index 16 (`position_source`) is only present in the
-> extended state vector format returned when authenticated. Verify presence in live
-> data during ACFT-01. If absent for some records, default to `None` not `0`.
+### No Changes Required
 
-### Route Response Field Additions
-
-| Endpoint | New Fields Added to Each Entity |
-|----------|---------------------------------|
-| `GET /api/aircraft/` (list) | `fetched_at`, `is_active`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source` |
-| `GET /api/aircraft/{icao24}` (detail) | Same — detail already returns full record |
-| `GET /api/military/` (list) | `fetched_at`, `last_seen_at`, `is_active` |
-| `GET /api/military/{hex}` (detail) | Same |
-| `GET /api/ships/` (list) | `last_seen_at`, `is_active` |
-| `GET /api/ships/{mmsi}` (detail) | Same |
-| `GET /api/gps-jamming/` | Top-level: `aggregated_at`, `source_fetched_at`, `source_is_stale` |
-
-### Alembic Migration Structure
-
-All schema changes go in a single migration file. Column additions with nullable defaults do not require table rewrites in PostgreSQL — they apply immediately even on large tables.
-
-```python
-# Key columns to add — all nullable to avoid constraint violations on existing rows:
-
-# aircraft table
-op.add_column('aircraft', sa.Column('fetched_at', sa.DateTime(timezone=True), nullable=True))
-op.add_column('aircraft', sa.Column('time_position', sa.Integer(), nullable=True))
-op.add_column('aircraft', sa.Column('geo_altitude', sa.Float(), nullable=True))
-op.add_column('aircraft', sa.Column('vertical_rate', sa.Float(), nullable=True))
-op.add_column('aircraft', sa.Column('position_source', sa.Integer(), nullable=True))
-op.add_column('aircraft', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
-
-# military_aircraft table
-op.add_column('military_aircraft', sa.Column('fetched_at', sa.DateTime(timezone=True), nullable=True))
-op.add_column('military_aircraft', sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True))
-op.add_column('military_aircraft', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
-
-# ships table
-op.add_column('ships', sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True))
-op.add_column('ships', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
-
-# gps_jamming_cells table
-op.add_column('gps_jamming_cells', sa.Column('source_fetched_at', sa.DateTime(timezone=True), nullable=True))
-op.add_column('gps_jamming_cells', sa.Column('source_is_stale', sa.Boolean(), nullable=True))
-op.add_column('gps_jamming_cells', sa.Column('aggregated_at', sa.DateTime(timezone=True), nullable=True))
-```
-
-Indexes to add in the same migration for query performance:
-```python
-op.create_index('ix_aircraft_fetched_at', 'aircraft', ['fetched_at'])
-op.create_index('ix_military_aircraft_fetched_at', 'military_aircraft', ['fetched_at'])
-op.create_index('ix_ships_last_seen_at', 'ships', ['last_seen_at'])
-```
+| File | Why |
+|------|-----|
+| `frontend/src/store/useAppStore.ts` | Store shape is correct — `replayMode`, `replayTs`, `replaySpeedMultiplier`, window bounds all present |
+| `frontend/src/hooks/useReplaySnapshots.ts` | Hook is correct — `enabled` flag, `staleTime: Infinity`, `findAdjacentSnapshots` binary search all correct |
+| `frontend/src/components/PlaybackBar.tsx` | rAF tick loop is correct — uses `getState()`, auto-stops at `windowEnd`, `isPlaying` state is local |
+| `frontend/src/workers/propagation.worker.ts` | Worker already accepts `timestamp` parameter in `PROPAGATE` handler — ready for BUG-01 fix with no worker changes |
+| `frontend/src/hooks/useAircraft.ts` | `refetchInterval` already gated on `replayMode` — correct pattern |
+| `frontend/src/hooks/useMilitaryAircraft.ts` | Same — correct |
+| `frontend/src/hooks/useShips.ts` | Same pattern — verify on implementation |
+| `frontend/src/components/GlobeView.tsx` | No changes — viewer.clock sync extracted to `useViewerClock` hook |
 
 ---
 
-## Build Order
+## Suggested Build Order
 
-The build order is dictated by hard dependencies: Alembic migration must run before any code that writes or reads new columns; models must be updated before ingest code; ingest code must be updated before API routes can expose the new fields; tests should be written before implementation (TDD RED) and verified GREEN after.
+Dependencies: store is already correct. All fixes are independent of each other but the clock sync (BUG-03) is most visually testable first.
 
-### Step 1 — Schema: Alembic Migration (MIG-01)
+### Step 1 — viewer.clock sync (BUG-03)
 
-**Files:** One new migration in `alembic/versions/`
-**Dependency:** None. Must be first.
-**Why first:** All subsequent steps read or write new columns. Without the migration applied, every other step fails at runtime.
-**Risk:** LOW. Column additions to existing tables in PostgreSQL are `ALTER TABLE ... ADD COLUMN` — near-instant operations, no table lock on modern PostgreSQL. `is_active BOOLEAN NOT NULL DEFAULT TRUE` backfills existing rows as active, which is correct.
+**Rationale:** Self-contained new hook, no interaction with other fixes. Validates CesiumJS `JulianDate` API usage before touching layer code. Visually dramatic test signal: scrub to a historical nighttime timestamp, globe goes dark.
 
-### Step 2 — Models: Add New ORM Fields (ACFT-01, MIL-01, SHIP-01, JAM-01)
-
-**Files:** `aircraft.py`, `military_aircraft.py`, `ship.py`, `gps_jamming.py`
-**Dependency:** Step 1 (migration applied).
-**Why second:** Ingest tasks and route handlers import model classes directly. If model fields are missing, SQLAlchemy will raise `AttributeError` at task or request time.
-**Risk:** LOW. Additive changes only. Existing columns and `Mapped` types are unchanged.
-
-### Step 3 — Shared Helper: freshness.py + config.py (FRESH-01, FRESH-02)
-
-**Files:** `app/freshness.py` (new), `app/config.py` (modified)
-**Dependency:** None (pure utility, no DB dependency).
-**Why third:** Routes (Step 5) and tests (Step 6) import from these. Must exist before both.
-**Risk:** NONE. New file + additive config fields.
-
-### Step 4 — Ingest: Write New Fields (ACFT-02/03, MIL-02/03, SHIP-02/03, JAM-02)
-
-**Files:** `ingest_aircraft.py`, `ingest_military.py`, `ingest_ais.py`, `ingest_gps_jamming.py`
-**Dependency:** Steps 1 and 2 (schema + model).
-**Why fourth:** Ingest tasks run in the RQ worker process. They must write new fields so the API routes have data to return. The tombstone logic is part of this step.
-**Risk:** MEDIUM. Touching the core ingest loop. The existing test coverage for each ingest task provides a regression safety net. GPS jamming must also be updated here to filter by `is_active` and write freshness metadata.
-
-### Step 5 — API Routes: Stale Filtering + Freshness Fields (ACFT-04/05/06, MIL-04, SHIP-04, JAM-03)
-
-**Files:** `routes_aircraft.py`, `routes_military.py`, `routes_ships.py`, `routes_gps_jamming.py`
-**Dependency:** Steps 2 and 3 (models + freshness helper).
-**Why fifth:** Routes are the public API surface. Changing them after ingest ensures there is real data to validate against in integration tests.
-**Risk:** MEDIUM. Changes query WHERE clauses on list endpoints — alters what is returned. Existing tests that assert specific entity counts will need updating.
-
-### Step 6 — Tests: All Freshness Behavior (TEST-01 through TEST-07)
-
-**Files:** Modified test files for aircraft/military/ships/gps-jamming; new `test_freshness.py`
-**Dependency:** Steps 1–5 (everything must be wired before integration tests pass).
-**Why last:** Per the codebase's established TDD discipline, tests are ideally written before implementation (RED phase). For this milestone, write unit tests for `freshness.py` (Step 3) in TDD style. Write ingest and route integration tests after the implementation exists to validate behavior.
-**Risk:** LOW. Test code does not affect production behavior.
-
-**Practical TDD order within this milestone:**
-1. Write `test_freshness.py` unit tests (Steps 3) — can be written before implementation
-2. Write route tests asserting freshness fields in responses (Step 5 contract)
-3. Implement Step 3–5 to make tests pass
-4. Write tombstone/lifecycle tests as integration tests that set up DB state directly
+**Files:** New `useViewerClock.ts`, one-line mount in `App.tsx`.
 
 ---
 
-## Anti-Patterns
+### Step 2 — Satellite propagation fix (BUG-01)
 
-### Anti-Pattern 1: Stale Cutoff Duplicated in Each Route Handler
+**Rationale:** One-line fix in the rAF loop closure. Worker infrastructure already supports parameterized timestamps. Most visually prominent correctness improvement — satellites visibly jump to historical orbital positions.
 
-**What people do:** Copy `datetime.now(timezone.utc) - timedelta(seconds=120)` into each of the three route files.
-**Why it's wrong:** Three copies of the same logic with different magic numbers. When the threshold changes (environment variable), only one file gets updated. Bug in threshold calculation is multiplied by three.
-**Do this instead:** Use `freshness.stale_cutoff(settings.stale_threshold_aircraft_s)` — one call per route, one implementation in `freshness.py`.
+**Files:** `SatelliteLayer.tsx` loop only.
 
-### Anti-Pattern 2: Threshold Hardcoded as Module-Level Constant in Route File
+---
 
-**What people do:** `STALE_THRESHOLD = 120` at the top of `routes_aircraft.py`.
-**Why it's wrong:** Cannot be overridden without redeploying code. In a homelab context with varying data quality, being able to adjust via `.env` is essential (e.g., if OpenSky is degraded and only polling every 3 minutes, the threshold needs to be 360s, not 120s).
-**Do this instead:** Declare in `Settings` class with a sensible default. The threshold becomes an env var with a safe default that works without any configuration.
+### Step 3 — Aircraft live lerp guard (BUG-02)
 
-### Anti-Pattern 3: Filtering Stale Entities in the Frontend Instead of the API
+**Rationale:** More complex because two effects write `bb.position`. Must verify that the live lerp guard does not accidentally also suppress playback interpolation. Depends on snapshot data being correctly fetched (already working). Test both: paused scrubbing (lerp idle, no position drift) and active playback (lerp idle, playback effect updates positions per tick).
 
-**What people do:** Return all entities from the API and let the frontend filter by `updated_at > (Date.now() - threshold)`.
-**Why it's wrong:** The frontend must carry threshold knowledge. Multiple clients would need synchronized thresholds. Stale entities waste network bandwidth and React render cycles.
-**Do this instead:** Filter at the database query layer. The API returns only live entities. The API's freshness metadata endpoint tells the frontend when data was last updated.
+**Files:** `AircraftLayer.tsx` lerp loop body.
 
-### Anti-Pattern 4: Setting is_active=False in the API Route Layer
+---
 
-**What people do:** On `GET /api/military/`, load all rows, then filter in Python by comparing timestamps, and set `is_active=False` for stale rows as a side effect of a GET request.
-**Why it's wrong:** GET requests must not have write side effects (HTTP idempotency contract). A GET request being responsible for state mutation is a correctness bug.
-**Do this instead:** Tombstone writes happen only in the ingest task, which runs on a background schedule. The GET route is pure read.
+### Step 4 — Military and ship replayMode guards (BUG-06)
 
-### Anti-Pattern 5: Separate GPS Jamming Freshness Table
+**Rationale:** Same pattern as Step 3 but simpler (no lerp). One guard per layer in Effect 2.
 
-**What people do:** Create a `gps_jamming_metadata` table with one row for `(aggregated_at, source_fetched_at, source_is_stale)` and JOIN it in the route.
-**Why it's wrong:** Extra schema complexity, JOIN required in every query, migration complexity, no meaningful benefit at the scale of hundreds of cells.
-**Do this instead:** Store freshness metadata as columns on every `gps_jamming_cells` row. All cells from one batch share identical values. Extract for the response from `cells[0]`.
+**Files:** `MilitaryAircraftLayer.tsx` Effect 2, `ShipLayer.tsx` Effect 2.
 
-### Anti-Pattern 6: Using updated_at as the Stale Filter Column for Aircraft
+---
 
-**What people do:** Filter by `Aircraft.updated_at >= cutoff` since `updated_at` already exists.
-**Why it's wrong:** `updated_at` is set by `server_default=func.now()` and `onupdate=func.now()` at the database level. It reflects when the row was last written, not when the source data was fetched. If ingest fails silently (API returns success but empty states), `updated_at` is not refreshed and the stale filter correctly fires. But the intent is clearer with a dedicated `fetched_at` column that the ingest code explicitly sets on every successful poll.
-**Do this instead:** Use `fetched_at` for stale filtering. `updated_at` is retained for general-purpose audit purposes but is not the primary freshness indicator.
+### Step 5 — GpsJamming polling freeze (BUG-04)
+
+**Rationale:** Single-line hook change. Isolated from all renderer logic. Low risk.
+
+**Files:** `useGpsJamming.ts`.
+
+---
+
+### Step 6 — StreetTraffic animation freeze (BUG-05)
+
+**Rationale:** The `replayModeRef` pattern is straightforward but `StreetTrafficLayer` has the most complex internal rAF state (particles, roads, visibility, altitude gate). Fix last to ensure simpler fixes are confirmed first and don't mask issues here.
+
+**Files:** `StreetTrafficLayer.tsx`.
+
+---
+
+## Architectural Patterns to Follow (Do Not Deviate)
+
+### Pattern: getState() inside rAF closures — never subscriptions
+
+All `PlaybackBar` tick logic reads current store state via `useAppStore.getState()` inside the rAF closure. This avoids stale closure bugs where the closure captures an old value from the render that started the loop.
+
+BUG-01 and BUG-02 fixes must use `getState()`, never `useAppStore(s => s.replayTs)` inside a loop body. Adding `replayTs` to a `useEffect` dependency array that contains a 60 Hz rAF loop would restart the loop on every `replayTs` change — 60 re-mounts per second.
+
+### Pattern: Ref for fast-path reads in rAF closures
+
+`StreetTrafficLayer` uses `layerVisibleRef` (ref updated at render time, read in rAF closure) to access latest state without subscribing. The BUG-05 fix follows this exact pattern with `replayModeRef`.
+
+### Pattern: refetchInterval gated on replayMode
+
+`useAircraft` and `useMilitaryAircraft` use `refetchInterval: replayMode === 'live' ? interval : false`. This is the established hook-level pattern for halting polls during playback. BUG-04 uses this same pattern in `useGpsJamming`.
+
+### Pattern: Playback effect structurally separate from live effect
+
+In `AircraftLayer`, `MilitaryAircraftLayer`, and `ShipLayer`, the playback interpolation effect is a separate `useEffect` that does not modify live-mode data structures. BUG-02 fix mutes the live lerp via a guard; it does NOT merge the two effects or alter the playback effect. Structural separation preserved.
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Subscribing to replayTs inside an rAF loop's useEffect deps
+
+**What people do:** Add `replayTs` to the `useEffect` dependency array that contains rAF loop setup.
+
+**Why it's wrong:** `replayTs` changes at ~60 Hz during playback. Every change triggers effect cleanup (cancel rAF) and re-setup (restart rAF), restarting the loop 60 times per second. This causes jank, dropped frames, and potential Worker message queue backlog.
+
+**Do this instead:** Read `replayTs` inside the loop body via `useAppStore.getState()`. Let the loop run continuously and sample state each tick.
+
+---
+
+### Anti-Pattern 2: Two effects both writing bb.position without ownership separation
+
+**What people do:** Keep the live lerp running and add a playback effect that also writes `bb.position`.
+
+**Why it's wrong:** The live lerp runs every animation frame (~16ms). The playback effect fires on `replayTs` change. The lerp always overwrites the playback position within one frame, making the playback effect a no-op. This is exactly BUG-02 in the current codebase.
+
+**Do this instead:** Gate the live lerp with a `replayMode` check from `getState()`. In playback mode, the loop body returns early. The playback effect has exclusive ownership of `bb.position`.
+
+---
+
+### Anti-Pattern 3: Rebuilding GroundPrimitive on replayTs change
+
+**What people do:** Make `GpsJammingLayer` react to `replayTs` and attempt to fetch historical jamming data, rebuilding the `GroundPrimitive` on each tick.
+
+**Why it's wrong:** `GroundPrimitive` geometry is immutable after construction. Rebuilding requires destroy + recreate including GPU tessellation (~100ms per rebuild). At 60 Hz this is catastrophic. No historical jamming snapshot table exists in the backend.
+
+**Do this instead:** Freeze the layer at its last fetched daily aggregate. GPS jamming is a daily inference — showing the current day's heatmap during historical replay is honest and labeled as such.
+
+---
+
+### Anti-Pattern 4: Driving viewer.clock from a component that also owns expensive geometry
+
+**What people do:** Add clock sync code directly into `GlobeView.tsx` as a `useEffect` inside the viewer init effect.
+
+**Why it's wrong:** GlobeView is already large and manages complex viewer lifecycle. Clock sync has its own `replayTs` subscription which runs at 60 Hz. Mixing this concern into the viewer init effect risks accidental re-runs of expensive CesiumJS init code.
+
+**Do this instead:** Extract into `useViewerClock.ts`. The hook takes `viewer` as a parameter and has a single small `useEffect`. Mount it in `App.tsx` alongside the other layer components.
 
 ---
 
 ## Scaling Considerations
 
-| Concern | At Current Scale | Notes |
-|---------|-----------------|-------|
-| Tombstone pass performance | Trivial — UPDATE on ~few thousand rows | A partial index on `(fetched_at) WHERE is_active = TRUE` makes the WHERE clause fast |
-| Stale cutoff query overhead | Trivial — index on fetched_at/last_seen_at | Add index in migration (see Step 1) |
-| GPS jamming cell count | Hundreds of H3 cells | Storing freshness on every cell row is 3 extra columns × hundreds of rows = trivial |
-| AIS flush lag | Ships may appear stale between flushes | 30s flush interval means up to 30s lag between Redis update and PG visibility; threshold of 900s absorbs this |
+This is a single-user homelab tool. Concerns are rendering performance, not multi-tenancy.
+
+| Concern | Current | Impact of Fix |
+|---------|---------|---------------|
+| Satellite propagation (1 Hz) | Worker batch, Float64Array zero-copy IPC | No change in frequency — `getState()` is O(1) |
+| Aircraft lerp (60 Hz) | Module-scope maps, scratch Cartesian3 reuse | One `getState()` call added per frame — negligible |
+| viewer.clock sync | New useEffect, fires on replayTs change | Two-line effect — no expensive computation |
+| Snapshot memory | 2h window warned at ~264MB | No change to snapshot fetch scope or strategy |
+| StreetTraffic freeze | No computation skipped in animate() idle path | Guard adds one ref read per frame — no cost |
 
 ---
 
 ## Sources
 
-- Direct codebase analysis: all backend Python files (HIGH confidence — authoritative)
-- FastAPI dependency injection patterns — official docs (HIGH confidence)
-- SQLAlchemy `on_conflict_do_update` with bulk UPDATE tombstone — established PostgreSQL upsert pattern
-- pydantic-settings `BaseSettings` field declaration — official docs (HIGH confidence)
-- OpenSky Network REST API — state vector format documentation (HIGH confidence)
-  - State vector field 3 = `time_position`, field 11 = `vertical_rate`, field 13 = `geo_altitude`, field 16 = `position_source`
-- PostgreSQL `ALTER TABLE ADD COLUMN` performance on existing tables — near-instant for nullable columns or columns with server_default (HIGH confidence)
-- HTTP idempotency: GET requests must not have write side effects (RFC 7231 §4.2.2, HIGH confidence)
+All findings from direct inspection of the codebase:
+
+- `frontend/src/components/SatelliteLayer.tsx` — BUG-01 identified at lines 257–265
+- `frontend/src/components/AircraftLayer.tsx` — BUG-02 identified at lines 247–265, 317–338
+- `frontend/src/components/MilitaryAircraftLayer.tsx` — BUG-06 pattern identified in Effect 2
+- `frontend/src/components/ShipLayer.tsx` — BUG-06 mirror pattern
+- `frontend/src/components/GpsJammingLayer.tsx` — BUG-04: no replayMode awareness
+- `frontend/src/components/StreetTrafficLayer.tsx` — BUG-05: animate() has no replayMode check
+- `frontend/src/components/GlobeView.tsx` — BUG-03: no viewer.clock sync present
+- `frontend/src/components/PlaybackBar.tsx` — correct reference implementation of getState() pattern
+- `frontend/src/workers/propagation.worker.ts` — PROPAGATE handler ready for parameterized timestamp
+- `frontend/src/hooks/useReplaySnapshots.ts` — correct reference implementation
+- `frontend/src/hooks/useAircraft.ts` — correct refetchInterval gating pattern
+- `frontend/src/hooks/useGpsJamming.ts` — missing replayMode gating (BUG-04)
+- `frontend/src/hooks/useStreetTraffic.ts` — no replayMode awareness
+- `frontend/src/store/useAppStore.ts` — store shape confirmed correct
+- `frontend/src/App.tsx` — component mount points for useViewerClock
+
+CesiumJS clock API (HIGH confidence — verified in v2.0 phase plans):
+- `viewer.clock.currentTime` accepts a `JulianDate`
+- `viewer.clock.shouldAnimate = false` pauses auto-advancement
+- `JulianDate.fromDate(date)` converts JavaScript `Date` to CesiumJS `JulianDate`
+- `viewer.clock.multiplier` controls playback speed (not used here — PlaybackBar owns speed)
 
 ---
 
-*Architecture research for: Intelligence Globe v4.0 Data Reliability and Freshness — FastAPI + SQLAlchemy stale filtering integration*
+*Architecture research for: 4D Replay Engine Correctness — v5.0 milestone*
 *Researched: 2026-03-13*

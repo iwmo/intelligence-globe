@@ -1,69 +1,27 @@
 # Feature Research
 
-**Domain:** Data freshness metadata and stale-position handling in real-time geospatial tracking APIs
+**Domain:** 4D Geospatial Replay Engine — Correctness Audit and Playback UX
 **Researched:** 2026-03-13
-**Confidence:** HIGH (industry sources, official API docs, protocol standards verified)
+**Confidence:** HIGH (codebase fully read; all implementation gaps confirmed by direct code inspection)
 
 ---
 
-## Context: What Already Exists
+## Context: What Is Already Shipped
 
-This is a subsequent milestone research file (v4.0). The following are already built and out of scope for this research:
+The following are built and are NOT features for this milestone. They are the foundation
+against which new features are scoped:
 
-- Aircraft layer: OpenSky polling (90s), PostgreSQL upsert, trail column, `/api/aircraft`
-- Military layer: airplanes.live /v2/mil, 300s cadence, `/api/military`
-- AIS ships: aisstream.io WebSocket, Redis TTL (600s), 30s PG flush, `/api/ships`
-- GPS jamming: H3 hexagon aggregation from military NIC/NACp, daily cadence triggered on each military ingest, `/api/gps-jamming`
-- Snapshot infrastructure: 60s time-partitioned PostgreSQL, 7-day retention
-- `/api/aircraft/freshness`: already exists, returns `max(updated_at)` across all aircraft rows
-
-Current gap: API layer returns `updated_at` (server write time) but nothing about the data's own internal age. No `is_active` lifecycle column, no `is_stale` derived field, no `position_age_seconds`, no `fetched_at` capturing the upstream source timestamp. List endpoints return all rows regardless of when the entity was last seen — dead aircraft appear as live.
-
----
-
-## Industry Conventions: Staleness Thresholds
-
-### Aircraft (ADS-B / OpenSky) — HIGH confidence
-
-OpenSky's own staleness rule (verified from official docs):
-- `time_position` is set to `null` when no position report was received in the **last 15 seconds** — OpenSky itself treats positions older than 15s as unreliable
-- `last_contact` (last any transponder message) keeps the state vector alive for up to **300 seconds** after loss of contact — a row stays in the OpenSky response for up to 5 minutes after the aircraft stops transmitting
-- OpenSky response-level `time` field: Unix epoch integer of when the snapshot was taken — distinct from per-aircraft timestamps
-
-Downstream conventions for applications consuming OpenSky (MEDIUM confidence — community practice):
-- < 60s since last contact: treat as live
-- 60–300s: treat as stale; display with visual indicator
-- > 300s: treat as expired; exclude from list endpoints
-
-This project's poll interval is 90s. Any aircraft absent from two consecutive polls is absent for at least 180s and should be considered expired. The `updated_at` column already encodes this: aircraft not upserted in > 180s has not appeared in any recent OpenSky response.
-
-### Military Aircraft (ADS-B via airplanes.live) — HIGH confidence
-
-Poll interval: 300s. airplanes.live returns a full current snapshot of all tracked military aircraft. Absence from a response means the aircraft is off radar. Practical threshold: **not updated in 600s (two missed polls)** = expired. `updated_at` encodes this directly.
-
-### Maritime (AIS) — HIGH confidence, ITU-R M.1371-5 standard
-
-Mandatory AIS reporting intervals per vessel class and state:
-
-| Vessel State | Class A | Class B-SO | Class B-CS |
-|---|---|---|---|
-| Underway < 14 kn | 10s | 30s | 30s |
-| Underway 14-23 kn | 6s | 15s | 30s |
-| Underway > 23 kn | 2s | 5s | 30s |
-| Anchored / stopped | 3 min | 3 min | 3 min |
-
-Practical staleness thresholds from production maritime trackers (MEDIUM confidence):
-- DataHub/PredictWind OTA AIS: 3-minute TTL (180s); 2-minute fallback (120s) for freshness determination
-- MarineTraffic platform: downsamples to 60s per MMSI; removes vessel from live map after 24 hours without update
-- This project's Redis TTL: **600s (10 min)** — ships absent from aisstream.io for 10 min drop from Redis, meaning the PG row may persist but the Redis position is gone. The gap between Redis TTL (600s) and PG row persistence is the current staleness blind spot.
-
-Practical rule for this project: ship rows with `updated_at` older than **600s** are stale; older than **3600s (1 hour)** should be considered inactive (`is_active = false`).
-
-Satellite AIS note: vessels in remote ocean areas may have AIS gaps of hours to days — satellite relay has inherently different freshness profile than terrestrial AIS. Do not apply the same threshold to both.
-
-### GPS Jamming Cells — HIGH confidence (derived layer, not live telemetry)
-
-GPS jamming is aggregated from military aircraft NIC/NACp data, not a direct sensor feed. It runs after each military ingest (~300s) and on a daily schedule. "Staleness" for this layer means: how old is the source military data that produced these cells? The `updated_at` on each cell captures when the aggregation ran. The real freshness signal is `max(military_aircraft.updated_at)` at aggregation time. Cells do not expire individually; the entire layer is replaced atomically on each aggregation run.
+- LIVE/PLAYBACK toggle (`replayMode` in `useAppStore`)
+- Timeline scrubber with 1000-point integer precision
+- Play/Pause with rAF advancement loop, auto-stop at window end
+- 5 speed presets: 1m/s, 3m/s, 5m/s, 15m/s, 1h/s
+- Snapshot binary-search interpolation for aircraft, military, ships
+- OSINT event marker dots on scrubber track with category chip filter
+- TLE staleness warning badge when TLE age > 7 days
+- Satellite overpass arc lines to area-of-interest (via `COMPUTE_OVERPASS` with `replayTs`)
+- `useReplaySnapshots` hook: fetches 2-hour window, builds `Map<entityId, SnapshotRecord[]>`, returns `isLoading`
+- Freshness lifecycle columns on all four entity tables (v4.0)
+- `is_active` filtering on `/api/aircraft`, `/api/military`, `/api/ships` (v4.0)
 
 ---
 
@@ -71,127 +29,154 @@ GPS jamming is aggregated from military aircraft NIC/NACp data, not a direct sen
 
 ### Table Stakes (Users Expect These)
 
-Features that any honest real-time tracker must provide. Missing these means the globe silently shows dead data as if it were live.
+Features whose absence makes the replay feel broken or untrustworthy. Missing any of these
+means "go back in time" is a lie — some layer still moves in real time during historical playback.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Stale row filtering on list endpoints | List endpoints return all rows regardless of age — dead aircraft appear live. Every production tracker filters by recency. | LOW | `WHERE updated_at > now() - interval 'N seconds'` or `WHERE is_active = true`; thresholds differ per source (aircraft: 300s, military: 600s, ships: 600s) |
-| `is_stale` boolean in list and detail responses | Users and frontend code need a computed signal, not raw timestamps — a boolean is unambiguous. AirLabs, OpenSky all use some form of staleness indicator. | LOW | Computed at serialization time from `updated_at` vs threshold; no schema change required if using `updated_at` approach |
-| `position_age_seconds` in detail endpoints | Standard derived field — "this position is N seconds old." Used by virtually all aviation/maritime detail panels (FlightAware, MarineTraffic). | LOW | `int((now() - updated_at).total_seconds())`; detail endpoint only, not list payload (too verbose at scale) |
-| `fetched_at` column on aircraft table | OpenSky provides a response-level `time` field (Unix epoch) telling when the snapshot was taken — this is semantically distinct from `updated_at` (our PostgreSQL write time). Without it, callers cannot distinguish "fresh data written slowly" from "old data written immediately." | LOW | New column; integer or DateTime; populated from OpenSky `response["time"]`; requires Alembic migration |
-| `time_position` column on aircraft table | OpenSky `sv[3]`: when the position fix itself was recorded — may be older than `last_contact`. Null when no position received in last 15s. This is OpenSky's own freshness field and should be stored and surfaced. | LOW | New column; integer Unix seconds; from OpenSky sv[3]; requires Alembic migration |
-| `is_active` soft-expiry flag on all entity tables | Enables "recently seen but now inactive" state without hard deletion. Required to keep replay and `/detail` endpoints functional while excluding stale entities from live list endpoints. | MEDIUM | Boolean column default true; ingest sets false when entity absent from response; requires Alembic migration per table |
-| Alembic migrations for all schema changes | Without migrations, running containers diverge from new schema on deploy. This project uses Alembic already — all schema changes must go through it. | LOW (mechanical) | One migration per modified table; must be idempotent |
+| Satellite propagation uses `replayTs`, not `Date.now()` | Satellites are the most visually prominent layer. If they keep moving at live speed during playback, the entire "go back in time" premise collapses for the user. | MEDIUM | **Confirmed bug (line 260, SatelliteLayer.tsx):** `worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: Date.now() } })` — should send `replayTs` when in playback mode. Worker already accepts a `timestamp` param; the fix is in the caller. Additionally, the propagation loop itself must pause entirely when `isPlaying === false` to prevent satellites from drifting forward during a paused replay. |
+| Aircraft live-lerp stops in playback mode | The lerp loop animates aircraft using wall-clock `Date.now()` (line 253, AircraftLayer.tsx). During playback this loop still runs, advancing aircraft to positions extrapolated from live data. The snapshot interpolation effect also writes positions, causing a write conflict. | MEDIUM | Gate the lerp `animate()` function body: `if (replayMode === 'playback') { rafRef.current = requestAnimationFrame(lerp); return; }`. The existing snapshot interpolation effect already handles position in playback. `replayMode` must be readable inside the rAF closure — use `useAppStore.getState().replayMode` to avoid stale closure. |
+| Ships stop live-updating in playback mode | Ships have no lerp, but `Effect 2` (useEffect on `ships.data`) directly writes billboard positions when new poll data arrives during playback. Historical snapshot positions get overwritten on the next 90-second live poll. | LOW | Gate `Effect 2` in ShipLayer.tsx: `if (replayMode === 'playback') return;` at the top of the effect. The snapshot interpolation effect already has its own `replayMode` guard. |
+| Military aircraft stops live-updating in playback mode | Same issue as ships: `Effect 2` in MilitaryAircraftLayer.tsx writes billboard positions directly from `useMilitaryAircraft` data without checking `replayMode`. | LOW | Same fix: gate `Effect 2` behind `if (replayMode === 'playback') return;`. |
+| GPS jamming layer discloses it is not historical | No historical H3 hexagon snapshots exist. Showing live jamming data while all other layers show historical creates a false intelligence picture — the user has no way to know the jamming overlay is current-time, not `replayTs`. | LOW | Show an amber "LIVE DATA" badge overlaid on the GPS jamming layer when `replayMode === 'playback'` and the layer is visible. Do NOT hide the layer — the data is still useful context, but must be labeled as present-tense. |
+| Street traffic particles freeze when paused | The `StreetTrafficLayer` rAF `animate()` loop has no `replayMode` or `isPlaying` awareness. Particles continue flowing during a paused replay, which is visually incoherent when all entity layers are frozen at `replayTs`. | LOW | Check `useAppStore.getState().replayMode` inside the `animate()` function. When `replayMode === 'playback'` and the global `isPlaying === false`, skip advancing `p.t`. Particles may still move during active playback — they are a simulation, not historical data. Requires exposing `isPlaying` to the store or an equivalent read path. |
+| End-to-end scrubbing: all layers respond to `replayTs` | Dragging the scrubber must move all entity-based layers simultaneously with no residual live movement. Aircraft/military/ships already respond via snapshot interpolation. Satellites do not. | MEDIUM | After PLAY-01 fix, all four entity layers respond. GPS jamming and street traffic are acknowledged as non-historical (badge). Manual scrub test across a 2-hour window with all layers active is the acceptance test. |
+| Playback auto-stop at window end | Already implemented correctly in PlaybackBar.tsx. The rAF tick exits and sets `isPlaying(false)` when `next >= windowEnd`. | LOW | Already built. Verify button state resets and satellites also stop advancing at that moment. |
 
 ### Differentiators (Competitive Advantage)
 
-Features beyond the baseline that make this platform more honest and informative than typical open-source trackers.
+Features beyond correctness that create a polished, trustworthy intelligence platform experience.
+Competitors (Flightradar24, FlightAware replay) show only a single flight layer; none of this
+multi-layer synchronised replay exists in free tools.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| `geo_altitude` on aircraft schema | OpenSky provides both barometric and GPS-derived geometric altitude. `geo_altitude` (sv[13]) is more accurate for terrain-relative height. Most open-source consumers ignore it. | LOW | Often null; store when present; expose in detail endpoint |
-| `vertical_rate` on aircraft schema | Climb/descent rate in m/s (sv[11]). Positive = climbing, negative = descending. Valuable for detail panel ("climbing at 600 ft/min"). Widely available in OpenSky, widely ignored by simple consumers. | LOW | Often populated for airborne aircraft; store from sv[11] |
-| `position_source` on aircraft schema | OpenSky sv[16]: 0 = ADS-B, 1 = ASTERIX, 2 = MLAT, 3 = FLARM. Tells the user how trustworthy the position fix is. MLAT positions are computed from arrival time differences and are less accurate than direct ADS-B. | LOW | Store as integer; expose as labeled string ("ADS-B", "MLAT", "FLARM") in API response |
-| `last_seen_at` on military and ship tables | Separates when the source last reported this entity from when our batch flush wrote to PG. For AIS, `time_utc` from the aisstream.io message is the true last-seen timestamp; the 30s batch flush makes `updated_at` a coarse approximation. | LOW-MEDIUM | AIS: parse `time_utc` into a typed DateTime column; military: set to `now()` per ingest batch start time |
-| Configurable stale thresholds per source in config.py | Aircraft at 90s poll, military at 300s poll, ships via continuous WebSocket — each source has a different natural cadence. Hardcoding a single threshold would be incorrect. A named constant per source in `config.py` is transparent and testable. | LOW | `STALE_THRESHOLD_AIRCRAFT_S = 300`, `STALE_THRESHOLD_MILITARY_S = 600`, `STALE_THRESHOLD_SHIP_S = 600`; no UI required |
-| GPS jamming freshness envelope in response | GPS jamming cells are derived data. Expose `aggregated_at` (when the aggregation ran) and `source_data_age_seconds` (seconds since the military aircraft data that built these cells was last updated) in the response envelope. This makes the derived nature transparent. | LOW | `aggregated_at` = `max(cell.updated_at)` query; `source_data_age_seconds` = `now() - max(military_aircraft.updated_at)` at query time; no schema change |
-| `/api/military/freshness` and `/api/ships/freshness` endpoints | Parallel to the existing `/api/aircraft/freshness`. Allows frontend to check per-layer data age without parsing the full list. | LOW | Same pattern as existing: `SELECT max(updated_at)` from respective table |
+| Stale entity visual indicator — VIS-01 (deferred from v4.0) | In live mode, entities with `is_active=false` or crossed staleness thresholds should visually degrade: opacity reduction, grey tint, or "STALE" badge in detail panel. Differentiates from platforms that silently show dead positions as live. | MEDIUM | Requires: (a) list API responses include an `is_stale: bool` flag per entity (aircraft freshness columns are in DB from v4.0; route serialisation must expose them), (b) billboard `color` or `alpha` tint applied when `is_stale=true` — use CesiumJS `Color.withAlpha(0.3)` or a grey override via `bb.color = Color.GRAY.withAlpha(0.5)`. Detail panels should show a "STALE — last seen N minutes ago" line. |
+| Playback mode indicator on CinematicHUD | In playback mode the "REC" label and live timestamp in the HUD should switch to "REPLAY" with the `replayTs` ISO string. A screenshot of the globe during replay is immediately identifiable as historical, not live. | LOW | `CinematicHUD.tsx` already renders a timestamp from `Date.now()`. Add `replayMode`/`replayTs` from `useAppStore`; conditionally render "REPLAY [replayTs ISO]" vs "REC [Date.now() ISO]". No store changes needed. |
+| Snapshot window loading indicator | When entering playback mode the `useReplaySnapshots` fetch takes 1–3 seconds for a 2-hour dense window. Currently no loading feedback exists — the play button is enabled immediately, leading users to press play and see nothing happen. | LOW | `useReplaySnapshots` already returns `isLoading` from react-query. Surface in PlaybackBar: disable play button and render "Loading snapshots…" label until `!isLoading`. Zero API changes needed. |
+| `isPlaying` promoted from local state to `useAppStore` | Currently `isPlaying` lives in `PlaybackBar`'s local `useState`. This prevents the satellite propagation loop and street traffic particle loop from reading it without prop drilling. Promoting it unblocks correct pause behaviour across layers. | LOW | Add `isPlaying: boolean` and `setIsPlaying: (v: boolean) => void` to `useAppStore` (not `useSettingsStore` — it is transient runtime state). Remove local `useState(false)` in `PlaybackBar`. |
+| Per-layer LIVE data badge for non-historical layers | A reusable component that renders an amber "LIVE" badge when a layer cannot serve historical data but is displayed inside a replay session. Makes the data-type contract visible to users. | LOW | Implement as `<LiveDataBadge visible={replayMode === 'playback'} />` — a small fixed `<div>` with amber border. Apply to GPS jamming and street traffic layers. |
+| Replay speed indicator as text readout | The active speed preset is shown by border-colour on the preset buttons. Adding a compact "60×" or "1 h/s" text label beside the ISO timestamp makes the playback rate immediately readable without scanning the button row. | LOW | Add `{formatSpeedLabel(speedMultiplier)}` span beside timestamp in PlaybackBar. Pure presentation, no store changes. |
+| Keyboard shortcuts: Space and L | Space for play/pause; L for LIVE/PLAYBACK toggle. Matches video player conventions. Power users operating the globe expect keyboard control. | LOW | Add to `useKeyboardShortcuts.ts`. Space → `store.setIsPlaying(!store.isPlaying)` when `replayMode === 'playback'`. L → `handleModeToggle()`. Guard: `if (document.activeElement` is an input, ignore. Requires `isPlaying` in store. |
+| Replay window time-range display | Show the available replay window span (oldest to newest timestamp) as labels at the track ends of the scrubber. Users currently cannot see how far back they can scrub without pressing the leftmost position. | LOW | Format `replayWindowStart` and `replayWindowEnd` as short `DD MMM HH:MM` strings; render under the scrubber input at left and right edges. No API changes needed. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Hard-delete stale rows on ingest | Feels clean — why keep dead aircraft in the database? | Breaks replay engine: `position_snapshots` reference `icao24`/`mmsi` that must remain queryable. Also breaks `/api/aircraft/{icao24}` detail if entity disappears mid-session. Causes FK violations if foreign key constraints are added later. | Use `is_active = false` soft expiry. Never hard-delete live entity rows. |
-| Per-request staleness threshold query parameter (`?stale_threshold=120`) | Seems flexible | Adds query complexity, breaks caching, hard to test all threshold combinations, no clear user need — threshold is an operational decision, not a per-request preference. | Single configurable threshold per source in `config.py`; no query parameter. |
-| Aggregated cross-layer "data health" score | A single widget showing overall freshness | Misleading — military at 300s cadence and aircraft at 90s cadence have fundamentally different freshness profiles. A blended score hides per-layer state and gives false confidence. | Per-layer freshness endpoints. Frontend shows per-layer last-updated timestamp, not a blended score. |
-| Backfilling `time_position` from trail history | "Fix" historical trail entries | Trail entries store `last_contact` (sv[4]) as `ts`, not `time_position` (sv[3]). Retroactive correction requires re-ingesting historical data that no longer exists. The two fields are semantically different. | Store `time_position` correctly going forward only. Document the distinction in code. |
-| Real-time push notification when entity goes stale | "Alert me when a tracked aircraft drops off radar" | Requires WebSocket pub/sub channel, client subscription management, and server-side change detection. Disproportionate complexity for a single-user homelab tool. | Frontend polls `/api/aircraft` periodically. Absence of entity `icao24` from the list is the signal. |
+| CZML-based replay | CesiumJS native time-dynamic format; seems like the obvious pattern. | At full entity density (thousands of aircraft/ships over 2 hours) a CZML document is hundreds of megabytes. It couples all entity state to the CesiumJS clock event, bypassing the custom rAF loop. Multi-source synchronisation (satellites + snapshots + OSINT) cannot be expressed in a single CZML document without custom extensions. Already explicitly ruled out in PROJECT.md decision log (v2.0). | Keep snapshot binary-search interpolation driven by `replayTs` via the rAF loop. This is confirmed correct and already partially working. |
+| Rewind (play in reverse while button held) | Natural from video player conventions. | Satellites (SGP4) are bidirectional — propagation can run backward. But: street traffic particles have no reverse concept, GPS jamming has no historical snapshots, and the rAF loop only increments `replayTs`. Supporting reverse requires a separate decrement branch, inverse lerp validation, and particle "un-advance" logic. Disproportionate complexity with minimal intelligence value. | Pause, drag scrubber manually to an earlier timestamp, then resume forward. This is the correct UX for a multi-layer system with mixed historical and simulation layers. |
+| Sub-minute snapshot resolution | Users want 1-second-resolution smooth replay. | Storage: 1 Hz snapshots for all entity layers over 7-day retention at full density is ~264 MB per hour vs the current 73 MB for the entire retention window. Would require a complete storage redesign. The existing 60s interval with frontend lerp interpolation is validated visually acceptable at all 5 speed presets. | Keep 60s snapshot interval + interpolation. The 1000-point scrubber precision provides smooth seeking within each interpolated segment. |
+| Live streaming overlay inside playback | Show a live feed alongside historical replay for comparison. | Requires two parallel rendering passes per layer. Doubles draw calls; at 5,000+ satellites this would halve FPS on integrated GPU. No clear intelligence requirement identified; the current LIVE badge on non-historical layers already provides the relevant context. | Exit playback to observe live state, then re-enter. Use the per-layer LIVE badge to acknowledge non-historical layers during replay. |
+| Per-entity scrubber bookmarks | Bookmark a specific entity at a specific time for later reference. | Requires entity-ID + timestamp pair storage, persistence across mode transitions, and visual indicator on scrubber track (now already crowded with OSINT event dots). Niche use case — adds complexity to the densest UI element. | OSINT event entry panel already serves this function for area-of-interest events. Log a manual OSINT event at the time and location to create a persistent marker. |
+| "Jump to next event" button | Skip to the next OSINT event marker while playing. | Requires event-aware rAF advancement (current loop is purely arithmetic time advance). OSINT events are already at known timestamps; clicking a dot on the scrubber is equivalent and already works. | User clicks the event dot directly. PlaybackBar already supports `setReplayTs(evt.ts)` on dot click. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-is_active flag (aircraft table)
-    └──requires──> Alembic migration: add is_active Boolean to aircraft
-    └──requires──> ingest_aircraft.py: set is_active=false for rows not returned in latest fetch
+[PLAY-01: Satellite uses replayTs]
+    └──requires──> replayMode and replayTs readable in SatelliteLayer effect
+                       └──already available: useAppStore selectors
+    └──requires──> isPlaying accessible outside PlaybackBar
+                       └──MISSING: isPlaying is local state in PlaybackBar
+                       └──fix: promote isPlaying to useAppStore
+    └──note: worker PROPAGATE handler already accepts {timestamp} — only caller is wrong
 
-is_active flag (military_aircraft table)
-    └──requires──> Alembic migration: add is_active Boolean to military_aircraft
-    └──requires──> ingest_military.py: set is_active=false for rows absent from /v2/mil response
+[PLAY-03: Live lerp guard for aircraft]
+    └──requires──> replayMode in store
+                       └──already available
+    └──requires──> replayMode readable inside rAF closure without stale capture
+                       └──use useAppStore.getState().replayMode — reads current value
+    └──note: snapshots effect already has guard; lerp loop does not
 
-is_active flag (ships table)
-    └──requires──> Alembic migration: add is_active Boolean to ships
-    └──requires──> ingest_ais.py: set is_active=false after Redis TTL expiry or explicit sweep
+[PLAY-02: Ships and military live-update gate]
+    └──requires──> replayMode in store
+                       └──already available
+    └──LOW complexity: add single guard line to each layer's Effect 2
 
-time_position + fetched_at + geo_altitude + vertical_rate + position_source (aircraft)
-    └──requires──> Alembic migration: add 5 columns to aircraft table
-    └──requires──> ingest_aircraft.py: extract sv[3], sv[11], sv[13], sv[16], response["time"]
+[PLAY-02: GPS jamming LIVE badge]
+    └──requires──> replayMode in store
+                       └──already available
+    └──LOW complexity: conditional render in GpsJammingLayer or App
 
-last_seen_at (military_aircraft)
-    └──requires──> Alembic migration: add last_seen_at DateTime to military_aircraft
-    └──requires──> ingest_military.py: set last_seen_at = now() at fetch start time
+[PLAY-02: Street traffic particle pause]
+    └──requires──> isPlaying accessible in rAF loop
+                       └──MISSING: requires isPlaying in store (see PLAY-01 dependency)
+    └──alternative: use replayMode only — freeze particles entirely during playback
+                       └──simpler, acceptable: particles are not historical anyway
 
-last_seen_at (ships)
-    └──requires──> Alembic migration: add last_seen_at DateTime to ships
-    └──requires──> ingest_ais.py: parse time_utc into typed DateTime for last_seen_at
+[PLAY-04: End-to-end verification]
+    └──requires──> PLAY-01, PLAY-02, PLAY-03 all complete
+    └──requires──> snapshot data present in DB (at least one 2-hour window with all layers)
 
-Stale row filtering in list endpoints
-    └──depends on──> is_active column (preferred) OR updated_at threshold (fallback)
-    └──depends on──> configurable stale thresholds in config.py
+[VIS-01: Stale entity visual indicator]
+    └──requires──> is_stale flag in list API responses per entity
+                       └──PARTIALLY AVAILABLE: freshness columns in DB from v4.0
+                       └──MISSING: serialisation layer does not expose is_stale per entity yet
+    └──requires──> CesiumJS billboard color/alpha mutation
+                       └──already available: bb.color = Color.GRAY.withAlpha(0.5)
 
-is_stale + position_age_seconds in responses
-    └──no schema change required — computed from updated_at at serialization time
-    └──depends on──> configurable stale thresholds in config.py (to define the is_stale boundary)
+[isPlaying in useAppStore]
+    └──enables──> [PLAY-01 satellite propagation pause]
+    └──enables──> [Street traffic particle freeze on pause]
+    └──enables──> [Keyboard shortcut: Space bar]
+    └──enables──> [Snapshot loading indicator: disable play button]
 
-GPS jamming freshness envelope
-    └──no schema change required
-    └──requires──> routes_gps_jamming.py: compute and return aggregated_at, source_data_age_seconds
+[Playback mode badge on CinematicHUD]
+    └──requires──> replayMode, replayTs in store (already available)
+    └──enhances──> PLAY-01: HUD timestamp is misleading if satellite layer still shows live time
 
-Tests
-    └──requires──> all schema changes and route changes be in place
-    └──requires──> controlled updated_at fixtures (use freezegun or direct datetime injection)
+[Snapshot loading indicator]
+    └──requires──> useReplaySnapshots isLoading (already returned by react-query)
+    └──requires──> isPlaying in store (to disable button conditionally)
 ```
 
 ### Dependency Notes
 
-- **is_active vs updated_at filtering:** Both approaches work. `is_active` is cleaner as an API contract (the route filter is `WHERE is_active = true`, independent of threshold), but requires the ingest to actively maintain the flag. `updated_at` threshold filtering requires no ingest change but couples threshold logic into route WHERE clauses. Recommended: `is_active` column — it is the industry standard (soft-expiry) pattern and decouples the "is this entity live" question from the "how long ago was it seen" question.
-- **fetched_at vs updated_at distinction:** `fetched_at` = OpenSky response `time` field (when OpenSky snapshotted the data). `updated_at` = PostgreSQL write time. For aircraft at 90s polling, the difference is typically 1–5s. Small but semantically important: `fetched_at` answers "when did OpenSky see this aircraft?", `updated_at` answers "when did we process it?". Only aircraft gets `fetched_at`; airplanes.live and aisstream.io do not expose an equivalent source-level response timestamp.
-- **GPS jamming source_data_age_seconds:** This requires a JOIN or subquery at request time: `SELECT now() - max(updated_at) FROM military_aircraft`. A separate query per `/api/gps-jamming` request; O(1) cost, no schema change needed.
-- **Ship last_seen_at type:** The current `last_update` column on ships is a String (storing `time_utc` as raw string). The new `last_seen_at` should be `DateTime(timezone=True)` for correct comparison arithmetic. The migration adds the new typed column; `last_update` can remain for backwards compatibility during transition.
+- **`isPlaying` is the single biggest dependency gap.** It is currently local state inside `PlaybackBar`. Promoting it to `useAppStore` is LOW complexity (two lines) and unlocks correct satellite pause, street traffic freeze, keyboard shortcuts, and the loading indicator. It must be in `useAppStore` (not `useSettingsStore`) because it is transient runtime state that must not persist to localStorage.
+
+- **PLAY-01 fix sequence:** (1) promote `isPlaying` to store, (2) in `SatelliteLayer` Effect 1 rAF loop, check `useAppStore.getState().replayMode`; if `playback`, send `replayTs` instead of `Date.now()`; if `playback && !isPlaying`, skip the PROPAGATE dispatch entirely.
+
+- **PLAY-03 aircraft lerp guard:** The lerp loop reads positions via module-scope maps (`prevPositions`, `currPositions`) that were populated by live data. In playback, the snapshot effect overwrites `bb.position` after the lerp, so the lerp is redundant and counterproductive. The guard does not need to freeze a position — it just needs to stop writing to `bb.position` so the snapshot effect's write is the last one per frame.
+
+- **VIS-01 backend dependency:** The v4.0 freshness columns (`time_position`, `is_active`, `fetched_at`) are in the DB. The `/api/aircraft` list route must be extended to serialise an `is_stale` boolean per entity (derived from `time_position` vs threshold). Military and ships need the same addition. This is a backend-only change with no schema migration needed.
+
+- **GPS jamming LIVE badge vs refetch pause:** Two approaches exist: (a) pause `useGpsJamming` refetch during playback so the layer stays frozen at playback-start data, or (b) keep refetching and show a badge. Approach (b) is recommended — it preserves live context and is more honest. Hiding the live layer during replay removes potentially useful current-state intelligence.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v4.0 — this milestone)
+### Launch With (v5.0 — Core Correctness Audit)
 
-All items below are required for the "data reliability" milestone to be substantive rather than cosmetic.
+The minimum requirement: all layers behave correctly. No entity moves in real time during
+a historical replay session.
 
-- [ ] Alembic migration: add `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `fetched_at`, `is_active` to `aircraft` table
-- [ ] Alembic migration: add `last_seen_at`, `is_active` to `military_aircraft` table
-- [ ] Alembic migration: add `last_seen_at`, `is_active` to `ships` table
-- [ ] `ingest_aircraft.py`: extract and store sv[3] (time_position), sv[11] (vertical_rate), sv[13] (geo_altitude), sv[16] (position_source), response["time"] (fetched_at)
-- [ ] `ingest_military.py`: set `last_seen_at = now()` at batch start; identify rows absent from current response and set `is_active = false`
-- [ ] `ingest_ais.py`: propagate `time_utc` as typed `last_seen_at`; mechanism to mark `is_active = false` after Redis TTL expiry
-- [ ] `/api/aircraft` list: filter `WHERE is_active = true`; add `is_stale` and `position_age_seconds` to each item
-- [ ] `/api/military` list: filter stale rows; add `is_stale` and `position_age_seconds`
-- [ ] `/api/ships` list: filter stale rows; add `is_stale` and `position_age_seconds`
-- [ ] `/api/gps-jamming`: add `aggregated_at` and `source_data_age_seconds` to response envelope
-- [ ] Configurable stale thresholds per source in `config.py` (not magic numbers in routes)
-- [ ] Tests: stale row excluded from list, fresh row included, `is_stale` correct, `position_age_seconds` within expected range, new OpenSky fields stored correctly
+- [ ] **PLAY-01** — Satellite propagation sends `replayTs` to worker when `replayMode === 'playback'`; propagation loop skips dispatch when `isPlaying === false`
+- [ ] **PLAY-02a** — Aircraft live-lerp rAF loop does not advance entity positions when `replayMode === 'playback'`
+- [ ] **PLAY-02b** — Ships `Effect 2` gated by `replayMode !== 'playback'`; live poll data does not overwrite snapshot positions
+- [ ] **PLAY-02c** — Military `Effect 2` gated by `replayMode !== 'playback'`
+- [ ] **PLAY-02d** — GPS jamming: amber "LIVE DATA" badge visible when `replayMode === 'playback'` and layer is on
+- [ ] **PLAY-02e** — Street traffic: particle `animate()` loop skips advancing `p.t` when paused during playback
+- [ ] **PLAY-03** — `isPlaying` promoted to `useAppStore`; all guards use store-read value, not stale closure
+- [ ] **PLAY-04** — End-to-end: scrub 2-hour window with all layers active, verify frozen pause, correct entity movement, auto-stop at window end
 
-### Add After Validation (v4.x)
+### Add After Correctness Validation (v5.1)
 
-- [ ] `/api/military/freshness` endpoint — parallel to existing `/api/aircraft/freshness`
-- [ ] `/api/ships/freshness` endpoint
-- [ ] Frontend visual indicator for stale entities (grey-out, opacity reduction, or "STALE" badge in detail panel) — deferred; not in v4.0
+- [ ] **VIS-01** — Frontend stale entity visual indicator: grey tint or opacity reduction for stale aircraft/military/ships in live mode. Requires extending list API serialisation to include `is_stale` per entity.
+- [ ] **CinematicHUD REPLAY badge** — Switch "REC" to "REPLAY [replayTs]" in playback mode
+- [ ] **Snapshot loading indicator** — Disable play button, show "Loading snapshots…" while `isLoading === true`
+- [ ] **Freshness endpoints** — `/api/military/freshness` and `/api/ships/freshness` (FRESH-03, deferred from v4.0)
 
-### Future Consideration (v5+)
+### Future Consideration (v6.0+)
 
-- [ ] Satellite AIS handling with longer staleness windows (satellite relay has hours-long gaps by design; a separate `is_satellite_ais` flag would allow different threshold application)
-- [ ] `position_source` string label rendered in frontend detail panel ("ADS-B", "MLAT", "FLARM")
-- [ ] Per-entity staleness history (how often has this aircraft been stale in the last 24h)
+- [ ] **Keyboard shortcuts** — Space for play/pause, L for LIVE/PLAYBACK (depends on `isPlaying` in store)
+- [ ] **Per-layer LIVE badge component** — Reusable `<LiveDataBadge>` for any non-historical layer in replay
+- [ ] **Replay speed readout** — Compact text label "60×" beside timestamp in scrubber bar
+- [ ] **Replay window time-range display** — Oldest/newest labels at scrubber track ends
+- [ ] **Entity count badge** — "N entities at this timestamp" derived from snapshot map
 
 ---
 
@@ -199,53 +184,81 @@ All items below are required for the "data reliability" milestone to be substant
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Stale row filtering on list endpoints | HIGH | LOW | P1 |
-| `is_stale` + `position_age_seconds` in responses | HIGH | LOW | P1 |
-| Aircraft: `time_position`, `fetched_at` columns | HIGH | LOW | P1 |
-| Aircraft: `vertical_rate`, `geo_altitude` columns | MEDIUM | LOW | P1 |
-| Aircraft: `position_source` column | MEDIUM | LOW | P1 |
-| `is_active` lifecycle flag (all tables) | HIGH | MEDIUM | P1 |
-| Military `last_seen_at` | MEDIUM | LOW | P1 |
-| Ship `last_seen_at` (typed DateTime) | MEDIUM | LOW | P1 |
-| GPS jamming freshness envelope | MEDIUM | LOW | P1 |
-| Configurable thresholds in config.py | MEDIUM | LOW | P1 |
-| Alembic migrations for all changes | HIGH (correctness) | LOW (mechanical) | P1 |
-| Tests covering all stale/freshness behavior | HIGH (regression safety) | MEDIUM | P1 |
-| `/api/military/freshness` endpoint | LOW | LOW | P2 |
-| `/api/ships/freshness` endpoint | LOW | LOW | P2 |
-| Frontend stale visual indicator | MEDIUM | MEDIUM | P2 |
+| PLAY-01 Satellite uses replayTs | HIGH | MEDIUM | P1 |
+| PLAY-02a Aircraft lerp guard | HIGH | LOW | P1 |
+| PLAY-02b Ships live-update gate | HIGH | LOW | P1 |
+| PLAY-02c Military live-update gate | HIGH | LOW | P1 |
+| PLAY-02d GPS jamming LIVE badge | MEDIUM | LOW | P1 |
+| PLAY-02e Street traffic particle pause | MEDIUM | LOW | P1 |
+| PLAY-03 isPlaying in useAppStore | HIGH | LOW | P1 |
+| PLAY-04 End-to-end verification | HIGH | MEDIUM | P1 |
+| VIS-01 Stale entity visual indicator | HIGH | MEDIUM | P2 |
+| CinematicHUD REPLAY badge | MEDIUM | LOW | P2 |
+| Snapshot loading indicator | MEDIUM | LOW | P2 |
+| Freshness endpoints (military, ships) | LOW | LOW | P2 |
+| Keyboard shortcuts | LOW | LOW | P3 |
+| Per-layer LIVE badge component | LOW | LOW | P3 |
+| Replay speed readout | LOW | LOW | P3 |
+| Replay window range display | LOW | LOW | P3 |
 
 **Priority key:**
-- P1: Must have for v4.0 — defines the data reliability tier
-- P2: Ship in v4.1 once core behavior is validated
-- P3: Future milestone
+- P1: Correctness requirement — blocks v5.0 milestone close
+- P2: Polish — ship before v6.0 scoping
+- P3: Nice to have — opportunistic
 
 ---
 
-## Reference System Comparison
+## Layer-Specific Playback Behaviour Contract
 
-| Feature | OpenSky (source API) | MarineTraffic (maritime reference) | AirLabs (aviation reference) | This Project (v4.0 target) |
-|---------|----------------------|-------------------------------------|-----------------------------|---------------------------|
-| Position timestamp | `time_position` (Unix int, null if > 15s stale) | Not exposed | `updated` (Unix timestamp) | Store `time_position`; expose `position_age_seconds` derived |
-| Staleness signal | `time_position = null` when > 15s; state vector retained 300s | Remove from live map after 24h silence | No explicit stale flag; caller computes from `updated` | Explicit `is_stale` boolean in all list responses |
-| Source type | `position_source` (0=ADS-B, 1=ASTERIX, 2=MLAT, 3=FLARM) | Not exposed | Not exposed | Store and expose `position_source` as labeled string |
-| Soft expiry | Not applicable (OpenSky only returns currently tracked) | 24h hard remove | Not applicable | `is_active` boolean; soft expiry; no hard delete |
-| Fetch timestamp | Response-level `time` field (Unix epoch of snapshot) | Not exposed | Not exposed | `fetched_at` column on aircraft; `aggregated_at` for GPS jamming |
-| Configurable threshold | Hardcoded (15s position, 300s state vector) | Not applicable | Not applicable | Per-source in `config.py` |
+Acceptance criteria for PLAY-02 audit. Each row defines the correct behaviour per layer.
+
+| Layer | Position Source During Playback | Behaviour When Paused | Historical Data? | LIVE Badge? | Key Implementation Gap |
+|-------|--------------------------------|-----------------------|-----------------|-------------|----------------------|
+| Satellites | SGP4 propagation at `replayTs` | Propagation loop stops; satellites frozen | Yes (deterministic) | No | PROPAGATE sends `Date.now()` — must send `replayTs` |
+| Commercial aircraft | Snapshot binary-search interpolation | Snapshot effect frozen (depends on `replayTs` not changing) | Yes (snapshots) | No | Live lerp rAF loop still runs — must be gated |
+| Military aircraft | Snapshot binary-search interpolation | Same — no live effect overwriting | Yes (snapshots) | No | Effect 2 not gated — must add `replayMode` guard |
+| Ships | Snapshot binary-search interpolation | Same — no live effect overwriting | Yes (snapshots) | No | Effect 2 not gated — must add `replayMode` guard |
+| GPS Jamming | Live data (no historical snapshots) | Static heatmap from last live fetch | No | **Yes — amber** | `useGpsJamming` unaware of replay mode |
+| Street traffic | Simulation (no real historical data) | Particles stop advancing | No | **Yes — amber** | rAF `animate()` has no `isPlaying`/`replayMode` guard |
+| OSINT events | Already historical (stored `ts` in DB) | Dots positioned by stored `ts`; no change | Yes (DB) | No | Already correct |
+| Satellite overpass arcs | `COMPUTE_OVERPASS` already uses `replayTs` | Already suppressed when TLE stale | Yes (deterministic) | No | Already correct; stale guard in place |
+
+---
+
+## Competitor Feature Analysis
+
+| Feature | Flightradar24 Playback | FlightAware Replay | Our Approach (v5.0 target) |
+|---------|------------------------|-------------------|---------------------------|
+| Multi-layer time sync | Single layer (flights only) | Single layer (flights only) | 6 layers synchronised to `replayTs` |
+| Scrubber precision | Date/time picker | Fixed 10×/50×/100× speed only | 1000-point scrub + 5 speed presets |
+| Event markers on scrubber | None | None | OSINT event dots with category filter |
+| Non-historical layer disclosure | Not applicable (single layer) | Not applicable | Per-layer LIVE badge for GPS jamming and street traffic |
+| Satellite overpass integration | Not available | Not available | `COMPUTE_OVERPASS` with `replayTs`, TLE staleness suppression |
+| Freeze on pause | Single-layer freeze | Single-layer freeze | Multi-layer freeze across 6 layers (this milestone's goal) |
+| Stale entity visual | Not disclosed | Not disclosed | VIS-01: opacity/tint for `is_stale=true` entities (v5.1) |
 
 ---
 
 ## Sources
 
-- [OpenSky Network REST API documentation](https://openskynetwork.github.io/opensky-api/rest.html) — `time_position`, `last_contact`, `geo_altitude`, `vertical_rate`, `position_source` field definitions; 15s position staleness rule; 300s state vector retention; response-level `time` field
-- [AIS Reporting Rates reference](https://arundaleais.github.io/docs/ais/ais_reporting_rates.html) — Class A (2-10s underway, 3min anchored), Class B-SO (5-30s underway, 3min stopped)
-- [USCG Navigation Center — Class A AIS Position Reports](https://www.navcen.uscg.gov/ais-class-a-reports) — ITU-R M.1371-5 reporting interval mandates
-- [MarineTraffic vessel update frequency article](https://support.marinetraffic.com/en/articles/9552905-how-often-do-the-positions-of-the-vessels-get-updated-on-marinetraffic) — 60s platform downsampling, 24h removal threshold, satellite AIS gap behavior (minutes to hours)
-- [PredictWind DataHub AIS staleness docs](https://help.predictwind.com/en/articles/11578331-over-the-horizon-ais-why-do-i-see-a-datahub-call-sign-for-targets-which-should-be-vhf-over-the-air-on-my-chartplotter) — 3-minute TTL for OTA AIS; 2-minute fallback (180s / 120s industry conventions)
-- [AirLabs Flight Tracker API docs](https://airlabs.co/docs/flights) — `updated` Unix timestamp as sole freshness field; no explicit `is_stale` in commercial aviation APIs
-- Existing codebase review: `ingest_aircraft.py` (sv indices, 90s poll, trail logic), `ingest_military.py` (300s poll, no last_seen_at), `ingest_ais.py` (600s Redis TTL, 30s flush, time_utc as string), `routes_aircraft.py` (no stale filter, no position_age_seconds), `routes_ships.py` (no stale filter), `routes_military.py` (no stale filter), `routes_gps_jamming.py` (no freshness envelope), `config.py` (no stale threshold settings), `models/aircraft.py`, `models/military_aircraft.py`, `models/ship.py`
+- **Code inspection — confirmed bugs:**
+  - `frontend/src/components/SatelliteLayer.tsx` line 260: `timestamp: Date.now()` hardcoded in PROPAGATE — should be `replayTs` in playback mode
+  - `frontend/src/workers/propagation.worker.ts` lines 63–88: worker accepts `{timestamp}` param correctly; bug is exclusively in the caller
+  - `frontend/src/components/AircraftLayer.tsx` line 253: lerp reads `Date.now()` with no `replayMode` guard
+  - `frontend/src/components/MilitaryAircraftLayer.tsx` lines 85–119: `Effect 2` has no `replayMode` guard
+  - `frontend/src/components/ShipLayer.tsx` lines 87–127: `Effect 2` has no `replayMode` guard
+  - `frontend/src/components/GpsJammingLayer.tsx`: no replay mode awareness; `useGpsJamming` polls unconditionally
+  - `frontend/src/components/StreetTrafficLayer.tsx` lines 152–188: `animate()` loop has no `replayMode` or `isPlaying` guard
+  - `frontend/src/components/PlaybackBar.tsx` line 45: `isPlaying` is `useState(false)` — local state, not accessible to layer components
+- **Code inspection — already correct:**
+  - `frontend/src/hooks/useReplaySnapshots.ts`: `isLoading` returned; snapshot interpolation correctly uses `replayTs`
+  - `frontend/src/components/SatelliteLayer.tsx` Effect 6: `COMPUTE_OVERPASS` uses `replayTs`; stale guard in place
+  - `frontend/src/components/PlaybackBar.tsx`: auto-stop at window end correct; speed presets correct
+- `.planning/PROJECT.md` — v5.0 active requirements (PLAY-01 through PLAY-04, VIS-01)
+- [Flightradar24 playback blog](https://www.flightradar24.com/blog/inside-flightradar24/playback-is-now-available-in-the-flightradar24-app/) — competitor reference for single-layer replay UX expectations
+- [FlightAware Flight Replay introduction](https://blog.flightaware.com/201710-introducing-flight-replay-and-track-visualization) — competitor reference for speed control patterns
 
 ---
 
-*Feature research for: Data freshness metadata and stale-position handling — OpenSignal Globe v4.0*
+*Feature research for: OpenSignal Globe v5.0 — 4D Replay Engine Correctness Audit*
 *Researched: 2026-03-13*
