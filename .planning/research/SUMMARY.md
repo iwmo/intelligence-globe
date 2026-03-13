@@ -1,17 +1,17 @@
 # Project Research Summary
 
-**Project:** Intelligence Globe v3.0 UI Refinement
-**Domain:** CesiumJS/React 3D Geospatial Intelligence Platform — Radar Aesthetic + Globe Interaction
-**Researched:** 2026-03-12
+**Project:** Intelligence Globe v4.0 — Data Reliability & Freshness
+**Domain:** Real-time geospatial tracking — freshness metadata, stale-position filtering, soft-expiry lifecycle
+**Researched:** 2026-03-13
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Intelligence Globe v3.0 is a UI refinement milestone layered on top of a fully validated v1.0/v2.0 stack (CesiumJS 1.139, React 19, TypeScript 5.9, FastAPI, PostGIS, Redis). The milestone delivers five feature areas: radar-style panel aesthetics, collapsible sidebar sections, custom SVG billboard icons for entity types, altitude-based icon scaling, and globe navigation controls (double-click zoom toward cursor, tilt/pitch widget, zoom buttons). Critically, no new dependencies are required — every feature is achievable with the existing technology set. The stack is already production-grade, so this milestone is purely an integration and UI engineering effort.
+Intelligence Globe v4.0 is a data reliability milestone layered on top of a fully deployed geospatial tracking platform (CesiumJS 1.139, React 19, FastAPI, SQLAlchemy 2.0, PostgreSQL + PostGIS, Redis, RQ, Alembic). The current system ingests and displays live aircraft, military aircraft, AIS ships, and GPS jamming cells — but every list endpoint returns all rows regardless of age, with no distinction between a live entity and one that disappeared hours ago. Dead aircraft appear as live; moored ships and stale jamming cells persist indefinitely. The v4.0 goal is to add source-level freshness metadata, soft-expiry lifecycle columns, and stale filtering to all four data layers, without breaking the replay engine or introducing new dependencies.
 
-The recommended approach is an incremental, low-regression build order: start with pure CSS and React changes (radar styling, sidebar sections), then add the camera control widget, then introduce the double-click zoom handler, and finally migrate entity layers from `PointPrimitiveCollection` to `BillboardCollection` one layer at a time. The satellite layer must remain as `PointPrimitiveCollection` — migrating 5,000+ satellite entities to billboards measurably degrades frame rate on integrated GPU hardware. Billboards are appropriate only for the lower-count layers (aircraft, military, ships). This is the single most important architectural constraint of the milestone.
+The recommended approach is purely additive: no new libraries, no table rewrites, no hard deletes. A single Alembic migration adds freshness columns (`fetched_at`, `last_seen_at`, `time_position`, `is_active`, etc.) to four existing tables using lock-free `ADD COLUMN` with `server_default`. A shared `app/freshness.py` module centralises stale cutoff logic. Configurable thresholds per source (aircraft: 120s, military: 600s, ships: 900s) are declared in the existing `Settings` class. Ingest workers gain tombstone passes that mark absent entities `is_active = False` rather than deleting them. API routes gain a stale `WHERE` clause against the new columns, and all list responses gain freshness metadata in the envelope.
 
-The key risks are CesiumJS-specific and well-documented: the built-in `LEFT_DOUBLE_CLICK` entity-tracking handler must be explicitly removed before adding the custom zoom handler; `BillboardCollection` TextureAtlas overflow occurs when per-entity SVG strings are generated dynamically; and CSS height animations using `scrollHeight` cause synchronous layout reflow that degrades CesiumJS frame rate during sidebar animation. All three risks have clear, confirmed mitigations. The pitfalls research is unusually comprehensive for this domain, providing specific CesiumJS GitHub issue references and prevention code patterns for each failure mode.
+The primary risk is not technical complexity — every pattern here is low-risk and well-documented — but implementation discipline. Three categories of mistake are easy to make and hard to detect: (1) relying on SQLAlchemy `onupdate` to fire on upsert paths (it does not), (2) conflating `last_contact` (OpenSky's 300s persistence window) with `time_position` (the actual GPS fix timestamp), and (3) applying a uniform stale threshold to AIS ships regardless of navigational status, which incorrectly marks moored vessels as inactive. All three are addressed by following the patterns in this research exactly.
 
 ---
 
@@ -19,174 +19,134 @@ The key risks are CesiumJS-specific and well-documented: the built-in `LEFT_DOUB
 
 ### Recommended Stack
 
-The base stack is frozen and validated. No `npm install` is needed for v3.0. All feature areas use existing dependencies: CesiumJS `BillboardCollection` and `NearFarScalar` for icon rendering, `ScreenSpaceEventHandler` for double-click zoom, Tailwind CSS `@keyframes` in the existing `globe.css` for radar animations, `tw-animate-css` `animate-ping` for pulsing indicators, `lucide-react` for widget icons, and the `viewerRegistry` singleton for imperative camera calls.
+No new packages are required. Every v4.0 capability is achievable with the existing stack: `sqlalchemy[asyncio] >=2.0`, `alembic >=1.14` (current: 1.18.4), `pydantic-settings >=2.0` (current: 2.13.1), `fastapi >=0.115`, and `pytest-asyncio >=0.24`. The only configuration change is adding four env vars (`AIRCRAFT_STALE_SECONDS`, `MILITARY_STALE_SECONDS`, `SHIP_STALE_SECONDS`, `GPS_JAMMING_STALE_SECONDS`) to `.env` and `docker-compose.yml`.
 
-The one potential action item is confirming `tw-animate-css` is registered in `tailwind.config.js` plugins — it is already installed but may not be active.
+**Core technologies and their v4.0 integration points:**
 
-**Core technologies (integration points that change for v3.0):**
-- **CesiumJS BillboardCollection**: Replaces `PointPrimitiveCollection` for aircraft, military, and ship layers — enables custom SVG icons with per-entity color tinting via `billboard.color` at zero extra GPU cost
-- **CesiumJS NearFarScalar**: Added as `scaleByDistance` property on each billboard — enables altitude-proportional icon sizing; evaluated by the GPU shader per-frame, zero CPU cost
-- **CesiumJS ScreenSpaceEventHandler + LEFT_DOUBLE_CLICK**: Extends existing event handler pattern in `GlobeView.tsx` — enables cursor-directed double-click zoom
-- **CesiumJS camera.flyTo / pitchBy / zoomStep**: Called from new `viewerRegistry` helpers — enables smooth tilt/zoom widget without prop drilling
-- **Tailwind CSS @keyframes in globe.css**: Adds radar scan sweep and pulse animations — pure CSS, zero JavaScript runtime cost
-- **CSS grid-template-rows transition**: The correct mechanism for sidebar collapse animation — avoids layout reflow that would degrade CesiumJS frame rate
+- **SQLAlchemy 2.0 (async):** Add freshness columns to four models using `mapped_column` with `DateTime(timezone=True)` — same pattern as all existing `updated_at` columns. Use `is_active BOOLEAN NOT NULL server_default='true'` so existing rows are treated as active immediately post-migration without a backfill UPDATE.
+- **Alembic 1.18.4:** Hand-written migration only — never `--autogenerate` (partitioned child tables of `position_snapshots` can be dropped by autogenerate). Single file covering all four tables. Lock-free: PostgreSQL 11+ handles nullable `ADD COLUMN` and `ADD COLUMN ... DEFAULT` for non-volatile defaults without a table rewrite.
+- **pydantic-settings 2.13.1:** Extend the existing `Settings` class with four `int` threshold fields. Automatic env var coercion; no additional validators needed.
+- **FastAPI >=0.115 + Pydantic v2:** Replace raw `dict` returns in routes with typed `BaseModel` schemas (`from_attributes = True`). Use `@computed_field` for `is_stale` derived at serialisation time — avoids storing it as a DB column and eliminates write amplification.
+
+See `.planning/research/STACK.md` for migration code samples, OpenSky state vector index table, and alternatives considered.
 
 ### Expected Features
 
-**Must have (table stakes for v3.0 — P1):**
-- Collapsible sidebar sections (LAYERS, FILTERS, SEARCH, VISUAL ENGINE) — data-dense UIs require grouped expandable controls; a flat list breaks down beyond 6 items
-- Custom SVG billboard icons for all 4 entity types (satellite, aircraft, military, ship) — distinguishable silhouettes are the FlightRadar24 standard; generic dots do not convey entity type at a glance
-- Icon altitude scaling via `scaleByDistance` — icons must remain legible from ISS orbital altitude to street level across 7 orders of magnitude of altitude range
-- Double-click zoom toward cursor — universal expectation from Google Earth and FlightRadar24 3D
-- Zoom +/- overlay buttons — essential for non-scroll-wheel input (touchpad users)
-- Tilt/pitch control widget — standard 3D map control; enables top-down and oblique perspectives
-- Radar corner bracket CSS styling (STYLE-01) — the visual signature that makes the tool feel operational, not hobbyist
-- Panel overlap elimination (z-index audit, LAYOUT-03) — baseline correctness
+**Must have (table stakes — v4.0 scope):**
 
-**Should have (competitive differentiators — P2, ship in v3.1):**
-- Pulsing active indicator on enabled-layer badges (STYLE-02) — `animate-ping` pattern; defer until layout is stable to avoid churn
-- Scan-line sweep animation on panel headers — CSS keyframe, purely decorative; defer once layout is locked
-- Persistent sidebar section state via localStorage — quality-of-life detail; add once section structure is finalized
+- Stale row filtering on all list endpoints (`/api/aircraft`, `/api/military`, `/api/ships`) — no filtering exists today; dead entities appear live
+- `is_active` soft-expiry boolean on `aircraft`, `military_aircraft`, and `ships` tables — ingest workers tombstone absent entities rather than hard-deleting; hard deletes break the replay engine
+- `is_stale` and `position_age_seconds` fields in every list and detail response — computed at serialisation from `fetched_at`/`last_seen_at` vs configurable threshold; no schema change required
+- `fetched_at` column on `aircraft` — captures when the OpenSky HTTP snapshot was taken (semantically distinct from `updated_at`, which is the PostgreSQL write time)
+- `time_position` column on `aircraft` (OpenSky sv[3]) — when the GPS position fix was recorded; can be NULL if no fix in last 15s; the correct field for positional freshness, not `last_contact` (sv[4])
+- `geo_altitude`, `vertical_rate`, `position_source` columns on `aircraft` (sv[13], sv[11], sv[16]) — richer OpenSky ingestion, currently unused fields from the state vector
+- `last_seen_at TIMESTAMPTZ` on `military_aircraft` and `ships` — typed datetime, not a raw string; enables `NOW() - last_seen_at` arithmetic in route queries
+- GPS jamming freshness envelope: `aggregated_at`, `source_fetched_at`, `source_is_stale` in `/api/gps-jamming` response — derived layer must expose the age of its source data
+- Configurable stale thresholds per source in `config.py` — aircraft at 2× poll cadence (120s), military at 2× cadence (600s), ships at 1.5× Redis TTL (900s)
+- Alembic migration for all schema changes — hand-written, single file, applied atomically; `is_active` with `server_default='true'`
 
-**Defer to v3.x+:**
-- Draggable/resizable panels — significant complexity, not warranted without user feedback
-- Globe-surface radar sweep animation — requires GroundPrimitive per-frame updates; risks frame rate at full scene load
-- Per-entity instance custom icons (per airline livery, per vessel flag) — per-entity canvas generation breaks TextureAtlas at scale; never acceptable
-- Earthquake layer (LAY-05), Weather radar overlay (LAY-06) — natural v3.1 additions once layer group UI is solid
+**Should have (differentiators — v4.1):**
+
+- `/api/military/freshness` and `/api/ships/freshness` endpoints — parallel to the existing `/api/aircraft/freshness`
+- Frontend visual indicator for stale entities (grey-out, opacity reduction, or "STALE" badge) — deferred from v4.0
+
+**Defer to v5+:**
+
+- Satellite AIS handling with longer staleness windows (satellite relay has inherent multi-hour gaps; needs a separate `is_satellite_ais` flag and different threshold)
+- `position_source` string label rendered in the frontend detail panel ("ADS-B", "MLAT", "FLARM")
+- Per-entity staleness history (how often has this aircraft been stale in the last 24h)
+- Real-time push notification when an entity goes stale — disproportionate WebSocket complexity for a single-user homelab
+
+See `.planning/research/FEATURES.md` for full dependency graph, MVP definition, and feature prioritisation matrix.
 
 ### Architecture Approach
 
-The v3.0 architecture is additive — no existing system is replaced, only extended. The dominant pattern is the parallel collection strategy: add a new `BillboardCollection` alongside the existing `PointPrimitiveCollection` for each entity layer, set points to `show = false`, and validate before removing the old collection in a separate atomic step. The same entity `id` values are reused on billboards so the unified `LEFT_CLICK` dispatcher in `AircraftLayer.tsx` requires zero changes. A new `CameraControlWidget` component accesses the viewer via `viewerRegistry` (the established pattern from `LandmarkNav`), requiring no prop drilling. Sidebar collapse state moves from local `useState` to a new `sidebarSections` Zustand slice to survive sidebar open/close cycles.
+The freshness layer follows the existing FastAPI + SQLAlchemy async pattern with three additions: a new shared `app/freshness.py` helper (pure functions, no DB dependency), four modified ORM models, and stale `WHERE` clauses in the three list routes. Stale filtering logic lives in the route query layer, not on the model, because thresholds are configuration (not data invariants) and list vs detail endpoints need different behaviour. The GPS jamming layer propagates source freshness metadata from `military_aircraft` at aggregation time, storing it denormalised on every cell row to avoid a JOIN in the route.
 
-**Major components and their v3.0 roles:**
-1. **GlobeView.tsx** — Add `LEFT_DOUBLE_CLICK` handler in `initViewer()`; register alongside existing wheel handler; register in existing `_cleanup` pattern
-2. **SatelliteLayer.tsx** — Stays as `PointPrimitiveCollection`; `scaleByDistance` added to point config only; never migrated to billboards
-3. **AircraftLayer.tsx / MilitaryAircraftLayer.tsx / ShipLayer.tsx** — Add parallel `BillboardCollection`; hide old points; validate click dispatch before removing points in a second atomic commit
-4. **LeftSidebar.tsx** — Restructure to named collapsible sections (LAYERS, FILTERS, SEARCH, VISUAL ENGINE); consolidate bottom layer strip into sidebar body; add radar corner bracket styling
-5. **CameraControlWidget.tsx** (new) — Fixed-position overlay at z:82 right side; calls `pitchBy()` / `zoomStep()` from `viewerRegistry`; `pointer-events: none` on container, `pointer-events: auto` on buttons
-6. **viewerRegistry.ts** — Add `pitchBy(deltaDeg)` and `zoomStep(factor)` helper functions; follows existing `flyToLandmark` pattern
-7. **useAppStore.ts** — Add `sidebarSections` slice with per-section booleans; must be Zustand (not local useState) to persist across sidebar open/close cycles
+**Major components and their v4.0 changes:**
+
+1. **`app/config.py`** — add `stale_threshold_aircraft_s=120`, `stale_threshold_military_s=600`, `stale_threshold_ships_s=900` int fields to the existing `Settings` class
+2. **`app/freshness.py` (NEW)** — `stale_cutoff(threshold_seconds) -> datetime` and `is_stale(timestamp, threshold_seconds) -> bool`; imported by all three route files; trivially unit-testable in isolation
+3. **ORM models** (`aircraft.py`, `military_aircraft.py`, `ship.py`, `gps_jamming.py`) — additive column additions only; no existing columns changed
+4. **Ingest workers** (`ingest_aircraft.py`, `ingest_military.py`, `ingest_ais.py`, `ingest_gps_jamming.py`) — write new fields explicitly in every upsert `set_={}` dict; add tombstone bulk UPDATE after each poll cycle; GPS jamming filters source by `is_active = TRUE`
+5. **API routes** (`routes_aircraft.py`, `routes_military.py`, `routes_ships.py`, `routes_gps_jamming.py`) — stale `WHERE` clause on list queries; freshness metadata in response envelope
+6. **Alembic migration** — one hand-written file, all four tables; `is_active` with `server_default='true'`; all freshness timestamp columns nullable; indexes on `fetched_at`/`last_seen_at`
+
+**Build order (hard dependencies):** Migration → Models → Shared helpers → Ingest workers → API routes → Tests.
+
+See `.planning/research/ARCHITECTURE.md` for full data flow diagrams, integration inventory table, and anti-pattern catalogue.
 
 ### Critical Pitfalls
 
-1. **Satellite layer migrated to BillboardCollection** — Keep SatelliteLayer on `PointPrimitiveCollection`. At 5,000+ entities, billboards measurably degrade frame rate on integrated GPU hardware. Points with `pixelSize`, `color`, and `outlineColor` are the correct approach for the satellite layer. This is a hard constraint, not a performance preference.
+1. **SQLAlchemy `onupdate` is silently ignored by `on_conflict_do_update`** — Every new freshness column (`fetched_at`, `last_seen_at`, `updated_at`) must appear explicitly in every upsert `set_={}` dict. `onupdate=func.now()` on the model Column definition is never called on the conflict-update path. The AIS worker already has this bug for `ships.updated_at`. Audit every `set_={}` dict before writing any freshness query.
 
-2. **Both PointPrimitiveCollection and BillboardCollection active simultaneously for the same layer** — Causes doubled draw calls, double-pickable entities, and potential click handler dispatch to wrong panel. Remove the old collection atomically in the same commit that adds the new `BillboardCollection`. Never leave both enabled simultaneously across commits. If parallel comparison is needed during dev, use a local branch only.
+2. **Alembic `--autogenerate` can drop partition child tables** — `position_snapshots` is range-partitioned by day. Running `alembic revision --autogenerate` may generate `drop_table('position_snapshots_YYYY_MM_DD')` statements. All migrations must be hand-written. Run `alembic upgrade --sql` against a staging DB to preview before applying.
 
-3. **LEFT_DOUBLE_CLICK co-fires with LEFT_CLICK (CesiumJS issue #1171)** — CesiumJS fires both `LEFT_CLICK` and `LEFT_DOUBLE_CLICK` on a double-click. Without mitigation, double-clicking to zoom also opens a detail panel for whatever entity is under the cursor. Solution: debounce the `LEFT_CLICK` handler by 200ms; cancel the pending single-click action when a second click arrives. Also remove the built-in `viewer.cesiumWidget.screenSpaceEventHandler` `LEFT_DOUBLE_CLICK` action before registering the custom handler, or both will fire simultaneously.
+3. **`last_contact` (sv[4]) is not the same as `time_position` (sv[3])** — OpenSky generates state vectors for 300 seconds after the last transponder contact. A recent `last_contact` does not mean the GPS position is fresh — `time_position` can be 297 seconds old. Use `time_position` (sv[3]) for positional freshness; store `last_contact` as a secondary audit field only.
 
-4. **Dynamic SVG generation per entity exhausts TextureAtlas** — Setting `billboard.image` to a dynamically-generated SVG string on every data refresh accumulates unique TextureAtlas entries until the GPU texture size limit is exceeded (`DeveloperError: Width must be less than or equal to the maximum texture size`). Set `billboard.image` once at creation from a fixed set of pre-rendered canvases (4 types maximum); use `billboard.color` for per-entity tinting thereafter. Never update `billboard.image` post-creation.
+4. **Stale threshold too aggressive causes a blank globe** — Filtering `WHERE is_active = TRUE` without a response envelope silently converts a feed-down event into an empty API response. Include `last_updated` and `stale_count` in every list response so the frontend can render "feed stale — showing last-known positions" rather than a blank globe.
 
-5. **CSS height animation triggering layout reflow** — Reading `element.scrollHeight` inside any animation callback forces synchronous layout recalculation on the same thread as CesiumJS's render loop, halving frame rate during animation. Use `grid-template-rows: 0fr → 1fr` CSS transition or `transform: scaleY` instead. Never animate `height`, `max-height`, or `padding` in a component coexisting with a CesiumJS viewer.
+5. **AIS ships at anchor have legitimately slow update intervals** — ITU-R M.1371 mandates Class A AIS every 3 minutes when anchored/moored vs every 2–10 seconds underway. A uniform stale threshold incorrectly marks moored vessels as inactive. Use Redis key presence as the `is_active` signal for ships — Redis TTL (600s) already models the AIS reporting interval correctly and sidesteps nav_status complexity.
+
+See `.planning/research/PITFALLS.md` for 10 detailed pitfalls with recovery strategies, warning signs, and phase-to-pitfall mapping.
 
 ---
 
 ## Implications for Roadmap
 
-Based on the combined research, the natural phase structure groups work by risk level and regression surface. Each phase can be validated in isolation before proceeding. The ordering principle: CSS/React-only changes first (zero CesiumJS regression risk), then new camera interaction, then entity layer migration from simplest to most complex.
+The hard dependency chain — schema before models, models before ingest, ingest before routes, everything before tests — maps cleanly to a six-phase build. All phases are backend-only for v4.0; frontend stale visual indicators are deferred to v4.1.
 
-### Phase 1: Radar Styling and Collapsible Sidebar
+### Phase 1: Schema Migration (MIG-01)
+**Rationale:** Every subsequent phase reads or writes new columns. This must be first. It is the only step that requires a direct database operation and has the highest deployment risk of all six phases.
+**Delivers:** All four tables (`aircraft`, `military_aircraft`, `ships`, `gps_jamming_cells`) gain freshness columns. `is_active` defaults to `true` for all existing rows. Indexes on `fetched_at`/`last_seen_at` added in the same migration for query performance.
+**Addresses:** Table stakes — `is_active`, `fetched_at`, `last_seen_at`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `aggregated_at`
+**Avoids:** Pitfall 5 (NOT NULL without `server_default` fails on live tables — use `server_default=sa.text('true')` for `is_active`); Pitfall 9 (autogenerate drops partitions — hand-write, preview with `--sql`)
 
-**Rationale:** Pure CSS and React changes with no CesiumJS primitive or event handler involvement. This is the lowest-risk first step — visual regressions are immediately obvious and easily reverted. Establishing the radar aesthetic early validates the CSS approach before more complex phases add interactive features on top of the styled panels.
+### Phase 2: Shared Freshness Helper + Config (FRESH-01, FRESH-02)
+**Rationale:** Pure Python with no DB dependency — can be written in parallel with Phase 1. Routes and tests both import from here; it must exist before either.
+**Delivers:** `app/freshness.py` with `stale_cutoff()` and `is_stale()`; `app/config.py` extended with three threshold fields; `test_freshness.py` unit tests written TDD-style before implementation.
+**Uses:** pydantic-settings 2.x typed `int` fields with automatic env var coercion
+**Avoids:** Hardcoded threshold magic numbers per route file; Pitfall 7 (clock skew — defaults at 2× poll cadence build in an inherent grace window)
 
-**Delivers:** Angular bracket corner decorations on all panels (LeftSidebar, RightDrawer, CinematicHUD, PostProcessPanel), collapsible LAYERS / FILTERS / SEARCH / VISUAL ENGINE sections in LeftSidebar, z-index audit and panel overlap elimination, `sidebarSections` Zustand slice.
+### Phase 3: Aircraft Ingest + Model (ACFT-01, ACFT-02, ACFT-03)
+**Rationale:** Aircraft is the highest-frequency source (90s poll) and has the most new fields (5 new columns). Establishing the complete aircraft pipeline first provides a validated template for the military and ship ingest workers.
+**Delivers:** `Aircraft` model gains `fetched_at`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `is_active`. `ingest_aircraft.py` writes all new fields from sv[3/11/13/16] and response `time`; tombstone pass marks absent aircraft `is_active = False` in the same session/commit.
+**Avoids:** Pitfall 1 (`onupdate` not firing — new fields explicit in `set_{}`); Pitfall 10 (sv[3] vs sv[4] confusion — `time_position` from sv[3], not `last_contact` from sv[4])
 
-**Addresses features:** STYLE-01, LAYOUT-01, LAYOUT-02, LAYOUT-03
+### Phase 4: Military + AIS + GPS Jamming Ingest (MIL-01/02/03, SHIP-01/02/03, JAM-01/02)
+**Rationale:** Groups the remaining three ingest workers after the aircraft template is proven. GPS jamming depends on military `is_active` being correct before it can filter source data.
+**Delivers:** Military model + ingest gains `fetched_at`, `last_seen_at`, `is_active` with tombstone pass. AIS worker gains `last_seen_at` (typed `TIMESTAMPTZ` from `time_utc`) and a deactivation sweep that bridges Redis TTL to PostgreSQL `is_active`. GPS jamming ingest filters source by `is_active = TRUE` and writes `source_fetched_at`, `source_is_stale`, `aggregated_at` to every cell.
+**Avoids:** Pitfall 4 (AIS nav_status — derive `is_active` from Redis key presence, not timestamp arithmetic); Pitfall 6 (GPS jamming cells never pruned — `aggregated_at` enables soft expiry); Pitfall 8 (Redis TTL / PostgreSQL `is_active` drift — deactivation sweep in `batch_flush_ships_to_pg`)
 
-**Avoids:** CSS height animation must use `grid-template-rows: 0fr → 1fr`, not `scrollHeight` or `max-height`, to prevent layout reflow degrading CesiumJS frame rate. Radar decorative pseudo-elements must be outside the animated height container to prevent clipping.
+### Phase 5: API Routes — Stale Filtering + Response Envelope (ACFT-04/05/06, MIL-04, SHIP-04, JAM-03)
+**Rationale:** Routes are the public API surface. Changing them after ingest ensures real freshness data exists in the DB when integration tests run. This is where the user-visible data quality improvement appears.
+**Delivers:** All three list endpoints gain stale `WHERE is_active = TRUE AND fetched_at >= cutoff` clauses using `freshness.stale_cutoff()`. Every list response gains `is_stale` and `position_age_seconds` per entity, and a top-level freshness envelope (`last_updated`, `stale_count`). GPS jamming route exposes `aggregated_at`, `source_fetched_at`, `source_is_stale`.
+**Avoids:** Pitfall 2 (blank globe — response envelope provides feed-down signal); Pitfall 3 (`updated_at` vs source timestamp — routes filter on `fetched_at`/`last_seen_at`, not `updated_at`)
 
-**Research flag:** Standard patterns — no phase research needed. CSS accordion and CesiumJS coexistence is well-documented.
-
----
-
-### Phase 2: Camera Control Widget
-
-**Rationale:** The `CameraControlWidget` is a new leaf component following the established `viewerRegistry` pattern from `LandmarkNav`. It has no dependency on the billboard migration and adds no regression risk to existing entity layers or click handlers. Building it second validates the `pitchBy()` / `zoomStep()` viewerRegistry helpers before they are stress-tested alongside other changes.
-
-**Delivers:** Fixed-position overlay with tilt preset buttons (top-down / 45° / horizon) and zoom +/- buttons, `pitchBy()` and `zoomStep()` added to `viewerRegistry.ts`, positioned at z:82 right side above BottomStatusBar with `pointer-events: none` on container.
-
-**Addresses features:** NAV-02, NAV-03
-
-**Avoids:** Widget container must have `pointer-events: none`; individual buttons `pointer-events: auto` to prevent the container from intercepting globe pan. Position must not overlap layer toggle strip (bottom-left, z:60) or CesiumJS credit attribution (bottom-right corner). CesiumJS pitch convention is 0° = horizon, -90° = nadir — clamp tilt range to [-90°, -5°] to prevent camera going below ellipsoid.
-
-**Research flag:** Standard patterns — no phase research needed.
-
----
-
-### Phase 3: Double-Click Zoom Toward Cursor
-
-**Rationale:** Modifies `GlobeView.tsx` which owns the viewer lifecycle. This is isolated from all entity layer work. Implementing and validating the double-click handler before billboard migration means the full regression surface (navigation behavior, no entity interaction) is clean and testable independently.
-
-**Delivers:** Custom `LEFT_DOUBLE_CLICK` handler in `GlobeView.tsx initViewer()` using `scene.pickPosition()` + `camera.flyTo()` with 65% altitude reduction per double-click, removal of CesiumJS built-in entity-tracking double-click handler from `viewer.cesiumWidget.screenSpaceEventHandler`, 200ms debounce on existing `LEFT_CLICK` handler.
-
-**Addresses features:** NAV-01
-
-**Avoids:** Built-in `viewer.cesiumWidget.screenSpaceEventHandler` `LEFT_DOUBLE_CLICK` must be removed first (two conflicting camera animations). LEFT_CLICK debounce is mandatory (CesiumJS issue #1171). `scene.pickPosition()` returns `undefined` on sky clicks — guard with `Cesium.defined()`. Floor minimum zoom altitude at 500m to prevent going underground with `EllipsoidTerrainProvider`.
-
-**Research flag:** Core pattern well-documented. The LEFT_CLICK debounce interaction with the existing unified click handler needs hands-on feel validation during execution — flag as a required manual test step.
-
----
-
-### Phase 4: Custom SVG Billboard Icons — Ships and Military
-
-**Rationale:** Start with the two simplest entity layers — ships and military aircraft — which have no lerp animation loop and no orbit trail. This validates the complete BillboardCollection migration pattern (parallel collections, SVG-to-canvas pre-rendering, pick dispatch, layer visibility, replay interpolation) at low risk before applying the same pattern to the more complex aircraft layer.
-
-**Delivers:** `BillboardCollection` for `ShipLayer.tsx` and `MilitaryAircraftLayer.tsx`, shared SVG icon canvases (ship hull silhouette, military diamond) pre-rendered at layer mount in module-scope constants, `scaleByDistance` with `NearFarScalar` on all ship and military billboards, old `PointPrimitiveCollection` removed atomically after validation.
-
-**Addresses features:** ICONS-03, ICONS-04, ICONS-05 (partial)
-
-**Avoids:** Old `PointPrimitiveCollection` removed in the same commit (never left in parallel). SVG canvases pre-rendered once at layer mount in module-scope variable (not per-entity, not per-render). `billboard.image` set once at creation — never updated on data refresh. `BlendOption.TRANSLUCENT` on both collections. All four entity type click paths verified after migration.
-
-**Research flag:** Standard patterns. Mandatory: validate on representative hardware (integrated GPU) at full entity counts before marking phase complete.
-
----
-
-### Phase 5: Custom SVG Billboard Icons — Aircraft
-
-**Rationale:** The aircraft layer is the most complex entity layer — it owns the unified `LEFT_CLICK` dispatcher, a requestAnimationFrame lerp animation loop, polyline trail rendering, and replay interpolation. Treating it as a separate phase ensures the validated pattern from Phase 4 is applied deliberately, and the rAF loop billboard position update is tested in isolation.
-
-**Delivers:** `BillboardCollection` for `AircraftLayer.tsx`, aircraft silhouette SVG icon canvas, billboard positions updated in the existing rAF lerp loop alongside now-hidden point positions, unified click dispatcher verified against billboard pick results for all four entity ID schemes (mmsi:, mil:, bare ICAO24, numeric NORAD), old `PointPrimitiveCollection` removed after full validation.
-
-**Addresses features:** ICONS-01 (satellite stays point), ICONS-02, ICONS-05 (aircraft/military/ships complete)
-
-**Avoids:** Unified LEFT_CLICK dispatcher reads `picked.id` — must verify all four entity ID schemes work when picked from a billboard (not just a point). Billboard position must be updated inside the same rAF frame as the lerp calculation to prevent position desync between trail polyline and icon.
-
-**Research flag:** Standard patterns. The rAF lerp loop billboard update path is a worthwhile hands-on test before the full implementation commit.
-
----
-
-### Phase 6: Pulsing Indicators and Persistent State
-
-**Rationale:** Deferred from Phase 1 intentionally to avoid churn — these are additive CSS and localStorage features that depend on the sidebar section structure being finalized. Adding after all layout work is complete eliminates risk of redoing animation work if section structure changes during phases 1-5.
-
-**Delivers:** `animate-ping` pulsing dot on active layer badges (STYLE-02), scan-line sweep animation on panel headers, `localStorage` persistence of sidebar section open/closed state, confirmation that `tw-animate-css` is registered in `tailwind.config.js` plugins.
-
-**Addresses features:** STYLE-02, persistent section state
-
-**Avoids:** `animate-ping` must only play when layer is active (conditional class application) — not on every panel unconditionally.
-
-**Research flag:** No research needed — standard Tailwind and localStorage patterns.
-
----
+### Phase 6: Tests (TEST-01 through TEST-07)
+**Rationale:** Integration tests validate the full pipeline end-to-end. The `freshness.py` unit tests are written in Phase 2 (TDD RED); integration tests for ingest and route behaviour are written here after implementation exists.
+**Delivers:** Extended route tests asserting stale filtering and freshness envelope; ingest tests verifying tombstone behaviour and correct sv index mapping; GPS jamming test asserting `source_is_stale` flag propagation; `test_freshness.py` unit tests confirming clock mock behaviour.
+**Avoids:** All pitfalls — tests are the verification layer for every pitfall's listed warning signs
 
 ### Phase Ordering Rationale
 
-- Phases 1-3 (CSS, widget, navigation) have no dependency on each other, but all precede billboard migration because they establish the stable UI surface that billboard rendering builds on top of.
-- Phases 4-5 (billboard migration) are ordered by layer complexity — simple layers (ships, military with no lerp loop) first, the complex layer (aircraft with its unified click dispatcher and rAF lerp loop) second.
-- Phase 6 (polish) is last by design — these are additive features that depend on preceding layout decisions being frozen.
-- The satellite layer intentionally receives no billboard migration phase across the entire v3.0 milestone. It stays on `PointPrimitiveCollection`. `scaleByDistance` via `NearFarScalar` is also a supported property on `PointPrimitive` — satellites can receive altitude-proportional sizing without moving to billboards.
+- Schema-first ordering is non-negotiable: without the columns in PostgreSQL, every other step fails at runtime with `AttributeError` (missing model fields) or `ProgrammingError` (unknown column in upsert).
+- Phase 2 (shared helper) has no DB dependency and could technically run in parallel with Phase 1, but is placed second so routes and tests always find it present.
+- Phase 3 (aircraft) before Phase 4 (military/ships/jamming) because aircraft validates the complete ingest pattern at the highest frequency before it is applied to the other workers. GPS jamming is grouped with Phase 4 because it consumes military `is_active`, which requires military ingest to be updated first.
+- Routes (Phase 5) after all ingest (Phases 3–4) so real freshness data exists in the DB when integration tests run against the route endpoints.
+- Tests are last in execution order but `freshness.py` unit tests are written TDD-style in Phase 2, before the implementation exists.
 
 ### Research Flags
 
-Phases needing careful hands-on validation during execution (not pre-phase research — patterns are known, but edge cases need test coverage):
-- **Phase 3:** LEFT_CLICK debounce interaction with the existing unified click dispatcher — verify 200ms delay is imperceptible for normal selection use while correctly suppressing panel open on double-click zoom gestures
-- **Phase 5:** AircraftLayer rAF lerp loop — verify billboard position update is in the same frame as point position to prevent visual desync between trail polyline and icon
+Phases with well-documented patterns (skip pre-phase research):
+- **Phase 1 (Migration):** Standard Alembic `add_column` with `server_default`. Documented in official Alembic and PostgreSQL docs. Only risk is the autogenerate/partition trap — mitigated by hand-writing migrations.
+- **Phase 2 (Shared helper):** Pure Python utility functions. No research needed.
+- **Phase 5 (Routes):** Standard FastAPI `WHERE` clause modification. Pattern established.
+- **Phase 6 (Tests):** Standard pytest-asyncio. Existing test suite provides conventions.
 
-Phases with entirely standard patterns (no additional research needed):
-- **Phase 1:** CSS accordion + CesiumJS coexistence — well-documented
-- **Phase 2:** CameraControlWidget viewerRegistry pattern — identical to existing LandmarkNav
-- **Phase 4:** BillboardCollection migration for simple layers — fully specified in research files
-- **Phase 6:** Tailwind animate-ping + localStorage — trivial
+Phases that need targeted validation during execution:
+- **Phase 3 (Aircraft ingest):** `position_source` (sv[16]) is only in the extended state vector returned when authenticated with OpenSky. Verify presence in live data before writing assertions against it. Default to `None` if absent, not `0`.
+- **Phase 4 (AIS ships):** The nav_status-aware vs Redis-TTL-only threshold decision should be confirmed before writing `is_active` lifecycle code. Research recommends Redis-TTL-only for v4.0 simplicity; validate this handles the moored-ship scenario acceptably in a test fixture.
 
 ---
 
@@ -194,50 +154,50 @@ Phases with entirely standard patterns (no additional research needed):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All APIs verified against official CesiumJS docs; no new libraries required; base stack is production-validated from v1.0/v2.0 |
-| Features | HIGH | Clear P1/P2/P3 prioritization; table stakes vs differentiators well-reasoned; competitor analysis (FlightRadar24, Google Earth) confirms feature expectations; anti-features are explicitly documented with rationale |
-| Architecture | HIGH | Based on direct codebase analysis of GlobeView.tsx, AircraftLayer.tsx, SatelliteLayer.tsx, useAppStore.ts, viewerRegistry.ts; build order derived from actual file dependency graph |
-| Pitfalls | HIGH | 7 critical pitfalls identified with specific CesiumJS GitHub issue references (#1171, #8002, #8196, #10522); all have concrete prevention strategies and verified recovery paths |
+| Stack | HIGH | All findings verified against official docs (Alembic, SQLAlchemy, pydantic-settings, FastAPI, PostgreSQL). No new packages needed — reduces uncertainty to near zero. |
+| Features | HIGH | Industry conventions verified: OpenSky official docs (sv field indices, 15s/300s rules), ITU-R M.1371-5 (AIS update intervals by nav_status), MarineTraffic staleness behaviour, existing codebase gaps confirmed by direct inspection. |
+| Architecture | HIGH | Based on direct codebase analysis of all models, routes, ingest tasks, and workers. Patterns are additive and follow existing conventions. Build order is derived from actual file dependency graph. |
+| Pitfalls | HIGH | All 10 pitfalls grounded in official source citations (SQLAlchemy GitHub #5903, Alembic GitHub #539, squawkhq.com NOT NULL analysis, ITU-R M.1371-5) or direct inspection of the specific existing defects in the codebase. |
 
-**Overall confidence: HIGH**
-
-The only areas of residual uncertainty are empirical rather than knowledge gaps: the exact `NearFarScalar` values for icon scaling need tuning against real continuous zoom tests, and the LEFT_CLICK 200ms debounce needs hands-on feel validation. Neither requires pre-phase research; both are resolved through implementation testing.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **NearFarScalar scale values require in-browser tuning**: Research provides starting ranges (satellites: `5e5 → 5e7`, aircraft/ships: `1e4 → 5e6`) but the exact `nearValue`/`farValue` ratios must be validated with a continuous zoom test from 20,000 km to 500 m before Phases 4/5 are marked complete. Flag this as a mandatory verification step in phase plans.
-- **LEFT_CLICK debounce UX feel**: 200ms is the correct technical value (prevents co-fire per CesiumJS issue #1171) but the perceptible input latency must be confirmed acceptable during Phase 3. If 200ms feels sluggish, 150ms is the minimum safe value on most hardware.
-- **tw-animate-css plugin registration**: Confirm `require('tw-animate-css')` is present in `tailwind.config.js` before Phase 1. If missing, add the plugin line — no npm install needed.
-- **PointPrimitive.scaleByDistance signature**: The satellite layer stays on `PointPrimitiveCollection` but `scaleByDistance` is also a supported property on `PointPrimitive`. Research confirms this property exists but it was not used in v1.0/v2.0 — verify the exact `PointPrimitive.scaleByDistance` API signature before Phase 4 to confirm satellites can receive altitude scaling without billboard migration.
+- **`position_source` (sv[16]) availability:** This field is documented as present only in the extended state vector returned when authenticated with OpenSky. The codebase currently uses the free/unauthenticated endpoint. Verify presence of sv[16] in live data before finalising `ingest_aircraft.py` — if absent, store NULL and document the condition.
+- **AIS nav_status threshold strategy:** Two valid approaches — differentiated thresholds by nav_status, or Redis-TTL-only derivation. Research recommends Redis-TTL for v4.0 simplicity. Confirm before SHIP-01 is written, as it affects the ingest worker and route query.
+- **Existing `ships.last_update` string column:** The current schema stores `time_utc` as a raw `String`. The new `last_seen_at TIMESTAMPTZ` column is added alongside it; do NOT drop `last_update` during v4.0 (deprecation is a later concern). Ensure route stale filter uses `last_seen_at`, not `last_update`.
+- **Clock grace period in default thresholds:** The recommended defaults (120s for 90s poll, 600s for 300s poll) embed a 1.3–2× multiplier as a grace window. If the homelab host has measurable clock skew (Docker Desktop on Mac is susceptible after sleep/wake), increase defaults by an additional 60s.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [CesiumJS Billboard API](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html) — `image`, `scaleByDistance`, `color`, `NearFarScalar` properties confirmed
-- [CesiumJS BillboardCollection API](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html) — Primitive API `scene.primitives.add()`, `BlendOption`, TextureAtlas behavior, performance thresholds
-- [CesiumJS Camera API](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html) — `flyTo`, `setView`, `zoomIn/zoomOut`, `positionCartographic`, `pitch`, `changed` event
-- [CesiumJS ScreenSpaceEventHandler API](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — `setInputAction`, `LEFT_DOUBLE_CLICK` pattern
-- [CesiumJS Performance Tips for Points](https://cesium.com/blog/2016/03/02/performance-tips-for-points/) — PointPrimitive vs BillboardCollection benchmarks; billboard performance degradation at scale
-- [CesiumJS GitHub issue #1171](https://github.com/CesiumGS/cesium/issues/1171) — LEFT_CLICK fires on LEFT_DOUBLE_CLICK — confirmed platform behavior, not a bug to be fixed
-- [CesiumJS GitHub issue #8196](https://github.com/CesiumGS/cesium/issues/8196) — scaleByDistance unexpected jump near NearFarScalar boundary
-- [CesiumJS GitHub issue #10522](https://github.com/CesiumGS/cesium/issues/10522) — Billboard.scaleByDistance non-linear interpolation; mitigation: widen near/far range
-- [Chrome for Developers — performant expand/collapse animations](https://developer.chrome.com/blog/performant-expand-and-collapse) — grid-template-rows technique
-- [CSS-Tricks — performant expand/collapse with grid-template-rows](https://css-tricks.com/building-performant-expand-collapse-animations/) — animation without layout reflow
-- [Paul Irish — What forces layout/reflow](https://gist.github.com/paulirish/5d52fb081b3570c81e3a) — scrollHeight forces synchronous reflow confirmation
-- Direct codebase analysis: GlobeView.tsx, AircraftLayer.tsx, SatelliteLayer.tsx, ShipLayer.tsx, MilitaryAircraftLayer.tsx, LeftSidebar.tsx, App.tsx, useAppStore.ts, viewerRegistry.ts — authoritative for all integration decisions
+
+- [OpenSky REST API documentation](https://openskynetwork.github.io/opensky-api/rest.html) — state vector field indices 0–17, `time_position` vs `last_contact` semantics, 15s position staleness rule, 300s state vector retention, response-level `time` field
+- [Alembic Operation Reference](https://alembic.sqlalchemy.org/en/latest/ops.html) — `add_column`, `server_default`, `nullable` parameter behaviour
+- [SQLAlchemy 2.0 Column Defaults](https://docs.sqlalchemy.org/en/20/core/defaults.html) — `server_default=func.now()`, `onupdate` semantics, upsert path limitations
+- [pydantic-settings 2.13.1](https://pypi.org/project/pydantic-settings/) — `BaseSettings` typed int/float env var loading
+- [Pydantic v2 `computed_field`](https://docs.pydantic.dev/latest/concepts/models/) — `@computed_field` included in serialisation automatically
+- [PostgreSQL ALTER TABLE documentation](https://www.postgresql.org/docs/current/sql-altertable.html) — lock-free ADD COLUMN with non-volatile DEFAULT on PostgreSQL 11+
+- [ITU-R M.1371-5](https://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1371-5-201402-I!!PDF-E.pdf) — AIS Class A position update intervals by navigational status
+- [NAVCEN — Class A AIS Position Reports](https://www.navcen.uscg.gov/ais-class-a-reports) — update schedule by nav_status
+- [squawkhq.com — adding NOT NULL fields](https://squawkhq.com/docs/adding-not-nullable-field) — lock implications of NOT NULL ADD COLUMN without server_default
+- Direct codebase analysis — all backend Python files (authoritative)
 
 ### Secondary (MEDIUM confidence)
-- [CesiumJS community: SVG billboards broken since 1.43](https://community.cesium.com/t/svg-as-billboards-src-doesnt-work-since-cesium-1-43/6698) — canvas workaround for SVG image assignment confirmed
-- [CesiumJS community: Dynamic SVG TextureAtlas overflow](https://community.cesium.com/t/dynamic-svg-billboard-makes-textureatlas-to-exceed-its-maximumtexturesize-limit/4091) — unique-SVG-per-entity failure mode with recovery steps
-- [CesiumJS community: zoom in to mouse point](https://community.cesium.com/t/zoom-in-to-mouse-point/2614) — `pickPosition` + `flyTo` pattern for cursor-directed zoom
-- [CesiumJS community: remove default double-click](https://blog.webiks.com/remove-default-double-click-behavior-in-cesium/) — `removeInputAction` on `viewer.cesiumWidget.screenSpaceEventHandler`
-- [CesiumJS community: Adding 50K billboards causes Cesium to hang](https://groups.google.com/g/cesium-dev/c/O5IN6ge7VbU) — billboard scale limit context
-- [CSS radar scan animation (csswolf.com, Feb 2026)](https://csswolf.com/radar-scanner-animation-effect-in-css-no-js/) — pure CSS `@keyframes` conic-gradient for radar sweep
-- [CSS interpolate-size browser support (Josh W. Comeau)](https://www.joshwcomeau.com/snippets/html/interpolate-size/) — Chromium-only ~67% global coverage as of March 2026; confirms why this approach is excluded
-- [FlightRadar24 3D view](https://www.flightradar24.com/blog/exploring-the-new-flightradar24-3d-view/) — competitor interaction reference for double-click zoom behavior and entity icons
+
+- [SQLAlchemy GitHub discussion #5903](https://github.com/sqlalchemy/sqlalchemy/discussions/5903) — `on_conflict_do_update` does not honour `onupdate`
+- [Alembic GitHub issue #539](https://github.com/sqlalchemy/alembic/issues/539) — partitioned table autogenerate support limitations
+- [MarineTraffic vessel update frequency](https://support.marinetraffic.com/en/articles/9552905-how-often-do-the-positions-of-the-vessels-get-updated-on-marinetraffic) — 60s downsampling, 24h removal threshold, satellite AIS gap behaviour
+- [PredictWind DataHub AIS staleness](https://help.predictwind.com/en/articles/11578331-over-the-horizon-ais-why-do-i-see-a-datahub-call-sign-for-targets-which-should-be-vhf-over-the-air-on-my-chartplotter) — 3-minute TTL for OTA AIS; 2-minute fallback
+- [AirLabs Flight Tracker API](https://airlabs.co/docs/flights) — `updated` Unix timestamp as sole freshness field in a production aviation API
+
+### Tertiary (LOW confidence)
+
+- [DEV Community — Alembic NotNullViolation error patterns](https://dev.to/cuddi/that-dreaded-alembic-notnullviolation-error-and-how-to-survive-it-33a1) — corroborates squawkhq.com findings on NOT NULL migration failures
+- [Evil Martians — soft deletion with PostgreSQL](https://evilmartians.com/chronicles/soft-deletion-with-postgresql-but-with-logic-on-the-database) — soft-expiry pattern rationale
 
 ---
-*Research completed: 2026-03-12*
+*Research completed: 2026-03-13*
 *Ready for roadmap: yes*

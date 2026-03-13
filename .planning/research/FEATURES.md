@@ -1,133 +1,197 @@
-# Feature Research: v3.0 UI Refinement
+# Feature Research
 
-**Domain:** Geospatial Intelligence Globe — UI Refinement (Radar Aesthetic, Panel Layout, Globe Interaction)
-**Researched:** 2026-03-12
-**Confidence:** HIGH (CesiumJS APIs verified), MEDIUM (radar UI conventions from community patterns), HIGH (collapsible panel patterns)
+**Domain:** Data freshness metadata and stale-position handling in real-time geospatial tracking APIs
+**Researched:** 2026-03-13
+**Confidence:** HIGH (industry sources, official API docs, protocol standards verified)
 
 ---
 
-## Scope
+## Context: What Already Exists
 
-This document covers ONLY the 5 new v3.0 feature areas. All v1.0/v2.0 features (globe, layers, presets, HUD, replay, OSINT) are already built and are not re-researched here.
+This is a subsequent milestone research file (v4.0). The following are already built and out of scope for this research:
 
-The existing architecture that these features must integrate with:
-- **CesiumJS Primitive API** (not Entity API) — BillboardCollection primitives used for all entity icons
-- **React + TypeScript** frontend with Vite
-- **LeftSidebar.tsx** — hamburger toggle sidebar containing layer toggles, SearchBar, FilterPanel
-- **RightDrawer.tsx** — visual presets and PostProcessPanel
-- **PlaybackBar.tsx** at bottom — timeline scrubber, LIVE/PLAYBACK toggle
-- **GlobeView.tsx** — CesiumJS Viewer root, owns camera and ScreenSpaceEventHandler
+- Aircraft layer: OpenSky polling (90s), PostgreSQL upsert, trail column, `/api/aircraft`
+- Military layer: airplanes.live /v2/mil, 300s cadence, `/api/military`
+- AIS ships: aisstream.io WebSocket, Redis TTL (600s), 30s PG flush, `/api/ships`
+- GPS jamming: H3 hexagon aggregation from military NIC/NACp, daily cadence triggered on each military ingest, `/api/gps-jamming`
+- Snapshot infrastructure: 60s time-partitioned PostgreSQL, 7-day retention
+- `/api/aircraft/freshness`: already exists, returns `max(updated_at)` across all aircraft rows
+
+Current gap: API layer returns `updated_at` (server write time) but nothing about the data's own internal age. No `is_active` lifecycle column, no `is_stale` derived field, no `position_age_seconds`, no `fetched_at` capturing the upstream source timestamp. List endpoints return all rows regardless of when the entity was last seen — dead aircraft appear as live.
+
+---
+
+## Industry Conventions: Staleness Thresholds
+
+### Aircraft (ADS-B / OpenSky) — HIGH confidence
+
+OpenSky's own staleness rule (verified from official docs):
+- `time_position` is set to `null` when no position report was received in the **last 15 seconds** — OpenSky itself treats positions older than 15s as unreliable
+- `last_contact` (last any transponder message) keeps the state vector alive for up to **300 seconds** after loss of contact — a row stays in the OpenSky response for up to 5 minutes after the aircraft stops transmitting
+- OpenSky response-level `time` field: Unix epoch integer of when the snapshot was taken — distinct from per-aircraft timestamps
+
+Downstream conventions for applications consuming OpenSky (MEDIUM confidence — community practice):
+- < 60s since last contact: treat as live
+- 60–300s: treat as stale; display with visual indicator
+- > 300s: treat as expired; exclude from list endpoints
+
+This project's poll interval is 90s. Any aircraft absent from two consecutive polls is absent for at least 180s and should be considered expired. The `updated_at` column already encodes this: aircraft not upserted in > 180s has not appeared in any recent OpenSky response.
+
+### Military Aircraft (ADS-B via airplanes.live) — HIGH confidence
+
+Poll interval: 300s. airplanes.live returns a full current snapshot of all tracked military aircraft. Absence from a response means the aircraft is off radar. Practical threshold: **not updated in 600s (two missed polls)** = expired. `updated_at` encodes this directly.
+
+### Maritime (AIS) — HIGH confidence, ITU-R M.1371-5 standard
+
+Mandatory AIS reporting intervals per vessel class and state:
+
+| Vessel State | Class A | Class B-SO | Class B-CS |
+|---|---|---|---|
+| Underway < 14 kn | 10s | 30s | 30s |
+| Underway 14-23 kn | 6s | 15s | 30s |
+| Underway > 23 kn | 2s | 5s | 30s |
+| Anchored / stopped | 3 min | 3 min | 3 min |
+
+Practical staleness thresholds from production maritime trackers (MEDIUM confidence):
+- DataHub/PredictWind OTA AIS: 3-minute TTL (180s); 2-minute fallback (120s) for freshness determination
+- MarineTraffic platform: downsamples to 60s per MMSI; removes vessel from live map after 24 hours without update
+- This project's Redis TTL: **600s (10 min)** — ships absent from aisstream.io for 10 min drop from Redis, meaning the PG row may persist but the Redis position is gone. The gap between Redis TTL (600s) and PG row persistence is the current staleness blind spot.
+
+Practical rule for this project: ship rows with `updated_at` older than **600s** are stale; older than **3600s (1 hour)** should be considered inactive (`is_active = false`).
+
+Satellite AIS note: vessels in remote ocean areas may have AIS gaps of hours to days — satellite relay has inherently different freshness profile than terrestrial AIS. Do not apply the same threshold to both.
+
+### GPS Jamming Cells — HIGH confidence (derived layer, not live telemetry)
+
+GPS jamming is aggregated from military aircraft NIC/NACp data, not a direct sensor feed. It runs after each military ingest (~300s) and on a daily schedule. "Staleness" for this layer means: how old is the source military data that produced these cells? The `updated_at` on each cell captures when the aggregation ran. The real freshness signal is `max(military_aircraft.updated_at)` at aggregation time. Cells do not expire individually; the entire layer is replaced atomically on each aggregation run.
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These in a Polished v3 UI)
+### Table Stakes (Users Expect These)
 
-Features that any serious v3 UI upgrade must deliver. Missing them makes the refinement feel cosmetic-only, not architectural.
+Features that any honest real-time tracker must provide. Missing these means the globe silently shows dead data as if it were live.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Collapsible sidebar sections** | Every modern data-dense UI (VSCode, Figma, geospatial tools) groups controls into expandable sections. A flat list of toggles breaks down when more than ~6 layers exist. | LOW-MEDIUM | CSS height transition from `0` to `auto` is the standard pattern, but `height: auto` cannot be animated directly in CSS. Use `max-height` trick (0 to a clamped max) or measure element height with ResizeObserver then set explicit px height. Framer Motion `AnimatePresence` with `initial={false}` is the cleanest React solution — avoids the max-height clamping artifacts. Section header acts as the toggle trigger. Chevron icon rotates 90deg on expand/collapse. |
-| **No panel overlap** | Current sidebar and right drawer likely have z-index conflicts at certain viewport sizes. Any professional UI must handle this. | LOW | Define clear z-index stacking context. Sidebar (z: 80), RightDrawer (z: 80), PlaybackBar (z: 70), CinematicHUD (z: 90), SearchBar (z: 95). Panels must not overlap each other's interactive regions. |
-| **Entity icons that read at all zoom levels** | At ISS orbital altitude (~400km), a 1px dot is invisible. At street level (~2km), a 32px icon is enormous and occludes terrain. Users need icons that remain legible throughout the zoom range. | MEDIUM | CesiumJS BillboardCollection supports `scaleByDistance: new Cesium.NearFarScalar(nearDist, nearScale, farDist, farScale)`. This is the canonical API. Applies per-billboard. Since existing code uses Primitive API (BillboardCollection), this is a property addition to each billboard's config object, not an architectural change. `distanceDisplayCondition` can hide icons beyond a threshold. Example values: `new Cesium.NearFarScalar(1.5e3, 1.5, 1.5e8, 0.4)` scales from 1.5× at 1500m to 0.4× at 150Mm. |
-| **Double-click zoom toward cursor** | This is the universal expectation from Google Earth, FlightRadar24 3D, and Bing Maps 3D. Single-click already selects entities; double-click should zoom. Users naturally double-click on areas of interest expecting zoom behavior. | MEDIUM | CesiumJS since v1.11 (July 2015) provides `camera.getPickRay(position)` to get the ray from camera through screen position, then `camera.move(direction, amount)` along that ray. The scene pick ray approach: `const ray = viewer.camera.getPickRay(event.position); const point = viewer.scene.globe.pick(ray, viewer.scene);` then `viewer.camera.flyTo({ destination: Cartesian3 at 50% distance toward picked point })`. Must override default double-click using `viewer.screenSpaceEventHandler.setInputAction(() => {}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)` first to disable the default entity-focus behavior. |
-| **Zoom in/out control buttons** | On-screen +/- buttons are standard in all map UIs (Google Maps, Mapbox, Leaflet, OpenLayers). Users on touchpads or non-scroll-wheel input expect them. | LOW | CesiumJS has no built-in zoom buttons. Implement as React component absolutely positioned top-right or bottom-right of globe. Calls `viewer.camera.zoomIn(zoomAmount)` and `viewer.camera.zoomOut(zoomAmount)`. Amount should scale with current altitude to feel consistent (zoom 10% of current altitude). |
-| **Tilt/pitch control** | Standard in Google Earth (the tilt slider), HERE WeGo (tilt toggle), and every 3D map tool. Users expect a way to switch between top-down (2D map feel) and oblique (3D perspective) views. | LOW-MEDIUM | CesiumJS camera pitch is set via `viewer.camera.setView({ orientation: { pitch: Cesium.Math.toRadians(degrees) } })` or animated via `viewer.camera.flyTo({ orientation: { pitch } })`. Standard UX is a vertical slider or discrete buttons: Top-down (90°), 45° oblique, Horizon (0°). A persistent indicator showing current tilt angle is the Mapbox pattern. React state tracks current pitch, buttons trigger flyTo with same position but new pitch. |
+| Stale row filtering on list endpoints | List endpoints return all rows regardless of age — dead aircraft appear live. Every production tracker filters by recency. | LOW | `WHERE updated_at > now() - interval 'N seconds'` or `WHERE is_active = true`; thresholds differ per source (aircraft: 300s, military: 600s, ships: 600s) |
+| `is_stale` boolean in list and detail responses | Users and frontend code need a computed signal, not raw timestamps — a boolean is unambiguous. AirLabs, OpenSky all use some form of staleness indicator. | LOW | Computed at serialization time from `updated_at` vs threshold; no schema change required if using `updated_at` approach |
+| `position_age_seconds` in detail endpoints | Standard derived field — "this position is N seconds old." Used by virtually all aviation/maritime detail panels (FlightAware, MarineTraffic). | LOW | `int((now() - updated_at).total_seconds())`; detail endpoint only, not list payload (too verbose at scale) |
+| `fetched_at` column on aircraft table | OpenSky provides a response-level `time` field (Unix epoch) telling when the snapshot was taken — this is semantically distinct from `updated_at` (our PostgreSQL write time). Without it, callers cannot distinguish "fresh data written slowly" from "old data written immediately." | LOW | New column; integer or DateTime; populated from OpenSky `response["time"]`; requires Alembic migration |
+| `time_position` column on aircraft table | OpenSky `sv[3]`: when the position fix itself was recorded — may be older than `last_contact`. Null when no position received in last 15s. This is OpenSky's own freshness field and should be stored and surfaced. | LOW | New column; integer Unix seconds; from OpenSky sv[3]; requires Alembic migration |
+| `is_active` soft-expiry flag on all entity tables | Enables "recently seen but now inactive" state without hard deletion. Required to keep replay and `/detail` endpoints functional while excluding stale entities from live list endpoints. | MEDIUM | Boolean column default true; ingest sets false when entity absent from response; requires Alembic migration per table |
+| Alembic migrations for all schema changes | Without migrations, running containers diverge from new schema on deploy. This project uses Alembic already — all schema changes must go through it. | LOW (mechanical) | One migration per modified table; must be idempotent |
 
-### Differentiators (Competitive Advantage for v3)
+### Differentiators (Competitive Advantage)
 
-Features that elevate this beyond a map tool with a dark theme.
+Features beyond the baseline that make this platform more honest and informative than typical open-source trackers.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Radar-style UI visual language** | No open-source geospatial tool uses authentic radar/SIGINT terminal aesthetics — angular corner brackets, scan animation on active panels, pulsing active indicators. This is the visual signature that makes the tool feel operational, not hobbyist. | MEDIUM | The pattern: panel borders replaced with CSS corner-only bracket decorations (4 `::before`/`::after` pseudo-elements, or 4 absolutely-positioned `<span>` divs). Angular clip-path on panel headers (`clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)`). Pulsing dot via CSS keyframe animation on `box-shadow`. Scan line sweep via `@keyframes` on a linear-gradient overlay `transform: translateY(-100%)` to `translateY(100%)`. Color palette: `#00d4ff` (primary cyan), `#00ff88` (active/green), `#ff4444` (alert/red), `#ffaa00` (warning/amber) on near-black backgrounds. All these are pure CSS — zero JavaScript, zero performance impact. |
-| **Custom SVG billboard icons per entity type** | Generic dots or built-in CesiumJS pin markers do not convey entity type at a glance. Custom SVG icons (satellite with solar panels, aircraft silhouette, ship outline, military diamond) are the FlightRadar24 standard. | MEDIUM | SVGs can be rendered to a Canvas at runtime and passed as CesiumJS billboard image via `canvas.toDataURL()` or a data URL. Alternatively, bake icons as PNG sprites at 2–3 sizes and select by zoom level. CesiumJS BillboardCollection `image` property accepts a data URL or canvas. For 5,000+ satellites this matters for performance: generate icon canvas once per entity type (not per entity), reuse the same image reference across all billboards of that type. 4 icon types = 4 canvases. Color variants per type (military amber vs commercial blue) = 8 total canvases. |
-| **Animated expand/collapse with section identity** | Collapsible panels with labeled section headers (LAYERS, FILTERS, SEARCH, NAVIGATION) that show item counts when collapsed ("LAYERS ▸ 6 active") communicate state without requiring the panel to be open. | MEDIUM | Section count badge: reduce layer toggle states to active count in collapsed header. Use `useMemo` for the count. Framer Motion layout animation on section container so adjacent sections smoothly reflow when one collapses (avoids jarring jump). |
-| **Persistent panel state** | Remembering which sidebar sections were open/closed across page loads feels like a complete product detail, not a prototype. | LOW | `localStorage.setItem('sidebarSections', JSON.stringify(openSections))` on change. Read on mount with fallback defaults. Single useEffect hook. |
+| `geo_altitude` on aircraft schema | OpenSky provides both barometric and GPS-derived geometric altitude. `geo_altitude` (sv[13]) is more accurate for terrain-relative height. Most open-source consumers ignore it. | LOW | Often null; store when present; expose in detail endpoint |
+| `vertical_rate` on aircraft schema | Climb/descent rate in m/s (sv[11]). Positive = climbing, negative = descending. Valuable for detail panel ("climbing at 600 ft/min"). Widely available in OpenSky, widely ignored by simple consumers. | LOW | Often populated for airborne aircraft; store from sv[11] |
+| `position_source` on aircraft schema | OpenSky sv[16]: 0 = ADS-B, 1 = ASTERIX, 2 = MLAT, 3 = FLARM. Tells the user how trustworthy the position fix is. MLAT positions are computed from arrival time differences and are less accurate than direct ADS-B. | LOW | Store as integer; expose as labeled string ("ADS-B", "MLAT", "FLARM") in API response |
+| `last_seen_at` on military and ship tables | Separates when the source last reported this entity from when our batch flush wrote to PG. For AIS, `time_utc` from the aisstream.io message is the true last-seen timestamp; the 30s batch flush makes `updated_at` a coarse approximation. | LOW-MEDIUM | AIS: parse `time_utc` into a typed DateTime column; military: set to `now()` per ingest batch start time |
+| Configurable stale thresholds per source in config.py | Aircraft at 90s poll, military at 300s poll, ships via continuous WebSocket — each source has a different natural cadence. Hardcoding a single threshold would be incorrect. A named constant per source in `config.py` is transparent and testable. | LOW | `STALE_THRESHOLD_AIRCRAFT_S = 300`, `STALE_THRESHOLD_MILITARY_S = 600`, `STALE_THRESHOLD_SHIP_S = 600`; no UI required |
+| GPS jamming freshness envelope in response | GPS jamming cells are derived data. Expose `aggregated_at` (when the aggregation ran) and `source_data_age_seconds` (seconds since the military aircraft data that built these cells was last updated) in the response envelope. This makes the derived nature transparent. | LOW | `aggregated_at` = `max(cell.updated_at)` query; `source_data_age_seconds` = `now() - max(military_aircraft.updated_at)` at query time; no schema change |
+| `/api/military/freshness` and `/api/ships/freshness` endpoints | Parallel to the existing `/api/aircraft/freshness`. Allows frontend to check per-layer data age without parsing the full list. | LOW | Same pattern as existing: `SELECT max(updated_at)` from respective table |
 
-### Anti-Features (Do Not Build)
+### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Animated radar sweep circle on globe** | "Radar" aesthetic often prompts adding a rotating sweep animation projected onto the globe surface | A globe-projected animated sweep requires a GroundPrimitive with per-frame geometry updates, or a full-screen shader pass. At 5,000+ entities, additional shader complexity risks dropping below 60 FPS. Looks gimmicky on a globe — radar sweeps are flat-plane tools. | Apply radar aesthetic to UI panels only (corner brackets, scan lines on panel headers). Keep the globe surface clean of UI chrome. |
-| **Smooth continuous zoom (not jump-based) on double click** | "Smooth" zoom feels more natural | Continuous camera fly animations during double-click create motion sickness on 3D globes because of the extreme depth change. Google Earth uses a discrete "zoom level" jump, not a slow fly. | Use `camera.flyTo()` with a short `duration: 0.4` for perceived smoothness without the disorientation of a long pan. |
-| **Icon labels always visible** | "I want to know the plane callsign without clicking" | At 5,000+ entities, always-on labels are unreadable overlapping text. This is the reason we're using the Primitive API — Entity API tried to solve this with automatic LOD and failed at scale. | Show labels only on hover (mouseover) or selection. Use `distanceDisplayCondition` on labels to only show them close-up. |
-| **CSS animations on every entity icon** | Pulsing / blinking icons for active entities look impressive in demos | Per-icon CSS animations are applied as DOM elements only in Entity API. With Primitive API (BillboardCollection), icons are rendered as GPU sprites — there is no per-icon CSS. Applying canvas-level animation would require re-uploading canvas textures every frame for all entities. | Animate selected entity only (single selection marker / ring drawn via CesiumJS Primitive). Animate UI panels (scan lines, pulsing dot indicators), not the globe layer icons. |
-| **Resizable/draggable panels** | Power users want to arrange the UI | Drag-resize state management conflicts with the fixed positioning of CesiumJS canvas, causes z-index issues, requires substantial React drag state or a library (react-resizable-panels). Far higher complexity than the v3 scope warrants. | Collapsible sections address the space problem. Defer draggable panels to v4 if specifically requested. |
-| **Mouse-wheel zoom speed override** | Feels like an easy improvement | CesiumJS `ScreenSpaceCameraController.zoomEventTypes` and `wheelZoomWeightModifier` can be adjusted, but the default is already well-tuned for globe distances. Over-tuning breaks the feel at polar orbits vs street level (the altitude range is 7 orders of magnitude). | Leave scroll-wheel zoom at default. The +/- buttons are the fix for users who want discrete control. |
-| **Right-click context menu on globe** | Seems natural for "what is at this point" | Right-click on CesiumJS globe conflicts with the existing right-drag-tilt camera behavior. Disambiguating tap vs drag vs hold requires stateful timer logic that is error-prone. | Double-click for zoom is the standard interaction. Context info comes from click-to-inspect panels, which already exist. |
+| Hard-delete stale rows on ingest | Feels clean — why keep dead aircraft in the database? | Breaks replay engine: `position_snapshots` reference `icao24`/`mmsi` that must remain queryable. Also breaks `/api/aircraft/{icao24}` detail if entity disappears mid-session. Causes FK violations if foreign key constraints are added later. | Use `is_active = false` soft expiry. Never hard-delete live entity rows. |
+| Per-request staleness threshold query parameter (`?stale_threshold=120`) | Seems flexible | Adds query complexity, breaks caching, hard to test all threshold combinations, no clear user need — threshold is an operational decision, not a per-request preference. | Single configurable threshold per source in `config.py`; no query parameter. |
+| Aggregated cross-layer "data health" score | A single widget showing overall freshness | Misleading — military at 300s cadence and aircraft at 90s cadence have fundamentally different freshness profiles. A blended score hides per-layer state and gives false confidence. | Per-layer freshness endpoints. Frontend shows per-layer last-updated timestamp, not a blended score. |
+| Backfilling `time_position` from trail history | "Fix" historical trail entries | Trail entries store `last_contact` (sv[4]) as `ts`, not `time_position` (sv[3]). Retroactive correction requires re-ingesting historical data that no longer exists. The two fields are semantically different. | Store `time_position` correctly going forward only. Document the distinction in code. |
+| Real-time push notification when entity goes stale | "Alert me when a tracked aircraft drops off radar" | Requires WebSocket pub/sub channel, client subscription management, and server-side change detection. Disproportionate complexity for a single-user homelab tool. | Frontend polls `/api/aircraft` periodically. Absence of entity `icao24` from the list is the signal. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[CesiumJS BillboardCollection (already exists in all layer components)]
-    ├──add-property──> scaleByDistance (NearFarScalar) per billboard
-    │                      └──enables──> Zoom-scalable entity icons (ICONS-05)
-    └──replace-image──> Custom SVG/canvas icons
-                           └──enables──> Custom entity type icons (ICONS-01 to 04)
+is_active flag (aircraft table)
+    └──requires──> Alembic migration: add is_active Boolean to aircraft
+    └──requires──> ingest_aircraft.py: set is_active=false for rows not returned in latest fetch
 
-[CesiumJS ScreenSpaceEventHandler (already exists in GlobeView.tsx)]
-    └──override-double-click──> Custom double-click handler
-                                    └──uses──> camera.getPickRay() + globe.pick() + camera.flyTo()
-                                    └──enables──> Double-click zoom toward cursor (NAV-01)
+is_active flag (military_aircraft table)
+    └──requires──> Alembic migration: add is_active Boolean to military_aircraft
+    └──requires──> ingest_military.py: set is_active=false for rows absent from /v2/mil response
 
-[React component tree / LeftSidebar.tsx]
-    └──refactor-structure──> Section group components with AnimatePresence
-                                 ├──enables──> Collapsible sidebar sections (LAYOUT-01)
-                                 └──enables──> Logical panel grouping (LAYOUT-02)
+is_active flag (ships table)
+    └──requires──> Alembic migration: add is_active Boolean to ships
+    └──requires──> ingest_ais.py: set is_active=false after Redis TTL expiry or explicit sweep
 
-[React absolute-positioned overlay (new component)]
-    ├──enables──> Zoom +/- buttons (NAV-03)
-    └──enables──> Tilt/pitch control widget (NAV-02)
-                      └──uses──> viewer.camera.flyTo({ orientation: { pitch } })
+time_position + fetched_at + geo_altitude + vertical_rate + position_source (aircraft)
+    └──requires──> Alembic migration: add 5 columns to aircraft table
+    └──requires──> ingest_aircraft.py: extract sv[3], sv[11], sv[13], sv[16], response["time"]
 
-[CSS custom properties / global stylesheet]
-    └──enables──> Radar visual language (STYLE-01, STYLE-02)
-                      └──isolated──> Pure CSS, no JavaScript runtime cost
-                      └──applies-to──> All panels (LeftSidebar, RightDrawer, PlaybackBar, SearchBar, HUD)
+last_seen_at (military_aircraft)
+    └──requires──> Alembic migration: add last_seen_at DateTime to military_aircraft
+    └──requires──> ingest_military.py: set last_seen_at = now() at fetch start time
+
+last_seen_at (ships)
+    └──requires──> Alembic migration: add last_seen_at DateTime to ships
+    └──requires──> ingest_ais.py: parse time_utc into typed DateTime for last_seen_at
+
+Stale row filtering in list endpoints
+    └──depends on──> is_active column (preferred) OR updated_at threshold (fallback)
+    └──depends on──> configurable stale thresholds in config.py
+
+is_stale + position_age_seconds in responses
+    └──no schema change required — computed from updated_at at serialization time
+    └──depends on──> configurable stale thresholds in config.py (to define the is_stale boundary)
+
+GPS jamming freshness envelope
+    └──no schema change required
+    └──requires──> routes_gps_jamming.py: compute and return aggregated_at, source_data_age_seconds
+
+Tests
+    └──requires──> all schema changes and route changes be in place
+    └──requires──> controlled updated_at fixtures (use freezegun or direct datetime injection)
 ```
 
 ### Dependency Notes
 
-- **Icon scaling (ICONS-05) is a property addition, not a refactor.** `scaleByDistance` is added to each billboard's config in the existing BillboardCollection `add()` calls. One property per billboard. No architectural change to the Primitive renderer.
-- **Custom SVG icons (ICONS-01–04) require a canvas generation utility.** Because all layer components use BillboardCollection and share the same `image:` field pattern, a shared `generateIconCanvas(type, color)` utility can be created once and imported by all four layer components. No per-component duplication.
-- **Double-click zoom (NAV-01) must disable the CesiumJS default LEFT_DOUBLE_CLICK.** The default behavior zooms to and focuses on any clicked entity (sets `viewer.trackedEntity`). This must be removed and replaced with the custom globe.pick() + flyTo() handler. Disabling it is a one-liner; adding the custom handler is ~20 lines.
-- **Radar CSS language (STYLE-01/02) is purely additive.** No existing component needs to be rewritten. Corner brackets can be added as child `<span>` elements or CSS pseudo-elements in existing component JSX. Scan-line animation is a CSS keyframe on a pseudo-element overlay. The existing `rgba(0,212,255,0.25)` border color palette already matches radar aesthetics — this is a refinement, not a retheme.
-- **Collapsible sections (LAYOUT-01) require the most React refactoring.** LeftSidebar currently renders layer toggles as a flat fixed-position strip separate from the sidebar panel. The v3 design consolidates them inside the sidebar in named sections. This requires restructuring LeftSidebar's JSX and moving the bottom layer strip into the sidebar body — a structural change, not just a style change.
-- **Tilt widget and zoom buttons (NAV-02, NAV-03) are new React components.** They must be positioned in the CesiumJS canvas area without interfering with click-through. Use `pointer-events: none` on wrappers, `pointer-events: auto` on button elements only.
+- **is_active vs updated_at filtering:** Both approaches work. `is_active` is cleaner as an API contract (the route filter is `WHERE is_active = true`, independent of threshold), but requires the ingest to actively maintain the flag. `updated_at` threshold filtering requires no ingest change but couples threshold logic into route WHERE clauses. Recommended: `is_active` column — it is the industry standard (soft-expiry) pattern and decouples the "is this entity live" question from the "how long ago was it seen" question.
+- **fetched_at vs updated_at distinction:** `fetched_at` = OpenSky response `time` field (when OpenSky snapshotted the data). `updated_at` = PostgreSQL write time. For aircraft at 90s polling, the difference is typically 1–5s. Small but semantically important: `fetched_at` answers "when did OpenSky see this aircraft?", `updated_at` answers "when did we process it?". Only aircraft gets `fetched_at`; airplanes.live and aisstream.io do not expose an equivalent source-level response timestamp.
+- **GPS jamming source_data_age_seconds:** This requires a JOIN or subquery at request time: `SELECT now() - max(updated_at) FROM military_aircraft`. A separate query per `/api/gps-jamming` request; O(1) cost, no schema change needed.
+- **Ship last_seen_at type:** The current `last_update` column on ships is a String (storing `time_utc` as raw string). The new `last_seen_at` should be `DateTime(timezone=True)` for correct comparison arithmetic. The migration adds the new typed column; `last_update` can remain for backwards compatibility during transition.
 
 ---
 
-## MVP Definition for v3.0
+## MVP Definition
 
-### Launch With (v3.0)
+### Launch With (v4.0 — this milestone)
 
-Minimum viable refinement — what's needed to deliver the v3 capability tier.
+All items below are required for the "data reliability" milestone to be substantive rather than cosmetic.
 
-- [ ] **Radar corner brackets and panel header styling** (STYLE-01) — The visual signature. Pure CSS. High impact, low risk.
-- [ ] **Collapsible sidebar sections with grouping** (LAYOUT-01, LAYOUT-02) — Solves the practical problem of too many controls for a small panel.
-- [ ] **Panel overlap elimination** (LAYOUT-03) — Fix any existing z-index / layout conflicts between sidebar, right drawer, playback bar.
-- [ ] **Custom SVG billboard icons for all 4 entity types** (ICONS-01–04) — Replaces generic markers with recognizable entity silhouettes.
-- [ ] **Icon scale with camera altitude** (ICONS-05) — One `scaleByDistance` property added to each billboard. Proportional icons at all zoom levels.
-- [ ] **Double-click zoom toward cursor** (NAV-01) — Override default behavior, implement globe.pick() + flyTo(). ~30 lines of code but requires testing edge cases.
-- [ ] **Tilt control buttons and zoom +/- overlay** (NAV-02, NAV-03) — New React component, absolutely positioned, camera API calls.
+- [ ] Alembic migration: add `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `fetched_at`, `is_active` to `aircraft` table
+- [ ] Alembic migration: add `last_seen_at`, `is_active` to `military_aircraft` table
+- [ ] Alembic migration: add `last_seen_at`, `is_active` to `ships` table
+- [ ] `ingest_aircraft.py`: extract and store sv[3] (time_position), sv[11] (vertical_rate), sv[13] (geo_altitude), sv[16] (position_source), response["time"] (fetched_at)
+- [ ] `ingest_military.py`: set `last_seen_at = now()` at batch start; identify rows absent from current response and set `is_active = false`
+- [ ] `ingest_ais.py`: propagate `time_utc` as typed `last_seen_at`; mechanism to mark `is_active = false` after Redis TTL expiry
+- [ ] `/api/aircraft` list: filter `WHERE is_active = true`; add `is_stale` and `position_age_seconds` to each item
+- [ ] `/api/military` list: filter stale rows; add `is_stale` and `position_age_seconds`
+- [ ] `/api/ships` list: filter stale rows; add `is_stale` and `position_age_seconds`
+- [ ] `/api/gps-jamming`: add `aggregated_at` and `source_data_age_seconds` to response envelope
+- [ ] Configurable stale thresholds per source in `config.py` (not magic numbers in routes)
+- [ ] Tests: stale row excluded from list, fresh row included, `is_stale` correct, `position_age_seconds` within expected range, new OpenSky fields stored correctly
 
-### Add After Validation (v3.1)
+### Add After Validation (v4.x)
 
-- [ ] **Pulsing active indicator on panels** (STYLE-02) — CSS keyframe animation on active layer badges. Add once v3.0 layout is stable to avoid thrash.
-- [ ] **Scan-line sweep animation on panel headers** — CSS `@keyframes` translateY sweep. Aesthetic detail, defer until core layout is locked.
-- [ ] **Persistent sidebar section state** (localStorage) — Quality of life, add once section structure is finalized.
-- [ ] **Earthquake layer** (LAY-05) — Was deferred from v2.0, natural addition once layer UI grouping is solid.
-- [ ] **Weather radar overlay** (LAY-06) — Same deferral. Layer group structure makes adding new layers easier.
+- [ ] `/api/military/freshness` endpoint — parallel to existing `/api/aircraft/freshness`
+- [ ] `/api/ships/freshness` endpoint
+- [ ] Frontend visual indicator for stale entities (grey-out, opacity reduction, or "STALE" badge in detail panel) — deferred; not in v4.0
 
-### Future Consideration (v3.x+)
+### Future Consideration (v5+)
 
-- [ ] **Draggable/resizable panels** — Significant complexity, not warranted until user feedback confirms the need.
-- [ ] **Globe-surface radar sweep animation** — Only if GPU headroom confirmed at full scene load.
-- [ ] **Custom icon per entity instance** (e.g., per airline livery) — Not differentiated enough to warrant per-entity canvas overhead.
+- [ ] Satellite AIS handling with longer staleness windows (satellite relay has hours-long gaps by design; a separate `is_satellite_ais` flag would allow different threshold application)
+- [ ] `position_source` string label rendered in frontend detail panel ("ADS-B", "MLAT", "FLARM")
+- [ ] Per-entity staleness history (how often has this aircraft been stale in the last 24h)
 
 ---
 
@@ -135,217 +199,53 @@ Minimum viable refinement — what's needed to deliver the v3 capability tier.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Radar corner bracket styling | HIGH | LOW | P1 |
-| Collapsible sidebar sections | HIGH | MEDIUM | P1 |
-| Custom SVG entity icons | HIGH | MEDIUM | P1 |
-| Icon scale with zoom | HIGH | LOW | P1 |
-| Double-click zoom toward cursor | HIGH | MEDIUM | P1 |
-| Panel overlap fix | MEDIUM | LOW | P1 |
-| Tilt control widget | MEDIUM | LOW | P1 |
-| Zoom +/- buttons | MEDIUM | LOW | P1 |
-| Pulsing active indicators | MEDIUM | LOW | P2 |
-| Panel scan-line animation | LOW | LOW | P2 |
-| Persistent section state | MEDIUM | LOW | P2 |
-| Earthquake / weather layers | MEDIUM | LOW | P3 (v3.1) |
+| Stale row filtering on list endpoints | HIGH | LOW | P1 |
+| `is_stale` + `position_age_seconds` in responses | HIGH | LOW | P1 |
+| Aircraft: `time_position`, `fetched_at` columns | HIGH | LOW | P1 |
+| Aircraft: `vertical_rate`, `geo_altitude` columns | MEDIUM | LOW | P1 |
+| Aircraft: `position_source` column | MEDIUM | LOW | P1 |
+| `is_active` lifecycle flag (all tables) | HIGH | MEDIUM | P1 |
+| Military `last_seen_at` | MEDIUM | LOW | P1 |
+| Ship `last_seen_at` (typed DateTime) | MEDIUM | LOW | P1 |
+| GPS jamming freshness envelope | MEDIUM | LOW | P1 |
+| Configurable thresholds in config.py | MEDIUM | LOW | P1 |
+| Alembic migrations for all changes | HIGH (correctness) | LOW (mechanical) | P1 |
+| Tests covering all stale/freshness behavior | HIGH (regression safety) | MEDIUM | P1 |
+| `/api/military/freshness` endpoint | LOW | LOW | P2 |
+| `/api/ships/freshness` endpoint | LOW | LOW | P2 |
+| Frontend stale visual indicator | MEDIUM | MEDIUM | P2 |
 
 **Priority key:**
-- P1: Required for v3.0 milestone — defines the refinement tier
-- P2: Ship in v3.1 once layout is stable
+- P1: Must have for v4.0 — defines the data reliability tier
+- P2: Ship in v4.1 once core behavior is validated
 - P3: Future milestone
 
 ---
 
-## Competitor Feature Analysis
+## Reference System Comparison
 
-| Feature | FlightRadar24 3D | Google Earth | WorldWind | Our Approach |
-|---------|-----------------|--------------|-----------|--------------|
-| Double-click zoom | Zooms camera toward clicked terrain point (smooth fly) | Zooms to clicked point one level at a time | Varies by config | `camera.getPickRay()` + `globe.pick()` + `camera.flyTo({ duration: 0.4 })` |
-| Zoom buttons | +/- overlay top-right | Slider bottom-right | +/- top-right | +/- buttons, absolute-positioned React component, calls `camera.zoomIn/Out()` |
-| Tilt control | None (hold right-click to tilt) | Vertical slider bottom-right (0°–90°) | Not prominent | Discrete preset buttons: Top-down / 45° / Horizon — easier than continuous slider on globe |
-| Panel collapse | No sidebar panels | Layers panel with expand/collapse tree | Varies | Framer Motion animated collapse with chevron icon and section item counts |
-| Entity icons | Aircraft silhouette SVG by airline type | KML icon set | Custom | Per-type SVG rendered to canvas, shared across all entities of same type |
-| Radar aesthetics | None | None | None (plain) | Angular corner brackets, scan header animation, pulsing active badge — differentiator |
-
----
-
-## Implementation Notes by Feature
-
-### STYLE-01: Radar Corner Brackets
-
-CSS approach using 4 child `<span>` elements (reliable cross-browser vs `::before`/`::after` which are limited per element):
-
-```
-Position: absolute at panel corners. Width/height ~12px, border 1–2px solid cyan.
-Corner spans: top-left (border-top + border-left), top-right (border-top + border-right),
-bottom-left (border-bottom + border-left), bottom-right (border-bottom + border-right).
-Remove full panel border. Add corner spans. Background rgba(0,8,20,0.92).
-```
-
-Apply to: LeftSidebar panel, RightDrawer, SearchBar dropdown, DetailPanel modals, PlaybackBar.
-Do not apply to: the CesiumJS attribution bar, browser scrollbars, anything not React-owned.
-
-### STYLE-02: Pulsing Active Indicator
-
-CSS `@keyframes` on `box-shadow`:
-```
-@keyframes radar-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.6); }
-  70%  { box-shadow: 0 0 0 6px rgba(0, 212, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
-}
-```
-Apply to the active layer indicator dot (the small colored status dot next to toggle labels).
-Animation duration: 2s, infinite. Only play when layer is active (conditional class application).
-
-### LAYOUT-01: Collapsible Section Structure
-
-Proposed section grouping for LeftSidebar:
-
-```
-LAYERS           (SAT / AIR / MIL / SHIP / JAM / TRAFFIC)
-FILTERS          (existing FilterPanel contents)
-SEARCH           (existing SearchBar)
-NAVIGATION       (landmark quick-jump buttons)
-```
-
-State: `openSections: Set<string>` in local React state (or localStorage-persisted).
-Toggle: click section header chevron. Chevron rotates 90° via CSS transform transition.
-Framer Motion `AnimatePresence` wraps section content with `initial={false}` to avoid mount animation.
-Motion `variants: { open: { height: 'auto', opacity: 1 }, closed: { height: 0, opacity: 0 } }`.
-
-### ICONS-01–04: Custom SVG Entity Icons
-
-Icon specifications (SVG viewBox 32×32, exported to canvas at 32px for normal, 64px for high-DPI):
-
-- **Satellite (ICONS-01):** Rectangular body with two solar panel wings, small antenna nub. Color: `#00d4ff` (cyan) standard, `#00ff88` (green) active/selected.
-- **Aircraft (ICONS-02):** Top-down aircraft silhouette — narrow fuselage, swept wings, tail fin. Color: `#aaaacc` (grey-blue) commercial, selected state: `#ffffff`.
-- **Military Aircraft (ICONS-03):** Top-down fighter silhouette — delta wing, wider body. Color: `#ffaa00` (amber). Different shape from commercial is critical for quick visual identification.
-- **Ship (ICONS-04):** Top-down vessel silhouette — elongated hull with bow shape. Color by vessel type: cargo `#00aaff`, tanker `#ff4444`, military `#ffaa00`, passenger `#ffffff`.
-
-All icons generated via `<canvas>` element at mount time in a `useGlobeIcons` hook. The canvas `toDataURL()` result is passed as the `image:` field to BillboardCollection. Generate once per color variant, not per entity.
-
-### ICONS-05: scaleByDistance
-
-Add to every billboard in every layer component's `billboards.add({})` call:
-
-```
-scaleByDistance: new Cesium.NearFarScalar(
-  1.5e3,  // near distance: 1500m
-  1.8,    // near scale: 1.8x (enlarged close-up)
-  1.5e8,  // far distance: 150,000km (ISS orbital altitude range)
-  0.35    // far scale: 0.35x (small dot at high altitude)
-)
-```
-
-These values need empirical tuning during implementation. Start with these and adjust. The key insight from research: `scaleByDistance` is set per billboard object in the BillboardCollection config — it is NOT a collection-wide setting. It must be added to each `billboards.add({...})` call in SatelliteLayer.tsx, AircraftLayer.tsx, MilitaryAircraftLayer.tsx, and ShipLayer.tsx.
-
-Note on performance: `scaleByDistance` is evaluated on the GPU per-frame by the shader that renders BillboardCollection sprites. There is no CPU cost per entity. It is a uniform value stored with each billboard's vertex buffer entry.
-
-### NAV-01: Double-Click Zoom Toward Cursor
-
-The implementation pattern (MEDIUM confidence — verified from CesiumJS community and API docs):
-
-```
-Step 1: Remove default double-click behavior
-  viewer.screenSpaceEventHandler.setInputAction(
-    () => {},
-    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
-  );
-
-Step 2: Add custom handler
-  handler.setInputAction((event) => {
-    const ray = viewer.camera.getPickRay(event.position);
-    if (!ray) return;
-    const intersection = viewer.scene.globe.pick(ray, viewer.scene);
-    if (!Cesium.defined(intersection)) return;
-
-    // Fly to a point 40% closer along camera→intersection vector
-    const cameraPos = viewer.camera.position;
-    const newDest = Cesium.Cartesian3.lerp(
-      cameraPos,
-      intersection,
-      0.4,   // 40% of the way toward the terrain point
-      new Cesium.Cartesian3()
-    );
-    viewer.camera.flyTo({
-      destination: newDest,
-      duration: 0.4,
-      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-    });
-  }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-```
-
-Edge cases to handle:
-- Double-clicking an entity (picked entity, not globe) — should still zoom, not open entity panel
-- Double-clicking sky/space (no globe intersection) — do nothing or zoom to screen center
-- Double-clicking very close to surface — clamp minimum altitude to ~100m
-
-### NAV-02: Tilt Control Widget
-
-React component `<TiltControl>`, absolutely positioned bottom-right (above zoom buttons).
-Three discrete buttons: `[⊤]` Top-down (pitch: -90°), `[◩]` Oblique (pitch: -45°), `[▬]` Horizon (pitch: -15°).
-Current tilt shown as small readout "TILT 45°" between buttons.
-Camera animation: `viewer.camera.flyTo({ destination: currentPos, orientation: { heading: currentHeading, pitch: Cesium.Math.toRadians(targetPitch), roll: 0.0 }, duration: 0.6 })`.
-Note: CesiumJS pitch convention is negative for "looking down" — 0° is looking at the horizon, -90° is straight down. This is inverted from the Mapbox convention. Document this in code.
-
-### NAV-03: Zoom Buttons
-
-React component `<ZoomControls>`, absolutely positioned right side of globe (or bottom-right corner).
-Two buttons: `[+]` and `[-]`.
-Amount should scale with current altitude:
-```
-const altitude = Cesium.Cartographic.fromCartesian(viewer.camera.position).height;
-const zoomAmount = altitude * 0.15; // zoom by 15% of current altitude
-viewer.camera.zoomIn(zoomAmount);  // or zoomOut
-```
-This maintains consistent feel across the full altitude range (orbit → street level).
-
----
-
-## Complexity Ranking
-
-### LOW Complexity (< 1 day each)
-
-- Radar corner bracket CSS (STYLE-01) — Pure CSS, zero JS
-- Panel overlap z-index fix (LAYOUT-03) — CSS specificity audit
-- Zoom +/- buttons (NAV-03) — ~50 lines React component
-- Pulsing active indicator CSS (STYLE-02) — CSS keyframes
-- `scaleByDistance` on existing billboards (ICONS-05) — One property added per layer component
-- Persistent sidebar section state — Single useEffect + localStorage
-
-### MEDIUM Complexity (1–3 days each)
-
-- Collapsible sidebar sections with Framer Motion (LAYOUT-01, LAYOUT-02) — Requires restructuring LeftSidebar JSX and consolidating the bottom layer strip into the sidebar body
-- Custom SVG billboard icons (ICONS-01–04) — Canvas generation utility + integration into 4 layer components + selection state visual variants
-- Double-click zoom toward cursor (NAV-01) — Camera API usage is straightforward but edge cases need testing
-- Tilt control widget (NAV-02) — Simple React component, but CesiumJS pitch convention is counter-intuitive (requires careful testing)
-
-### HIGH Complexity (Not in v3.0 scope)
-
-- Draggable/resizable panels — Defer
-- Globe-surface radar sweep — Defer
-- Per-instance custom icons (per airline livery, per vessel flag) — Defer
+| Feature | OpenSky (source API) | MarineTraffic (maritime reference) | AirLabs (aviation reference) | This Project (v4.0 target) |
+|---------|----------------------|-------------------------------------|-----------------------------|---------------------------|
+| Position timestamp | `time_position` (Unix int, null if > 15s stale) | Not exposed | `updated` (Unix timestamp) | Store `time_position`; expose `position_age_seconds` derived |
+| Staleness signal | `time_position = null` when > 15s; state vector retained 300s | Remove from live map after 24h silence | No explicit stale flag; caller computes from `updated` | Explicit `is_stale` boolean in all list responses |
+| Source type | `position_source` (0=ADS-B, 1=ASTERIX, 2=MLAT, 3=FLARM) | Not exposed | Not exposed | Store and expose `position_source` as labeled string |
+| Soft expiry | Not applicable (OpenSky only returns currently tracked) | 24h hard remove | Not applicable | `is_active` boolean; soft expiry; no hard delete |
+| Fetch timestamp | Response-level `time` field (Unix epoch of snapshot) | Not exposed | Not exposed | `fetched_at` column on aircraft; `aggregated_at` for GPS jamming |
+| Configurable threshold | Hardcoded (15s position, 300s state vector) | Not applicable | Not applicable | Per-source in `config.py` |
 
 ---
 
 ## Sources
 
-- [CesiumJS Billboard API — scaleByDistance, distanceDisplayCondition](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html)
-- [CesiumJS BillboardCollection API](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html)
-- [CesiumJS Camera API — getPickRay, flyTo, zoomIn, zoomOut](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html)
-- [CesiumJS ScreenSpaceCameraController — zoom configuration](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceCameraController.html)
-- [CesiumJS Billboard display based on zoom level — Community discussion](https://community.cesium.com/t/billboard-display-based-on-zoomlevel/21042)
-- [CesiumJS zoom in to mouse point — Community implementation pattern](https://community.cesium.com/t/zoom-in-to-mouse-point/2614)
-- [CesiumJS implement zoom controls — Custom button approach](https://community.cesium.com/t/implement-zoom-controls/8231)
-- [CesiumJS Tilt control — Community discussion](https://community.cesium.com/t/tilt-control-over-globe/471)
-- [CesiumJS Tilt how-to — Community](https://community.cesium.com/t/how-to-control-the-tilt-in-cesium/6197)
-- [Framer Motion — AnimatePresence and height animation for collapsible panels](https://www.react-magic-motion.com/applications/collapsible-sidebar)
-- [Collapsible panel with smooth animation — React pattern](https://medium.com/@igorroch_/how-to-create-a-collapsible-panel-with-smooth-animation-in-react-89e95bf1b31a)
-- [Radar/HUD UI patterns — CSS implementation examples (CodePen)](https://codepen.io/sasscoding/pen/xbbzgLp)
-- [NearFarScalar scaleByDistance not linear — Issue context](https://github.com/CesiumGS/cesium/issues/10522)
-- [FlightRadar24 3D view — zoom and interaction reference](https://www.flightradar24.com/blog/exploring-the-new-flightradar24-3d-view/)
+- [OpenSky Network REST API documentation](https://openskynetwork.github.io/opensky-api/rest.html) — `time_position`, `last_contact`, `geo_altitude`, `vertical_rate`, `position_source` field definitions; 15s position staleness rule; 300s state vector retention; response-level `time` field
+- [AIS Reporting Rates reference](https://arundaleais.github.io/docs/ais/ais_reporting_rates.html) — Class A (2-10s underway, 3min anchored), Class B-SO (5-30s underway, 3min stopped)
+- [USCG Navigation Center — Class A AIS Position Reports](https://www.navcen.uscg.gov/ais-class-a-reports) — ITU-R M.1371-5 reporting interval mandates
+- [MarineTraffic vessel update frequency article](https://support.marinetraffic.com/en/articles/9552905-how-often-do-the-positions-of-the-vessels-get-updated-on-marinetraffic) — 60s platform downsampling, 24h removal threshold, satellite AIS gap behavior (minutes to hours)
+- [PredictWind DataHub AIS staleness docs](https://help.predictwind.com/en/articles/11578331-over-the-horizon-ais-why-do-i-see-a-datahub-call-sign-for-targets-which-should-be-vhf-over-the-air-on-my-chartplotter) — 3-minute TTL for OTA AIS; 2-minute fallback (180s / 120s industry conventions)
+- [AirLabs Flight Tracker API docs](https://airlabs.co/docs/flights) — `updated` Unix timestamp as sole freshness field; no explicit `is_stale` in commercial aviation APIs
+- Existing codebase review: `ingest_aircraft.py` (sv indices, 90s poll, trail logic), `ingest_military.py` (300s poll, no last_seen_at), `ingest_ais.py` (600s Redis TTL, 30s flush, time_utc as string), `routes_aircraft.py` (no stale filter, no position_age_seconds), `routes_ships.py` (no stale filter), `routes_military.py` (no stale filter), `routes_gps_jamming.py` (no freshness envelope), `config.py` (no stale threshold settings), `models/aircraft.py`, `models/military_aircraft.py`, `models/ship.py`
 
 ---
 
-*Feature research for: Intelligence Globe v3.0 UI Refinement*
-*Researched: 2026-03-12*
+*Feature research for: Data freshness metadata and stale-position handling — OpenSignal Globe v4.0*
+*Researched: 2026-03-13*

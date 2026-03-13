@@ -1,12 +1,13 @@
 # Stack Research
 
-**Domain:** Geospatial intelligence UI refinement — radar-style CSS panels, collapsible sidebar animations, CesiumJS SVG billboard icons with altitude-based scaling, double-click camera zoom, tilt/pitch control widget
-**Researched:** 2026-03-12
-**Confidence:** HIGH (CesiumJS APIs verified via official docs), HIGH (CSS approach — no new library warranted), MEDIUM (canvas SVG texture pattern — community-confirmed workaround for CesiumJS 1.43+ breakage)
+**Domain:** Data reliability and freshness — stale filtering, freshness metadata in API responses, richer OpenSky field ingestion, Alembic schema migrations, configurable thresholds
+**Researched:** 2026-03-13
+**Confidence:** HIGH (all findings verified against official docs or existing codebase patterns)
 
-> **Scope note:** This file covers ONLY what is NEW or changes for v3.0 UI Refinement.
-> The base stack (CesiumJS 1.139, React 19, Vite 7, TypeScript 5.9, FastAPI, PostgreSQL + PostGIS, Redis, RQ, Docker Compose)
-> is validated, deployed, and documented from v1.0/v2.0. Do not re-research or reinstall the base stack.
+> **Scope note:** This file covers ONLY what is NEW or changes for v4.0 Data Reliability & Freshness.
+> The base stack (CesiumJS 1.139, React 19, Vite 7, TypeScript 5.9, FastAPI >=0.115, SQLAlchemy 2.0,
+> PostgreSQL + PostGIS, Redis, RQ, Docker Compose, Alembic >=1.14, pydantic-settings >=2.0) is validated
+> and deployed. Do not re-research or reinstall the base stack.
 
 ---
 
@@ -14,320 +15,311 @@
 
 ### New Libraries Required
 
-**None.** All four v3.0 feature areas are achievable with the existing dependency set. No `npm install` step is needed for this milestone.
+**None.** Every v4.0 requirement is achievable with the existing dependency set. No `pip install` additions are needed. The version ranges already in `requirements.txt` are sufficient.
 
-### Core Technologies — Integration Points That Change for v3.0
+### Core Technologies — Integration Points That Change for v4.0
 
-| Technology | Version (current) | v3.0 Integration Change | Why This Matters |
-|------------|------------------|------------------------|-----------------|
-| CesiumJS | 1.139.1 | `BillboardCollection` replaces `PointPrimitiveCollection` in entity layers | Billboard has `image`, `scaleByDistance`, `color` properties; Point does not support arbitrary icons |
-| CesiumJS | 1.139.1 | `ScreenSpaceEventHandler` + `LEFT_DOUBLE_CLICK` for camera zoom | Existing layers already use this handler pattern — extend, do not duplicate |
-| CesiumJS | 1.139.1 | `camera.flyTo`, `camera.setView`, `camera.zoomIn/zoomOut` for nav widget | Camera API is well-established; `flyTo` is the only way to zoom toward cursor position |
-| CesiumJS | 1.139.1 | `NearFarScalar` for altitude-based icon scaling | Built-in CesiumJS type, no external math library needed |
-| Tailwind CSS | 3.4.19 | Custom `@keyframes` in `globe.css` for radar scan/pulse animations | The existing `globe.css` is the correct global stylesheet; no new CSS file needed |
-| tw-animate-css | 1.4.0 | `animate-ping` for active panel pulsing indicators | Already installed; confirm it is in `tailwind.config.js` plugins array |
-| lucide-react | 0.577.0 | Tilt/pitch chevron icons and zoom +/- button icons | Already installed; no new icon library needed |
-| zustand | 5.0.11 | No new slices needed for camera state | Subscribe to `viewer.camera.changed` locally in nav widget component instead |
+| Technology | Current Version | v4.0 Integration Change | Why This Matters |
+|------------|----------------|-------------------------|-----------------|
+| SQLAlchemy | >=2.0 (async) | Add `fetched_at`, `last_seen_at`, `is_active` columns to `Aircraft`, `MilitaryAircraft`, `Ship`, `GpsJammingCell` models | New columns use `mapped_column` with `server_default=func.now()` — the same pattern already used for `updated_at` throughout the codebase |
+| Alembic | >=1.14 (current: 1.18.4) | One new migration file per table (`add_column` only — no table rewrites) | Adding nullable columns with `server_default` in PostgreSQL 11+ is lock-free; no table rewrite required |
+| FastAPI | >=0.115 | Add Pydantic response schemas (`AircraftOut`, `ShipOut`, `MilitaryOut`) replacing raw dict returns | Raw dict returns currently in `routes_aircraft.py`, `routes_ships.py`, `routes_military.py`; typed schemas enable freshness fields with correct serialization |
+| pydantic-settings | >=2.0 (current: 2.13.1) | Add stale threshold fields to `Settings` class in `app/config.py` | Already used for `database_url`, `redis_url` — extend the same class; env vars picked up automatically |
+| pytest-asyncio | >=0.24 | Existing test infrastructure covers new stale filtering tests | No change to test tooling needed |
 
-### Supporting Libraries — Confirm Already Present
+---
 
-| Library | Version | v3.0 Purpose | Condition |
-|---------|---------|-------------|-----------|
-| clsx + tailwind-merge | current | Compose panel section toggle states (open/closed class variants) | Already installed |
-| tw-animate-css | 1.4.0 | `animate-ping` on active layer badges inside radar panels | Confirm in `tailwind.config.js` plugins array; add if missing |
+## Schema Migration Strategy
+
+### Alembic: Safe `add_column` Pattern (HIGH confidence)
+
+PostgreSQL 11+ handles `ADD COLUMN ... DEFAULT <non-volatile>` by storing the default in table metadata only — no table rewrite, no lock beyond the `ACCESS EXCLUSIVE` lock during `ALTER TABLE` itself (milliseconds on a small table). This is the correct pattern for all v4.0 columns.
+
+**For nullable columns (recommended for all v4.0 additions):**
+```python
+def upgrade() -> None:
+    op.add_column(
+        "aircraft",
+        sa.Column("time_position", sa.Integer(), nullable=True),
+    )
+    op.add_column(
+        "aircraft",
+        sa.Column("geo_altitude", sa.Float(), nullable=True),
+    )
+    op.add_column(
+        "aircraft",
+        sa.Column("vertical_rate", sa.Float(), nullable=True),
+    )
+    op.add_column(
+        "aircraft",
+        sa.Column("position_source", sa.Integer(), nullable=True),
+    )
+    op.add_column(
+        "aircraft",
+        sa.Column(
+            "fetched_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=True,
+        ),
+    )
+    op.add_column(
+        "aircraft",
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+    )
+```
+
+**Do NOT use `nullable=False` without `server_default`** on a table that already has rows — PostgreSQL will raise `NotNullViolation` for existing rows that have no value for the new column.
+
+**For `is_active`:** Use `server_default=sa.text("true")` so all existing rows get `TRUE` — they are "active" until proven stale by the next ingest cycle. This is semantically correct and lock-free.
+
+**For `fetched_at` / `last_seen_at`:** Use `nullable=True` with no server_default — existing rows represent past ingests with unknown fetch timestamps; `NULL` is honest. The ingest worker populates it going forward.
+
+### Migration File Isolation
+
+Each table gets one migration file. Resist the temptation to batch all four tables into one migration — isolation makes partial rollback possible and reduces cognitive load during review.
+
+| Migration File | Tables Touched | Columns Added |
+|----------------|---------------|---------------|
+| `add_aircraft_freshness_fields` | `aircraft` | `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `fetched_at`, `is_active` |
+| `add_military_freshness_fields` | `military_aircraft` | `fetched_at`, `last_seen_at`, `is_active` |
+| `add_ship_freshness_fields` | `ships` | `last_seen_at`, `is_active` |
+| `add_gps_jamming_freshness_fields` | `gps_jamming_cells` | `aggregated_at`, `is_stale` |
+
+---
+
+## OpenSky State Vector Field Indices (HIGH confidence — official docs)
+
+The current `ingest_aircraft.py` worker parses state vectors as a list (`sv: list[Any]`). Current mapping uses only indices 0–10. The v4.0 richer ingestion needs these additional indices:
+
+| Index | Field Name | Python Type | Current Status |
+|-------|-----------|-------------|---------------|
+| 0 | `icao24` | `str` | Already ingested |
+| 1 | `callsign` | `str \| None` | Already ingested |
+| 2 | `origin_country` | `str \| None` | Already ingested |
+| 3 | `time_position` | `int \| None` | **NEW — Unix timestamp of last position update** |
+| 4 | `last_contact` | `int \| None` | Already ingested |
+| 5 | `longitude` | `float \| None` | Already ingested |
+| 6 | `latitude` | `float \| None` | Already ingested |
+| 7 | `baro_altitude` | `float \| None` | Already ingested |
+| 8 | `on_ground` | `bool` | Already ingested |
+| 9 | `velocity` | `float \| None` | Already ingested |
+| 10 | `true_track` | `float \| None` | Already ingested |
+| 11 | `vertical_rate` | `float \| None` | **NEW — climb/descent rate m/s; positive=climb** |
+| 12 | `sensors` | `list \| None` | Skip — receiver IDs, not needed |
+| 13 | `geo_altitude` | `float \| None` | **NEW — geometric (GPS) altitude in meters** |
+| 14 | `squawk` | `str \| None` | Skip for now |
+| 15 | `spi` | `bool` | Skip — special purpose indicator |
+| 16 | `position_source` | `int \| None` | **NEW — 0=ADS-B, 1=ASTERIX, 2=MLAT, 3=FLARM** |
+| 17 | `category` | `int \| None` | Skip for now |
+
+**Key distinction between `time_position` (index 3) and `last_contact` (index 4):**
+- `time_position` is when the aircraft's position was last updated by the aircraft itself (ADS-B position message). Can be `None` if no position report received in this window.
+- `last_contact` is when any message from this transponder was last received (may be a non-position message like altitude only). Always populated if the aircraft row exists.
+- `time_position` is the more precise freshness indicator for stale detection. Use `last_contact` as the fallback when `time_position` is `None`.
+
+**Safe access pattern (guards against short vectors from older OpenSky endpoints):**
+```python
+time_position: int | None = sv[3] if len(sv) > 3 else None
+vertical_rate: float | None = sv[11] if len(sv) > 11 else None
+geo_altitude: float | None = sv[13] if len(sv) > 13 else None
+position_source: int | None = sv[16] if len(sv) > 16 else None
+```
+
+---
+
+## Configurable Stale Thresholds
+
+### Pattern: Extend `app/config.py` Settings (HIGH confidence)
+
+`pydantic-settings` 2.x (current: 2.13.1) reads `int` and `float` fields from env vars with automatic type coercion. Add threshold fields to the existing `Settings` class:
+
+```python
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/opensignal"
+    redis_url: str = "redis://localhost:6379/0"
+    frontend_origin: str = "http://localhost:3000"
+    version: str = "0.1.0"
+
+    # Stale thresholds — seconds since last position update
+    aircraft_stale_seconds: int = 120     # 2 minutes; OpenSky poll cadence is 60s
+    military_stale_seconds: int = 360     # 6 minutes; airplanes.live cadence is 300s
+    ship_stale_seconds: int = 180         # 3 minutes; consistent with Redis TTL
+    gps_jamming_stale_seconds: int = 600  # 10 minutes; ingest cadence is 300s
+```
+
+**Why these defaults:** Each threshold is set to 2x the source poll cadence. One missed poll = still active. Two consecutive missed polls = stale. This prevents flapping from single transient API failures.
+
+**Env var naming:** pydantic-settings maps `aircraft_stale_seconds` to env var `AIRCRAFT_STALE_SECONDS` automatically. Docker Compose `environment:` block accepts these directly.
+
+**No nested config or `env_nested_delimiter` is needed** — flat integer fields are sufficient and simpler. Avoid over-engineering the config shape.
+
+---
+
+## FastAPI Response Schema Pattern
+
+### Pydantic `BaseModel` for Freshness Metadata (HIGH confidence)
+
+Current routes return raw `dict` literals. For v4.0, typed Pydantic schemas are needed to:
+1. Guarantee freshness fields appear in every response (no missing-key bugs)
+2. Serialize `datetime` as ISO 8601 automatically (FastAPI does this for `datetime` fields)
+3. Enable `response_model=` declaration on route decorators for OpenAPI schema generation
+
+**Recommended schema pattern (aircraft example):**
+```python
+from datetime import datetime
+from pydantic import BaseModel, computed_field
+from app.config import settings
+import datetime as dt
+
+
+class AircraftOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    icao24: str
+    callsign: str | None
+    origin_country: str | None
+    latitude: float | None
+    longitude: float | None
+    baro_altitude: float | None
+    geo_altitude: float | None
+    vertical_rate: float | None
+    position_source: int | None
+    velocity: float | None
+    true_track: float | None
+    on_ground: bool
+    last_contact: int | None
+    time_position: int | None
+    trail: list[dict]
+    fetched_at: datetime | None
+    is_active: bool
+    updated_at: datetime | None
+```
+
+**`from_attributes = True`** (Pydantic v2 equivalent of `orm_mode = True`) allows FastAPI to construct the schema directly from SQLAlchemy ORM objects returned by `db.execute(select(Aircraft)...)`. This avoids manual dict construction in routes.
+
+**`computed_field` for derived staleness (optional but useful for frontend):**
+```python
+from pydantic import computed_field
+import datetime as dt
+
+class AircraftOut(BaseModel):
+    # ... fields above ...
+
+    @computed_field
+    @property
+    def is_stale(self) -> bool:
+        if self.fetched_at is None:
+            return False  # unknown, assume active
+        age = dt.datetime.now(dt.timezone.utc) - self.fetched_at
+        return age.total_seconds() > settings.aircraft_stale_seconds
+```
+
+`computed_field` is included in serialization automatically in Pydantic v2. The frontend receives `is_stale: true/false` without needing to re-implement the threshold calculation in TypeScript.
+
+**Where to place schema classes:** Create `app/schemas/` directory with one file per domain (`aircraft.py`, `military.py`, `ships.py`, `gps_jamming.py`). Do not put schemas in the model files — that couples DB layer to API layer.
+
+---
+
+## Stale Filtering in Route Queries
+
+### SQLAlchemy `WHERE` Clause Pattern (HIGH confidence)
+
+Stale filtering uses `func.now()` minus an `INTERVAL` expression — standard PostgreSQL SQL that SQLAlchemy passes through correctly:
+
+```python
+from sqlalchemy import select, func, text
+from datetime import timedelta
+
+async def list_aircraft(db: AsyncSession = Depends(get_db)):
+    threshold = func.now() - text(f"INTERVAL '{settings.aircraft_stale_seconds} seconds'")
+    result = await db.execute(
+        select(Aircraft).where(
+            Aircraft.latitude.is_not(None),
+            Aircraft.longitude.is_not(None),
+            Aircraft.is_active == True,
+            Aircraft.fetched_at >= threshold,
+        )
+    )
+```
+
+**Alternative using Python `timedelta`:**
+```python
+from datetime import datetime, timezone, timedelta
+
+cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.aircraft_stale_seconds)
+# ... .where(Aircraft.fetched_at >= cutoff)
+```
+
+The Python-side `timedelta` approach is simpler and avoids SQLAlchemy `text()` calls. Use it. Both produce equivalent SQL; the Python approach is easier to unit-test (mock `datetime.now`).
+
+**Index consideration:** `fetched_at` should have an index if the aircraft table grows large. For the homelab use case (typically <5,000 rows), a partial index is unnecessary — PostgreSQL will use a sequential scan efficiently. If row count grows beyond 50,000, add `CREATE INDEX CONCURRENTLY ix_aircraft_fetched_at ON aircraft (fetched_at)` in a non-blocking migration.
+
+---
+
+## `is_active` Lifecycle Pattern
+
+### Soft Expiry via Ingest Workers (HIGH confidence)
+
+`is_active` is set to `False` by the ingest worker when a row has not appeared in the most recent API response, rather than deleting the row. This preserves history for replay and avoids foreign key complications.
+
+**Pattern:**
+
+```python
+# At end of ingest cycle, after all upserts:
+# Mark rows not seen in this cycle as inactive
+cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.aircraft_stale_seconds)
+await db.execute(
+    update(Aircraft)
+    .where(Aircraft.fetched_at < cutoff)
+    .values(is_active=False)
+)
+await db.commit()
+```
+
+This pattern already has precedent in the codebase's AIS worker (Redis TTL acts as the expiry mechanism for ships). The `is_active` column formalizes this for SQL-backed tables.
+
+**Do not use hard deletes** in the ingest worker. Deleting rows that are "not in this API response" would break replay — the snapshot table references entity IDs that must remain in the primary table for JOIN queries during playback.
+
+---
+
+## GPS Jamming Freshness Pattern
+
+### Aggregation Timestamp vs. Updated_at (HIGH confidence)
+
+The existing `GpsJammingCell` has `updated_at` (when the row was last written to DB). v4.0 adds:
+
+- `aggregated_at`: When the jamming aggregation was computed from military ADS-B data. Distinct from `updated_at` because the row may be re-read without re-aggregation.
+- `is_stale` (boolean): Computed at query time or stored as a column. Storing as a column is simpler but requires a worker to update it. Computing at query time via Pydantic `computed_field` is cleaner — no extra worker job.
+
+**Recommended approach:** Add `aggregated_at` as a nullable `DateTime(timezone=True)` column. Expose `is_stale` as a Pydantic `computed_field` in the response schema (not a DB column). This avoids the write-amplification of updating `is_stale` on every read.
 
 ---
 
 ## Installation
 
-No new packages to install for v3.0.
+No new packages are required.
 
 ```bash
-# Nothing to add — all features use existing dependencies
+# No additions to requirements.txt or requirements-dev.txt
+# All features use existing: alembic, sqlalchemy[asyncio], pydantic-settings, fastapi, pytest-asyncio
 ```
 
-The only potential addition is confirming `tw-animate-css` is active in Tailwind config:
+The only configuration change is adding stale threshold env vars to `.env` and `docker-compose.yml`:
 
-```js
-// tailwind.config.js — verify this line is present
-plugins: [require('tw-animate-css')],
-// If missing, no npm install needed — just add the plugin line
+```bash
+# .env (add these lines)
+AIRCRAFT_STALE_SECONDS=120
+MILITARY_STALE_SECONDS=360
+SHIP_STALE_SECONDS=180
+GPS_JAMMING_STALE_SECONDS=600
 ```
-
----
-
-## Implementation Approach Per Feature Area
-
-### Feature 1: Radar-Style Panel CSS (STYLE-01, STYLE-02)
-
-**Approach:** Pure CSS `@keyframes` in `frontend/src/styles/globe.css` plus Tailwind utility classes.
-
-Radar aesthetics consist of four independent visual elements:
-
-**Angular bracket corners** — CSS pseudo-elements only, no library:
-```css
-.panel-radar {
-  position: relative;
-}
-.panel-radar::before,
-.panel-radar::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-}
-.panel-radar::before {
-  top: 0; left: 0;
-  border-top: 1px solid rgba(0,212,255,0.7);
-  border-left: 1px solid rgba(0,212,255,0.7);
-}
-.panel-radar::after {
-  bottom: 0; right: 0;
-  border-bottom: 1px solid rgba(0,212,255,0.7);
-  border-right: 1px solid rgba(0,212,255,0.7);
-}
-```
-Two-corner decoration uses one `::before` + one `::after`. Four corners requires wrapping span elements — each can carry its own pseudo-elements.
-
-**Scan sweep animation** — `@keyframes` conic-gradient rotation:
-```css
-@keyframes radar-sweep {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-.panel-radar-sweep::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: conic-gradient(
-    from 0deg,
-    rgba(0,212,255,0.0) 0deg,
-    rgba(0,212,255,0.12) 60deg,
-    rgba(0,212,255,0.0) 90deg
-  );
-  border-radius: 50%;
-  animation: radar-sweep 4s infinite linear;
-  pointer-events: none;
-}
-```
-Apply only to panels that are explicitly "active" — not to every panel. Keep sweep opacity low (~0.12) so it does not compete with data.
-
-**Pulsing active indicators** — Tailwind `animate-ping` (from tw-animate-css):
-```tsx
-{isActive && (
-  <span className="relative flex h-2 w-2">
-    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-  </span>
-)}
-```
-This is the canonical Tailwind ping pattern — no custom keyframe needed.
-
-**Where to add keyframes:** `frontend/src/styles/globe.css` (already imported globally in `GlobeView.tsx`). Do not add CSS animations as inline `style` prop strings — they cannot be themed by visual preset.
-
-### Feature 2: Collapsible Sidebar Sections (LAYOUT-01 through LAYOUT-03)
-
-**Approach:** `useRef` + `scrollHeight` measurement + CSS `max-height` transition. No new animation library.
-
-**Do not add framer-motion.** Decision:
-- framer-motion 12.35.2 is React 19 compatible and supports `height: 0 → auto`. However, it is 15–34 KB gzipped for a transition that requires ~20 lines of native React.
-- The existing codebase uses inline `style` objects throughout. framer-motion introduces a separate animation API paradigm that is inconsistent with the project's styling approach.
-- The project is a single-user operational tool, not a marketing site — animation polish beyond functional expand/collapse is out of scope.
-
-**Do not use modern CSS `interpolate-size: allow-keywords`.** As of March 2026, browser support is Chromium-only (~67% global coverage). For an operational tool where reliability matters, this is not acceptable.
-
-**Recommended pattern:**
-```tsx
-function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const height = open ? (contentRef.current?.scrollHeight ?? 0) : 0;
-
-  return (
-    <div>
-      <button onClick={() => setOpen(o => !o)}>{title}</button>
-      <div
-        ref={contentRef}
-        style={{
-          maxHeight: height,
-          overflow: 'hidden',
-          transition: 'max-height 220ms ease',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-```
-
-**Overflow caveat:** Set `overflow: 'visible'` after transition completes to avoid clipping tooltips or dropdowns inside expanded sections. Use an `onTransitionEnd` handler to toggle overflow state.
-
-**For sections with static-height content** (layer toggle buttons): a fixed `max-height` value avoids the `scrollHeight` measurement entirely. Measure once at design time.
-
-### Feature 3: CesiumJS SVG Billboard Icons with Altitude-Based Scaling (ICONS-01–05)
-
-**Approach:** Replace `PointPrimitiveCollection` with `BillboardCollection` (Primitive API). Render SVG strings to `HTMLCanvasElement`, assign canvas as billboard image. Scale with `NearFarScalar`.
-
-**Primitive API compatibility:** `BillboardCollection` is a Primitive API construct. It is added via `scene.primitives.add(new BillboardCollection())` — the same pattern used for `PointPrimitiveCollection` in every existing layer. This is a drop-in replacement at the collection level. The billboard management loop (add/update/remove per entity) mirrors the existing point management pattern.
-
-**SVG-to-canvas pattern (required workaround):**
-Direct SVG URL assignment to `billboard.image` has been broken since CesiumJS 1.43+ in some browsers due to cross-origin restrictions on data: URIs. The community-confirmed stable approach is rendering to an `HTMLCanvasElement`:
-
-```typescript
-function svgToCanvas(svgMarkup: string, size = 32): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const img = new Image(size, size);
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, size, size);
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-  return canvas; // assign as billboard.image — Cesium reads it after onload
-}
-```
-
-Create canvases once at module level per icon type (satellite, aircraft, military, ship) — not per entity. Pass the same canvas instance to every billboard of that type so BillboardCollection deduplicates the GPU texture.
-
-**Per-entity tinting via `billboard.color`:** Once the billboard uses a neutral white/grey SVG shape, `billboard.color` applies a multiplicative tint at zero extra GPU cost. This replaces the per-color PointPrimitive approach used in v1.0/v2.0.
-
-**Altitude-based scaling with NearFarScalar:**
-```typescript
-import { NearFarScalar } from 'cesium';
-
-// Satellites: orbit (LEO ~500km) to geostationary (~36,000km)
-// Camera range (Cesium measures camera-to-surface, not altitude): 500_000m to 50_000_000m
-const SAT_SCALE = new NearFarScalar(5e5, 0.5, 5e7, 1.8);
-
-// Aircraft/military: city (~10km) to continent (~5,000km) zoom
-const AIR_SCALE = new NearFarScalar(1e4, 0.7, 5e6, 1.3);
-
-// Ships: similar to aircraft but tighter (ships are near-surface)
-const SHIP_SCALE = new NearFarScalar(1e4, 0.6, 2e6, 1.2);
-```
-
-`NearFarScalar(nearDistance, nearValue, farDistance, farValue)`: scale interpolates linearly between `nearValue` (camera close) and `farValue` (camera far). Outside range, scale is clamped. These starting values should be tuned in-browser.
-
-**Known CesiumJS issue (GitHub #10522):** `scaleByDistance` interpolation is not perfectly linear near range edges — there is a small jump near the boundary values. Mitigation: widen the near/far range so the camera never sits at the exact boundary during normal use.
-
-**Performance:** Keep one `BillboardCollection` per entity type. Do not create per-entity collections — BillboardCollection batches all billboards into one WebGL draw call. Use `BlendOption.TRANSLUCENT` for SVG icons with alpha channels (all SVG icons will have transparency).
-
-```typescript
-import { BillboardCollection, BlendOption } from 'cesium';
-const billboards = viewer.scene.primitives.add(
-  new BillboardCollection({ blendOption: BlendOption.TRANSLUCENT })
-);
-```
-
-### Feature 4: Double-Click Camera Zoom Toward Cursor (NAV-01)
-
-**Approach:** `ScreenSpaceEventHandler` with `LEFT_DOUBLE_CLICK`, `scene.pickPosition()` to resolve screen position to world `Cartesian3`, then `camera.flyTo()` with halved altitude. No new library.
-
-**The existing layers already use `ScreenSpaceEventHandler`** (`SatelliteLayer.tsx`, `AircraftLayer.tsx`) — this is an established codebase pattern. The double-click zoom handler belongs in `GlobeView.tsx` during viewer init, not in a layer component, because it is a global navigation behavior.
-
-**Remove default double-click behavior first.** CesiumJS default double-click zooms to a tracked entity. It must be removed before adding the custom handler:
-```typescript
-// In GlobeView.tsx after Viewer construction
-viewer.screenSpaceEventHandler.removeInputAction(
-  Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
-);
-```
-If this line is omitted, both the default and custom handlers fire on double-click.
-
-**Implementation pattern:**
-```typescript
-import {
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-  Cartographic,
-  Cartesian3,
-  Math as CesiumMath,
-  EasingFunction,
-  defined,
-} from 'cesium';
-
-const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((event: { position: Cesium.Cartesian2 }) => {
-  const cartesian = viewer.scene.pickPosition(event.position);
-  if (!defined(cartesian)) return; // click on sky — ignore
-
-  const currentHeight = viewer.camera.positionCartographic.height;
-  const targetHeight = Math.max(currentHeight * 0.35, 500); // floor at 500m
-
-  const carto = Cartographic.fromCartesian(cartesian);
-  viewer.camera.flyTo({
-    destination: Cartesian3.fromRadians(
-      carto.longitude, carto.latitude, targetHeight
-    ),
-    duration: 0.75,
-    easingFunction: EasingFunction.QUADRATIC_OUT,
-  });
-}, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-```
-
-**`scene.pickPosition` reliability:** Requires `scene.globe.depthTestAgainstTerrain = true` for accurate picks on terrain. This project uses `EllipsoidTerrainProvider` (flat ellipsoid), so picks always land on the ellipsoid surface — `pickPosition` is reliable without that flag. If terrain is added in a future milestone, the flag becomes necessary.
-
-**Zoom factor 0.35:** Reduces altitude by ~65% per double-click. Matches FlightRadar24 behavior. Adjust to taste; 0.25–0.5 is the usable range.
-
-### Feature 5: Tilt/Pitch Widget and Zoom Buttons (NAV-02, NAV-03)
-
-**Approach:** Small React component overlay (same `position: fixed` pattern as existing HUD elements), calling CesiumJS camera API directly via `viewerRegistry`. No new library.
-
-**Tilt/pitch control:**
-```typescript
-// Increment pitch by delta radians
-function adjustTilt(viewer: Viewer, deltaPitch: number) {
-  const currentPitch = viewer.camera.pitch; // radians; -Math.PI/2 = nadir
-  const newPitch = CesiumMath.clamp(
-    currentPitch + deltaPitch,
-    -Math.PI / 2,   // max nadir (straight down)
-    CesiumMath.toRadians(-5) // min tilt (5° below horizon)
-  );
-  viewer.camera.flyTo({
-    destination: viewer.camera.position,
-    orientation: {
-      heading: viewer.camera.heading,
-      pitch: newPitch,
-      roll: 0,
-    },
-    duration: 0.25,
-  });
-}
-```
-
-Use `camera.flyTo` (not `camera.setView`) for the tilt widget to get a smooth 250ms animation. `setView` is instantaneous and feels jarring for a UI button.
-
-**Zoom buttons:**
-```typescript
-function zoomIn(viewer: Viewer) {
-  const step = viewer.camera.positionCartographic.height * 0.3;
-  viewer.camera.zoomIn(step);
-}
-function zoomOut(viewer: Viewer) {
-  const step = viewer.camera.positionCartographic.height * 0.3;
-  viewer.camera.zoomOut(step);
-}
-```
-
-Scale `step` by current altitude for consistent apparent zoom speed at all scales. Fixed-meter steps feel too slow at orbit altitude and too violent at street level.
-
-**Widget layout:** Anchor bottom-right, above the `BottomStatusBar`. Use `lucide-react` icons (`ChevronUp`, `ChevronDown` for tilt; `Plus`, `Minus` for zoom). Style with the same inline `style` object pattern used throughout the codebase.
-
-**Camera state in widget:** The tilt indicator (showing current pitch as a gauge) should read `viewer.camera.pitch` on render. Subscribe to `viewer.camera.changed` in a `useEffect` to trigger re-renders when camera moves:
-```typescript
-useEffect(() => {
-  const listener = viewer.camera.changed.addEventListener(() => {
-    setPitch(viewer.camera.pitch); // local state, not Zustand
-  });
-  return () => { viewer.camera.changed.removeEventListener(listener); };
-}, [viewer]);
-```
-Do not put camera pitch in Zustand — it would re-render all subscribers (layer components, sidebar, HUD) on every camera move.
 
 ---
 
@@ -335,13 +327,12 @@ Do not put camera pitch in Zustand — it would re-render all subscribers (layer
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| CSS `max-height` transition for collapsible sections | framer-motion `AnimatePresence` | Use framer-motion if the project were Next.js/app-router based with complex stagger orchestration across many animated components. Not warranted for sidebar accordion with 6–8 sections. |
-| Canvas-rendered SVG → `BillboardCollection` | Entity API `BillboardGraphics` with SVG URL | Entity API is simpler to author but collapses at 5,000+ entities. The project already validated Primitive API as the only acceptable approach (v1.0 key decision). |
-| CSS `@keyframes` in `globe.css` | react-spring or CSS-in-JS animation | CSS is already the styling mechanism for the globe. Adding a JS animation runtime for decorative CSS effects is over-engineering. |
-| `camera.flyTo` for double-click zoom toward cursor | `camera.zoomIn()` | `zoomIn()` zooms toward canvas center, not the clicked point. For cursor-directed zoom, resolving the click to a world position and flying to it is the only correct approach. |
-| `scene.pickPosition` for world coordinate resolution | `scene.pick()` | `scene.pick()` returns the picked object (primitive, feature), not the world position. `pickPosition()` returns the 3D world Cartesian3 needed to construct the `flyTo` destination. |
-| CSS-only radar panel decorations | SVG overlay elements | CSS `::before`/`::after` pseudo-elements are sufficient for corner brackets and scan lines. SVG overlays are unnecessary additional DOM for purely decorative elements. |
-| `billboard.color` for per-entity tinting | Per-color BillboardCollection instances | Separate collections per color defeats GPU batching. `billboard.color` applies a zero-cost GPU-side tint on a shared texture. |
+| Nullable `fetched_at` column (NULL = unknown) | Backfill `fetched_at` from `updated_at` in migration | Use backfill only if existing stale detection must work immediately post-migration without waiting for next ingest cycle. For this project, the next ingest cycle runs within 60–300s of deploy — backfill is unnecessary complexity. |
+| Python-side `timedelta` for stale cutoff | SQL `func.now() - INTERVAL` expression | Use SQL interval if filtering must happen inside a subquery or CTE. For simple `WHERE` clauses, Python `timedelta` is simpler and unit-testable. |
+| `computed_field` in Pydantic for `is_stale` | `is_stale` as a DB column, updated by worker | Use DB column only if stale status must be queryable in SQL (e.g., alerting queries that bypass FastAPI). For this project, all access is through FastAPI — computed field is sufficient. |
+| One migration file per table | One migration for all four tables | Batch only if the tables have foreign key dependencies that require ordering. These tables are independent — separate files reduce rollback blast radius. |
+| Extend existing `Settings` class | Separate `FreshnessConfig` class | Use a separate class only if freshness settings are consumed by a different process than the main app (e.g., a standalone monitoring daemon). For this project, both the API routes and ingest workers use the same `settings` singleton. |
+| `from_attributes = True` Pydantic v2 | `model.from_orm()` Pydantic v1 pattern | `from_orm()` is removed in Pydantic v2. `from_attributes = True` in `model_config` is the v2 replacement. The project uses FastAPI >=0.115 which bundles Pydantic v2. |
 
 ---
 
@@ -349,72 +340,65 @@ Do not put camera pitch in Zustand — it would re-render all subscribers (layer
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **framer-motion / motion for React** | 15–34 KB bundle for a `height: 0 → auto` accordion. Inconsistent with existing inline-style codebase. Not warranted for this feature set. React 19 compatible but unnecessary. | CSS `max-height` transition with `useRef`/`scrollHeight` measurement (~20 lines of native React) |
-| **`interpolate-size: allow-keywords` CSS** | Chromium-only as of March 2026 (~67% global coverage). Operational tools require full browser support. | `max-height` transition with JavaScript-measured `scrollHeight` |
-| **Direct SVG URL as `billboard.image`** | Broken in multiple browsers since CesiumJS 1.43 due to cross-origin data: URI restrictions. Community confirms unreliable. | Render SVG markup to `HTMLCanvasElement` via Blob URL, assign canvas element as billboard image |
-| **One BillboardCollection per entity instance** | Defeats GPU batching. 5,000 satellites = 5,000 draw calls. CesiumJS renders each primitive collection as a separate WebGL draw call setup. | One `BillboardCollection` per entity type (satellites, aircraft, military, ships) — 4 collections total |
-| **Entity API `BillboardGraphics`** | Entity API performance collapses at 5,000+ objects — this is a validated v1.0 key decision. `BillboardGraphics` is the Entity API wrapper, not Primitive API. | `BillboardCollection` (Primitive API) |
-| **`@base-ui/react` Collapsible component** | Available in existing deps but adds an opaque API surface for a feature implementable in ~20 lines. Harder to style to radar aesthetic. Uses internal animation approach incompatible with the existing inline-style pattern. | Native `useState` + CSS `max-height` transition |
-| **Modifying `viewer.screenSpaceEventHandler` without removing default LEFT_DOUBLE_CLICK** | CesiumJS registers a default double-click handler that zooms to tracked entity. If not removed, both the default and custom handlers fire simultaneously. | `viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOUBLE_CLICK)` before registering custom handler |
-| **Storing camera pitch/heading in Zustand** | Causes re-renders in all Zustand subscribers (layer components, sidebar, HUD) on every camera move. Camera state is local to the nav widget. | `viewer.camera.changed.addEventListener` in widget `useEffect`, local `useState` |
+| **`nullable=False` column without `server_default` in Alembic migration** | PostgreSQL raises `NotNullViolation` for existing rows on `ALTER TABLE ADD COLUMN NOT NULL` with no default. This breaks migration on a non-empty table. | `nullable=True` OR `nullable=False` with `server_default=sa.text("true")` (for booleans) |
+| **`op.execute("UPDATE ...")` inside migration transaction** | Takes a full table lock for the duration of the UPDATE. On a production table with thousands of rows, this blocks reads and writes. | `server_default` on `add_column` — PostgreSQL handles it in metadata without a row scan |
+| **Hard deletes in ingest workers for "not seen" aircraft** | Breaks replay — snapshot table JOIN queries expect entity rows to remain for historical playback. | Set `is_active = False` on rows past the stale threshold (soft expiry) |
+| **New library for stale thresholds (e.g., `dynaconf`, `python-decouple`)** | The existing `pydantic-settings` already provides typed env var loading with defaults. Adding another config library creates redundancy and increases cognitive overhead. | Extend `app/config.py` `Settings` class with new `int` fields |
+| **Storing `is_stale` as a DB column** | Requires a worker to update it on a schedule (write amplification). Goes stale itself if the worker falls behind. | Compute `is_stale` at response time via Pydantic `computed_field` using `fetched_at` and the configurable threshold |
+| **Response schemas in model files (`app/models/aircraft.py`)** | Couples the DB layer to the API layer — model changes require schema changes in the same file. Alembic autogenerate also becomes confused when `Base` subclasses contain non-column definitions. | Create `app/schemas/` directory; one schema file per domain |
+| **`datetime` without `timezone=True` in SQLAlchemy column** | `DateTime(timezone=False)` stores naive datetimes. Stale threshold comparisons against `datetime.now(timezone.utc)` fail with `TypeError: can't compare offset-naive and offset-aware datetimes`. | `DateTime(timezone=True)` — already used for all existing timestamp columns in the codebase |
 
 ---
 
 ## Stack Patterns by Variant
 
-**If a sidebar section contains dynamic-height content (FilterPanel, search results):**
-- Use `scrollHeight`-based `max-height` transition — content height changes as filters are added/removed
-- Add `onTransitionEnd` to toggle `overflow: hidden → visible` after expand completes (avoids clipping dropdowns)
+**If a data source has no `fetched_at` equivalent (e.g., GPS jamming is aggregated, not fetched per-row):**
+- Use `aggregated_at` as the freshness timestamp column name
+- Set it in the ingest task with `datetime.now(timezone.utc)` at the start of each aggregation run
+- All cells written in one run share the same `aggregated_at` — if the run fails mid-way, partial staleness is detectable
 
-**If a sidebar section contains fixed-height content (layer toggles, 6 buttons):**
-- Use a fixed `max-height` value measured at design time (e.g. `max-height: 180px`)
-- Simpler, avoids `scrollHeight` measurement overhead
+**If OpenSky returns a state vector shorter than 17 elements:**
+- Guard every new field access: `sv[3] if len(sv) > 3 else None`
+- OpenSky occasionally returns truncated vectors for aircraft in transition — this is documented behavior, not a bug
 
-**If entity count for a type is below 200 (ships, military flights):**
-- Still use `BillboardCollection` for visual consistency — the same icon rendering path for all entity types
-- `NearFarScalar` ranges can be narrower for maritime (ships never appear above atmosphere altitude)
+**If `fetched_at` is `NULL` for a row (pre-migration historical data):**
+- Treat as "not stale" — do not exclude rows with `NULL` fetched_at from list endpoints
+- SQL: `Aircraft.fetched_at >= cutoff OR Aircraft.fetched_at IS NULL`
+- This ensures the first ingest cycle after migration does not make all existing rows disappear
 
-**If the user zooms in below 500m altitude (street level):**
-- Floor the double-click zoom target at 500m to prevent going underground
-- `Math.max(currentHeight * 0.35, 500)` handles this
-
-**If SVG canvas texture rendering causes flicker on first render:**
-- Pre-render all icon canvases during app init (before any viewer is shown), not lazily on first billboard add
-- Store canvas references in module-level constants — they survive React re-renders
+**If ship `last_seen_at` needs to align with Redis TTL:**
+- Redis AIS position cache expires after N seconds (the existing worker sets a TTL)
+- Set `ship_stale_seconds` in `Settings` to match that TTL value
+- Both mechanisms then agree on what "stale" means — no contradictory state between cache and DB
 
 ---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| cesium@1.139.1 | `BillboardCollection` Primitive API | Stable, unchanged API since 1.43+. `scaleByDistance` and `NearFarScalar` confirmed in current Billboard docs. |
-| cesium@1.139.1 | `NearFarScalar` | Built-in CesiumJS type. GitHub issue #10522 documents non-linear edge behavior — widen near/far range to mitigate. |
-| cesium@1.139.1 | `ScreenSpaceEventType.LEFT_DOUBLE_CLICK` | Stable event type. Default handler exists and must be removed before adding custom handler. |
-| cesium@1.139.1 | `camera.flyTo` with `orientation: { pitch }` | Confirmed in Camera docs. `pitch` is in radians. `-Math.PI/2` = straight down (nadir). |
-| cesium@1.139.1 | `camera.positionCartographic.height` | Returns meters above ellipsoid. For EllipsoidTerrainProvider (used in this project) this equals altitude above surface. |
-| tailwindcss@3.4.19 | tw-animate-css@1.4.0 | Compatible. Confirm plugin registration in `tailwind.config.js`. `animate-ping` used for active panel indicators. |
-| react@19.2.0 | framer-motion 12.35.2 | Compatible (NOT recommended for this milestone — documented above). |
+| Package | Current Version | Relevant Feature | Notes |
+|---------|----------------|-----------------|-------|
+| `alembic` | >=1.14 (1.18.4 current) | `op.add_column` with `server_default` | Stable since 1.0. `compare_type=True` in `env.py` (already set) ensures autogenerate detects type changes. |
+| `sqlalchemy[asyncio]` | >=2.0 | `mapped_column`, `Mapped[T]`, `DateTime(timezone=True)` | `server_default=func.now()` with `onupdate=func.now()` — current pattern throughout codebase. `func.now()` renders as `NOW()` in PostgreSQL. |
+| `pydantic-settings` | >=2.0 (2.13.1 current) | `BaseSettings` int/float fields read from env vars | Type coercion is automatic. No validator decorator needed for simple int/float thresholds. |
+| `fastapi` | >=0.115 | `response_model=AircraftOut` on route decorators | FastAPI uses Pydantic v2 in >=0.100. `computed_field` and `from_attributes=True` are Pydantic v2 features — fully compatible. |
+| `pydantic` (bundled with fastapi) | >=2.0 | `computed_field`, `model_config = {"from_attributes": True}` | `orm_mode` (v1) → `from_attributes` (v2). Do not use `orm_mode` — it is removed in v2. |
+| `pytest-asyncio` | >=0.24 | Async test fixtures for stale filtering tests | `asyncio_mode = "auto"` in `pytest.ini` or `pyproject.toml` (existing project config) is required for `async def test_...` functions to run without explicit `@pytest.mark.asyncio`. |
 
 ---
 
 ## Sources
 
-- [CesiumJS Billboard API](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html) — `scale`, `scaleByDistance`, `image`, `setImage`, `color` properties confirmed (HIGH confidence — official docs)
-- [CesiumJS BillboardCollection API](https://cesium.com/learn/cesiumjs/ref-doc/BillboardCollection.html) — Primitive API `scene.primitives.add()` pattern, `add()` signature, `BlendOption`, performance notes confirmed (HIGH confidence — official docs)
-- [CesiumJS Camera API](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html) — `flyTo`, `setView`, `positionCartographic`, `zoomIn/zoomOut`, `heading`, `pitch`, `changed` event confirmed (HIGH confidence — official docs)
-- [CesiumJS ScreenSpaceEventHandler API](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — `setInputAction(action, type)` signature, `PositionedEvent.position: Cartesian2` confirmed (HIGH confidence — official docs)
-- [CesiumJS community: Remove default double-click](https://blog.webiks.com/remove-default-double-click-behavior-in-cesium/) — `removeInputAction` pattern before custom handler confirmed (MEDIUM confidence — community blog)
-- [CesiumJS community: zoom in to mouse point](https://community.cesium.com/t/zoom-in-to-mouse-point/2614) — `pickPosition` + `flyTo` pattern for cursor-directed zoom confirmed (MEDIUM confidence — community forum)
-- [CesiumJS NearFarScalar non-linear issue #10522](https://github.com/CesiumGS/cesium/issues/10522) — Scale edge behavior warning; mitigation: widen range (MEDIUM confidence — GitHub issue)
-- [CesiumJS community: SVG billboards broken since 1.43](https://community.cesium.com/t/svg-as-billboards-src-doesnt-work-since-cesium-1-43/6698) — canvas workaround confirmed (MEDIUM confidence — community forum)
-- [CesiumJS community: canvas/SVG dynamic coloring](https://community.cesium.com/t/using-canvas-svg-as-billboards-images-with-dynamic-coloring/2515) — canvas assignment pattern confirmed (MEDIUM confidence — community forum)
-- [CSS interpolate-size browser support](https://www.joshwcomeau.com/snippets/html/interpolate-size/) — Chromium-only ~67% global coverage, March 2026 (HIGH confidence — Josh W. Comeau / CSS-Tricks)
-- [framer-motion npm — v12.35.2](https://www.npmjs.com/package/framer-motion) — React 19 compatible, 15–34 KB bundle confirmed (HIGH confidence — official npm page)
-- [CSS radar scan animation (csswolf.com, Feb 2026)](https://csswolf.com/radar-scanner-animation-effect-in-css-no-js/) — Pure CSS `@keyframes` rotate + conic-gradient confirmed sufficient (MEDIUM confidence — blog source)
-- WebSearch: "CSS radar panel angular corner decorations animation" — multiple CodePen/blog sources confirm pure CSS approach for corner brackets and scan lines (MEDIUM confidence — multiple sources agree)
+- [OpenSky REST API — State Vectors documentation](https://openskynetwork.github.io/opensky-api/rest.html) — All 18 state vector field indices confirmed (HIGH confidence — official docs)
+- [Alembic Operation Reference — `add_column`](https://alembic.sqlalchemy.org/en/latest/ops.html) — `server_default`, `nullable` parameter behavior confirmed (HIGH confidence — official docs)
+- [SQLAlchemy 2.0 Column INSERT/UPDATE Defaults](https://docs.sqlalchemy.org/en/20/core/defaults.html) — `server_default=func.now()` render behavior confirmed (HIGH confidence — official docs)
+- [pydantic-settings PyPI 2.13.1](https://pypi.org/project/pydantic-settings/) — Latest version, `BaseSettings` typed int/float env var loading confirmed (HIGH confidence — official PyPI)
+- [Pydantic v2 `computed_field`](https://docs.pydantic.dev/latest/concepts/models/) — `@computed_field` included in serialization automatically (HIGH confidence — official docs)
+- [Alembic `compare_type=True` in env.py](https://alembic.sqlalchemy.org/en/latest/autogenerate.html) — Required for autogenerate to detect column type changes (HIGH confidence — official docs)
+- [PostgreSQL 11+ lock-free ADD COLUMN with DEFAULT](https://www.postgresql.org/docs/current/sql-altertable.html) — Non-volatile default stored in metadata, no table rewrite (HIGH confidence — official PostgreSQL docs)
+- [Alembic GitHub discussion #1730 — `server_default` vs `default` for migrations](https://github.com/sqlalchemy/alembic/discussions/1730) — Confirms `server_default` is the correct approach for existing-row safety (MEDIUM confidence — official repo discussion)
+- [Squawk linter — adding-not-nullable-field pattern](https://squawkhq.com/docs/adding-not-nullable-field) — Lock implications of `NOT NULL ADD COLUMN` confirmed (MEDIUM confidence — established migration linter docs)
 
 ---
 
-*Stack research for: Intelligence Globe v3.0 UI Refinement — no new dependencies, integration points with existing CesiumJS Primitive API only*
-*Researched: 2026-03-12*
+*Stack research for: Intelligence Globe v4.0 Data Reliability & Freshness — no new dependencies, all features use existing SQLAlchemy/Alembic/pydantic-settings/FastAPI*
+*Researched: 2026-03-13*

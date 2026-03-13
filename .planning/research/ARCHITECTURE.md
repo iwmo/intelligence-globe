@@ -1,499 +1,638 @@
 # Architecture Research
 
-**Domain:** 3D Geospatial Intelligence Globe — UI Refinement (v3.0)
-**Researched:** 2026-03-12
-**Confidence:** HIGH — based on direct codebase analysis + verified CesiumJS API documentation
+**Domain:** FastAPI + SQLAlchemy freshness metadata and stale filtering — v4.0 Data Reliability
+**Researched:** 2026-03-13
+**Confidence:** HIGH — based on direct codebase analysis of all existing models, routes, ingest tasks, and workers
+
+> **Scope note:** This document covers ONLY the architectural changes required for v4.0. The base architecture
+> (FastAPI, SQLAlchemy async, PostgreSQL + PostGIS, Redis, RQ, Alembic, Docker Compose) is shipped and validated.
+> This research answers three focused questions: where does stale filtering logic live, how are thresholds
+> configured, and how does the GPS jamming derived layer expose source freshness.
 
 ---
 
 ## Standard Architecture
 
-### System Overview
+### System Overview — v4.0 Freshness Layer Additions
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         React DOM Layer (fixed positioned)               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌────────────┐  ┌──────────────────────┐  │
-│  │LeftSidebar│ │RightDrawer│ │  PlaybackBar│  │  CinematicHUD / LNav │  │
-│  │ z:50-85  │ │  z:100   │ │   z:79      │  │      z:80-90         │  │
-│  └──────────┘  └──────────┘  └────────────┘  └──────────────────────┘  │
-│  ┌──────────────────┐   ┌────────────────────────────────────────────┐  │
-│  │  PostProcessPanel │   │  NEW: CameraControlWidget  z:82  right     │  │
-│  │      z:75        │   └────────────────────────────────────────────┘  │
-│  └──────────────────┘                                                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                       CesiumJS Viewer (canvas fills 100vw/100vh)         │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Primitives API (scene.primitives stack — render order = add order)      │
-│                                                                         │
-│  ┌─────────────────────┐  ┌────────────────────────────────────────┐   │
-│  │ PointPrimitiveColls │  │ BillboardCollections (NEW, per layer)   │   │
-│  │  (existing — hidden │  │ Satellites: ~5,000 billboards           │   │
-│  │   during transition)│  │ Aircraft:   ~few hundred billboards     │   │
-│  │  Satellites         │  │ Military:   ~few hundred billboards     │   │
-│  │  Aircraft           │  │ Ships:      ~few thousand billboards    │   │
-│  │  Military           │  └────────────────────────────────────────┘   │
-│  │  Ships              │                                               │
-│  └─────────────────────┘                                               │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ PolylineCollections (orbits, trails, overpass arcs) — unchanged   │  │
-│  │ GroundPrimitive (GPS jamming H3) — unchanged                      │  │
-│  │ PointPrimitiveCollection (AOI marker) — unchanged                 │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                     ScreenSpaceEventHandler layer                        │
-│  Existing: LEFT_CLICK (AircraftLayer) + RIGHT_CLICK (SatelliteLayer)    │
-│  NEW:      LEFT_DOUBLE_CLICK (GlobeView)                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                   Zustand Store (useAppStore)                            │
-│  Existing slices: layers, selected*, replay, visualPreset, cleanUI      │
-│  NEW slice: sidebarSections (collapse state per section)                 │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           config.py (Settings)                                │
+│  database_url  redis_url  frontend_origin  version                            │
+│  + stale_threshold_aircraft_s      (NEW — env var, default 120)               │
+│  + stale_threshold_military_s      (NEW — env var, default 600)               │
+│  + stale_threshold_ships_s         (NEW — env var, default 900)               │
+└──────────────────────┬───────────────────────────────────────────────────────┘
+                       │ imported by
+┌──────────────────────▼──────────────────────────────────────────────────────┐
+│                   app/freshness.py  (NEW — shared helper module)              │
+│                                                                               │
+│  is_stale(timestamp, threshold_seconds) -> bool                               │
+│  stale_cutoff(threshold_seconds) -> datetime                                  │
+└────┬──────────────┬────────────────┬───────────────────────────────────────-─┘
+     │              │                │
+     │     imported by               │
+┌────▼──────┐  ┌────▼──────┐  ┌─────▼──────┐
+│routes_    │  │routes_    │  │routes_     │
+│aircraft   │  │military   │  │ships       │
+│.py        │  │.py        │  │.py         │
+│           │  │           │  │            │
+│stale      │  │stale      │  │stale       │
+│WHERE      │  │WHERE      │  │WHERE       │
+│clause     │  │clause     │  │clause      │
+│in query   │  │in query   │  │in query    │
+└───────────┘  └───────────┘  └────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         ingest tasks (MODIFIED)                               │
+│                                                                               │
+│  ingest_aircraft.py    — capture fetched_at (func.now()), time_position,      │
+│                          geo_altitude, vertical_rate, position_source          │
+│                                                                               │
+│  ingest_military.py    — capture fetched_at (func.now()), set is_active=True  │
+│                          run tombstone pass: is_active=False for stale rows    │
+│                                                                               │
+│  ingest_ais.py         — capture last_seen_at from Redis TTL touch,           │
+│                          set is_active from TTL-alive status during flush      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                     ingest_gps_jamming.py (MODIFIED)                          │
+│                                                                               │
+│  reads: military_aircraft rows WHERE is_active = TRUE  (filters stale source) │
+│  adds to response: source_fetched_at (max of military_aircraft.fetched_at)    │
+│                    source_is_stale (bool — is source_fetched_at old?)          │
+│                    aggregated_at (timestamp of this aggregation run)           │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Status for v3.0 |
+| Component | Responsibility | Status for v4.0 |
 |-----------|----------------|-----------------|
-| `GlobeView.tsx` | CesiumJS viewer init, wheel zoom handler | EXISTS — add LEFT_DOUBLE_CLICK here |
-| `AircraftLayer.tsx` | LEFT_CLICK unified dispatcher for all entity types | EXISTS — add billboard collection, extend lerp loop |
-| `SatelliteLayer.tsx` | PointPrimitiveCollection for satellites + RIGHT_CLICK AOI | EXISTS — add billboard collection, update POSITIONS handler |
-| `ShipLayer.tsx` | PointPrimitiveCollection for ships | EXISTS — add billboard collection (simplest start) |
-| `MilitaryAircraftLayer.tsx` | PointPrimitiveCollection for military | EXISTS — add billboard collection |
-| `LeftSidebar.tsx` | Hamburger + layer toggles + sliding panel | EXISTS — add collapsible sections + radar styling |
-| `PostProcessPanel.tsx` | Visual preset buttons and sliders | EXISTS — add radar styling |
-| `CinematicHUD.tsx` | MGRS + classification + REC timestamp | EXISTS — radar styling only |
-| `LandmarkNav.tsx` | Quick-jump buttons + search, zIndex 90 right side | EXISTS — unchanged |
-| `PlaybackBar.tsx` | LIVE/PLAYBACK timeline scrubber | EXISTS — unchanged |
-| `RightDrawer.tsx` | Entity detail panel, zIndex 100, right at top:120px | EXISTS — radar styling |
-| `useAppStore.ts` | Zustand global state | EXISTS — add sidebarSections slice |
-| `viewerRegistry.ts` | Singleton viewer ref + flyTo helpers | EXISTS — add pitchBy, zoomStep helpers |
-| `CameraControlWidget.tsx` | Tilt/pitch buttons + zoom buttons | NEW component |
+| `app/config.py` | All configurable settings via pydantic-settings, loaded from env vars | MODIFY — add stale threshold fields |
+| `app/freshness.py` | Shared helpers: stale cutoff computation, is_stale boolean | NEW |
+| `app/models/aircraft.py` | Aircraft ORM model | MODIFY — add fetched_at, time_position, geo_altitude, vertical_rate, position_source, is_active |
+| `app/models/military_aircraft.py` | MilitaryAircraft ORM model | MODIFY — add fetched_at, last_seen_at, is_active |
+| `app/models/ship.py` | Ship ORM model | MODIFY — add last_seen_at, is_active |
+| `app/models/gps_jamming.py` | GpsJammingCell ORM model | MODIFY — add source_fetched_at, aggregated_at, source_is_stale |
+| `app/tasks/ingest_aircraft.py` | OpenSky ingest — batch upsert every 90s | MODIFY — write new fields; mark stale rows as is_active=False |
+| `app/tasks/ingest_military.py` | airplanes.live ingest — batch upsert every 300s | MODIFY — write fetched_at, is_active=True; tombstone stale rows |
+| `app/workers/ingest_ais.py` | AIS WebSocket worker — flush every 30s | MODIFY — write last_seen_at, is_active during flush |
+| `app/tasks/ingest_gps_jamming.py` | Aggregate military NIC/NACp into H3 cells | MODIFY — filter by is_active, write freshness metadata to cells |
+| `app/api/routes_aircraft.py` | Aircraft API routes | MODIFY — add stale WHERE clause, expose is_active/fetched_at in response |
+| `app/api/routes_military.py` | Military aircraft API routes | MODIFY — add stale WHERE clause, expose is_active/last_seen_at |
+| `app/api/routes_ships.py` | Ships API routes | MODIFY — add stale WHERE clause, expose is_active/last_seen_at |
+| `app/api/routes_gps_jamming.py` | GPS jamming API routes | MODIFY — expose source freshness fields in response |
+| `alembic/versions/` | Schema migration files | NEW migration covering all four model changes |
 
 ---
 
 ## Recommended Project Structure
 
 ```
-frontend/src/
-├── components/
-│   ├── GlobeView.tsx              # Add LEFT_DOUBLE_CLICK handler in initViewer()
-│   ├── LeftSidebar.tsx            # Collapsible sections + radar styling refactor
-│   ├── CameraControlWidget.tsx    # NEW — tilt/pitch/zoom overlay widget
-│   ├── SatelliteLayer.tsx         # Add parallel BillboardCollection + scaleByDistance
-│   ├── AircraftLayer.tsx          # Add parallel BillboardCollection + update lerp loop
-│   ├── MilitaryAircraftLayer.tsx  # Add parallel BillboardCollection
-│   ├── ShipLayer.tsx              # Add parallel BillboardCollection (start here)
-│   └── ... (all others unchanged structurally)
-├── lib/
-│   └── viewerRegistry.ts          # Add pitchBy(), zoomStep()
-├── store/
-│   └── useAppStore.ts             # Add sidebarSections slice
-└── assets/icons/                  # NEW — SVG source strings per entity type
-    ├── satellite.svg
-    ├── aircraft.svg
-    ├── military.svg
-    └── ship.svg
+backend/app/
+├── config.py               # MODIFY — add 3 stale threshold fields
+├── freshness.py            # NEW — shared stale cutoff + is_stale helpers
+├── models/
+│   ├── aircraft.py         # MODIFY — add fetched_at, time_position, geo_altitude,
+│   │                       #           vertical_rate, position_source, is_active
+│   ├── military_aircraft.py# MODIFY — add fetched_at, last_seen_at, is_active
+│   ├── ship.py             # MODIFY — add last_seen_at, is_active
+│   └── gps_jamming.py      # MODIFY — add source_fetched_at, aggregated_at, source_is_stale
+├── api/
+│   ├── routes_aircraft.py  # MODIFY — stale WHERE clause in list_aircraft query
+│   ├── routes_military.py  # MODIFY — stale WHERE clause in list_military_aircraft
+│   ├── routes_ships.py     # MODIFY — stale WHERE clause in list_ships
+│   └── routes_gps_jamming.py # MODIFY — expose source_fetched_at, aggregated_at, source_is_stale
+├── tasks/
+│   ├── ingest_aircraft.py  # MODIFY — capture new OpenSky fields + is_active lifecycle
+│   ├── ingest_military.py  # MODIFY — write fetched_at + tombstone stale rows
+│   └── ingest_gps_jamming.py # MODIFY — filter source by is_active + write freshness metadata
+└── workers/
+    └── ingest_ais.py       # MODIFY — write last_seen_at + is_active during flush
+
+backend/alembic/versions/
+└── <hash>_add_freshness_fields.py  # NEW — single migration covering all four tables
 ```
 
 ### Structure Rationale
 
-- **assets/icons/**: Centralized SVG icon definitions. Rendered to HTMLCanvasElement once at layer mount time. The canvas is passed as the `image` property to every billboard in the collection — CesiumJS shares the GPU texture for identical canvas references.
-- **CameraControlWidget.tsx**: Standalone fixed-position overlay. Does not receive viewer as a prop — calls pitchBy()/zoomStep() from viewerRegistry, consistent with LandmarkNav pattern.
-- **GlobeView.tsx for double-click**: GlobeView owns viewer creation and already owns the custom wheel handler. It is the correct boundary for all non-entity navigation input.
+- **`freshness.py` as shared helper:** Stale threshold logic must not be duplicated across three route files. A shared module also makes it trivially testable in isolation. It takes threshold values (in seconds) as parameters — it does not read settings directly. This makes each caller explicit about which threshold applies.
+- **Stale filtering in route query layer, not model:** See Pattern 1 below for full rationale.
+- **Single Alembic migration for all four tables:** All changes are in one milestone. A single migration is atomically applied or rolled back, avoiding partial states where some tables have freshness fields and others do not.
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: BillboardCollection as Parallel to PointPrimitiveCollection
+### Pattern 1: Stale Filtering in the Route Query, Not the Model
 
-**What:** For each existing *Layer.tsx that owns a PointPrimitiveCollection, initialize a parallel BillboardCollection in the same Effect 1. The existing point primitives are hidden (point.show = false) after billboards are added, not removed. This preserves the existing ID system and all pick dispatch logic without change.
+**What:** The stale threshold comparison (`WHERE updated_at > NOW() - INTERVAL '...'` or equivalently `WHERE fetched_at >= :cutoff`) lives in the route's SQLAlchemy `select()` statement, not in a model class method or a SQLAlchemy event.
 
-**When to use:** All four entity layer components (SatelliteLayer, AircraftLayer, MilitaryAircraftLayer, ShipLayer).
+**When to use:** Always, for this codebase. This is the correct placement for three reasons:
 
-**Trade-offs:**
-- Two collections per layer exist in memory simultaneously during the transition phase. At v3.0 entity counts (5,000 satellites, ~1,000 aircraft, ~1,000 ships, ~few hundred military) this is within CesiumJS safe performance range. The Cesium performance blog confirms problems begin at 50,000+ billboards; 5,000 is fine.
-- The same `id` value is used on each billboard as on the original point primitive. The unified LEFT_CLICK dispatcher in AircraftLayer.tsx reads `picked.id` — since billboard and point share the same id, the dispatcher requires zero changes.
-- Keep PointPrimitiveCollection until all billboard layers are validated. This gives a hard rollback path — flip show flags to revert.
+1. **Threshold is configuration, not data invariant.** The stale threshold for aircraft (default 120s) differs from ships (default 900s). A model method cannot know its caller's threshold — it would need to accept a parameter, making it indistinguishable from a standalone function.
+2. **List vs detail endpoints need different behavior.** The list endpoint (`GET /api/aircraft/`) filters stale entities. The detail endpoint (`GET /api/aircraft/{icao24}`) should return any entity with its freshness metadata exposed — callers need to know *why* something is stale. Embedding filtering in the model would make detail endpoints awkward.
+3. **Async SQLAlchemy ORM models are not the right place for query logic.** `@classmethod` query methods on `Base` subclasses work but are difficult to compose with other filters. The existing codebase pattern (direct `select()` in route handlers) is consistent; maintaining that consistency reduces cognitive overhead.
 
-**Key implementation:**
-```typescript
-// In *Layer.tsx Effect 1 — initialize alongside existing collection
-const billboardColl = viewer.scene.primitives.add(new BillboardCollection());
-billboardCollRef.current = billboardColl;
+**Trade-off:** Route handlers accumulate more lines. Mitigated by the shared `freshness.py` helper that computes the cutoff datetime.
 
-// When adding a billboard (same id as existing point primitive):
-billboardColl.add({
-  position: pos,
-  image: iconCanvas,           // shared canvas, pre-rendered once
-  id: `mmsi:${ship.mmsi}`,     // identical to existing point id — pick dispatcher unchanged
-  scaleByDistance: new NearFarScalar(1.5e4, 1.5, 8.0e6, 0.3),
-  show: layerVisible,
-});
-// Hide corresponding point
-shipPointsByMmsi.get(ship.mmsi).show = false;
+**Correct implementation:**
+```python
+# app/freshness.py
+from datetime import datetime, timezone, timedelta
+
+def stale_cutoff(threshold_seconds: int) -> datetime:
+    """Return the datetime before which rows are considered stale."""
+    return datetime.now(timezone.utc) - timedelta(seconds=threshold_seconds)
+
+def is_stale(timestamp: datetime | None, threshold_seconds: int) -> bool:
+    """True if timestamp is None or older than threshold_seconds ago."""
+    if timestamp is None:
+        return True
+    return timestamp < stale_cutoff(threshold_seconds)
 ```
 
-### Pattern 2: SVG to Canvas Pre-rendering at Layer Init
+```python
+# app/api/routes_aircraft.py  (modified list endpoint)
+from app.freshness import stale_cutoff
+from app.config import settings
 
-**What:** SVG icon strings are converted to HTMLCanvasElement once when each layer mounts. The resulting canvas element is stored in a module-level const (not recreated on re-renders) and passed as the `image` property to BillboardCollection.add(). Because all billboards in a collection share the same canvas reference, CesiumJS creates one TextureAtlas entry for the entire layer.
+@router.get("")
+async def list_aircraft(db: AsyncSession = Depends(get_db)):
+    cutoff = stale_cutoff(settings.stale_threshold_aircraft_s)
+    result = await db.execute(
+        select(Aircraft).where(
+            Aircraft.latitude.is_not(None),
+            Aircraft.longitude.is_not(None),
+            Aircraft.is_active == True,
+            Aircraft.fetched_at >= cutoff,
+        )
+    )
+    ...
+```
 
-**When to use:** Always. Never pass SVG strings or SVG data URLs directly to billboard.image — CesiumJS has a known bug with embedded `<image>` tags in SVG (GitHub issue #8002), and creating a new canvas per entity exhausts TextureAtlas limits at scale.
+**Anti-pattern to avoid:**
+```python
+# DO NOT put this on the model:
+class Aircraft(Base):
+    @classmethod
+    async def get_active(cls, session, threshold_s: int):
+        ...  # This is a query method masquerading as a model method
+```
 
-**Trade-offs:** One async init step at layer mount (imperceptible). Requires using a Promise to wait for the canvas to be drawn before adding billboards.
+---
 
-**Key implementation:**
-```typescript
-// Module-level — computed once, stable reference
-let iconCanvas: HTMLCanvasElement | null = null;
+### Pattern 2: Configurable Thresholds via pydantic-settings (Not os.getenv)
 
-async function getIconCanvas(svgString: string, size: number): Promise<HTMLCanvasElement> {
-  if (iconCanvas) return iconCanvas;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const blob = new Blob([svgString], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  await new Promise<void>((resolve) => {
-    const img = new Image();
-    img.onload = () => { ctx.drawImage(img, 0, 0, size, size); URL.revokeObjectURL(url); resolve(); };
-    img.src = url;
-  });
-  iconCanvas = canvas;
-  return canvas;
+**What:** All stale thresholds are declared as fields in the existing `Settings` class in `config.py`. They are read from environment variables via pydantic-settings, with defaults that are safe for the intended poll cadence.
+
+**When to use:** Always. The `Settings` class already exists and handles the pydantic-settings + `.env` file pattern. Adding fields here is zero friction and keeps configuration in one place.
+
+**Recommended defaults:**
+- Aircraft: `stale_threshold_aircraft_s = 120` — OpenSky polls every 90s; 120s allows one missed poll
+- Military: `stale_threshold_military_s = 600` — airplanes.live polls every 300s; 600s allows one missed poll
+- Ships: `stale_threshold_ships_s = 900` — Redis TTL is 600s; 900s allows for flush lag
+
+```python
+# app/config.py (modified)
+class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/opensignal"
+    redis_url: str = "redis://localhost:6379/0"
+    frontend_origin: str = "http://localhost:3000"
+    version: str = "0.1.0"
+
+    # Stale filtering thresholds (seconds)
+    stale_threshold_aircraft_s: int = 120
+    stale_threshold_military_s: int = 600
+    stale_threshold_ships_s: int = 900
+```
+
+**Why not `os.getenv()` in the route handler:**
+
+The tasks (`ingest_aircraft.py`, `ingest_military.py`) currently use `os.getenv("REDIS_URL")` directly inside the RQ sync wrapper. This is a known inconsistency in the codebase: tasks run in a separate RQ worker process where the FastAPI `Settings` object is not initialized. For ingest tasks, `os.getenv` is pragmatic. For API routes (which run in the FastAPI process), `settings` is already imported — use it.
+
+The thresholds only need to be read in routes (not in tasks), so declaring them in `Settings` is appropriate. Ingest tasks do not need to know the stale threshold — they write timestamps and `is_active` flags; the route layer decides what is "stale enough to filter."
+
+---
+
+### Pattern 3: is_active Lifecycle — Tombstone on Next Poll
+
+**What:** `is_active` is a boolean column on `military_aircraft`, `ships`, and `aircraft`. It is set to `True` when a row is created or updated with a fresh position. It is set to `False` (tombstoned) by the *same ingest task* that wrote it, on a subsequent poll, once the row's timestamp is old enough.
+
+**When to use:** For any entity that disappears between polls rather than sending a "gone" signal. Both airplanes.live and aisstream.io are snapshot-only sources — they send positions of entities currently transmitting, not tombstone messages for entities that stopped.
+
+**The tombstone pattern:**
+```
+Poll N:   entity A present → is_active=True, fetched_at=now()
+Poll N+1: entity A absent  → tombstone pass: set is_active=False WHERE fetched_at < (now() - interval)
+          entity A present  → is_active stays True (updated normally)
+```
+
+**Implementation location:** The tombstone pass runs at the end of `ingest_military_aircraft()` and `ingest_aircraft()`, after the upsert loop, within the same database session and commit. It uses a bulk UPDATE:
+
+```python
+# At the end of the ingest function, within the same AsyncSessionLocal session:
+from sqlalchemy import update as sa_update
+
+tombstone_cutoff = datetime.now(timezone.utc) - timedelta(seconds=STALE_SECONDS_FOR_TOMBSTONE)
+await session.execute(
+    sa_update(MilitaryAircraft)
+    .where(MilitaryAircraft.fetched_at < tombstone_cutoff)
+    .values(is_active=False)
+)
+await session.commit()
+```
+
+**For ships:** The AIS worker does not run on a fixed interval that makes tombstoning clean. Ships use Redis TTL (600s) as the source of truth for "is this ship still reporting." `is_active` for ships should be set to `False` during `batch_flush_ships_to_pg` for any ship whose Redis key has expired (not found in the Redis scan). Since `batch_flush_ships_to_pg` only processes ships currently in Redis, any ship *absent* from Redis is not flushed — it stays in PostgreSQL with whatever `updated_at` it last had. The stale cutoff in the route query (`WHERE last_seen_at >= cutoff`) handles this case without a separate tombstone pass.
+
+**Distinction between `fetched_at` and `last_seen_at`:**
+- `fetched_at`: timestamp set by the ingest task when it wrote the row. Tracks when the backend last successfully polled the source.
+- `last_seen_at`: for ships, the timestamp from the AIS source itself (`time_utc` field from aisstream.io). Tracks when the vessel was last observed by the source, independent of backend polling lag.
+- For aircraft, OpenSky's `last_contact` (Unix epoch integer) maps to `last_seen_at`. `fetched_at` is the time the backend ran the ingest.
+
+---
+
+### Pattern 4: GPS Jamming Source Freshness — Propagate, Don't Recompute
+
+**What:** `gps_jamming_cells` is a derived table. Its freshness depends entirely on the freshness of `military_aircraft`. The route response must expose two things: when the aggregation was computed (`aggregated_at`) and whether the underlying source was stale when the aggregation ran (`source_is_stale`, `source_fetched_at`).
+
+**How it works:**
+
+At aggregation time in `ingest_gps_jamming.py`, after loading military aircraft rows:
+
+```python
+# After fetching military aircraft rows:
+source_fetched_at = max(
+    (ac.fetched_at for ac in aircraft_rows if ac.fetched_at is not None),
+    default=None,
+)
+source_is_stale = source_fetched_at is None or (
+    source_fetched_at < datetime.now(timezone.utc) - timedelta(seconds=MILITARY_STALE_THRESHOLD)
+)
+aggregated_at = datetime.now(timezone.utc)
+```
+
+These three values are written to **all cells in the batch** during the upsert. The `gps_jamming_cells` table gains columns: `source_fetched_at TIMESTAMPTZ`, `source_is_stale BOOLEAN`, `aggregated_at TIMESTAMPTZ`.
+
+The route returns these fields in the response envelope:
+
+```json
+{
+  "aggregated_at": "2026-03-13T10:00:00Z",
+  "source_fetched_at": "2026-03-13T09:55:00Z",
+  "source_is_stale": false,
+  "cells": [
+    { "h3index": "...", "bad_ratio": 0.6, "severity": "red", "aircraft_count": 5, "updated_at": "..." }
+  ]
 }
 ```
 
-### Pattern 3: LEFT_DOUBLE_CLICK Override in GlobeView
+**Why store these on every cell row rather than in a separate metadata table:**
 
-**What:** CesiumJS has a built-in LEFT_DOUBLE_CLICK handler that locks the camera to a picked entity. Override it by registering a new ScreenSpaceEventHandler on the canvas with LEFT_DOUBLE_CLICK inside GlobeView's `initViewer()` function. The override fires instead of the default because it sets `viewer.trackedEntity = undefined` first.
+The existing `gps_jamming_cells` table is the natural place. A separate `gps_jamming_metadata` table would require a JOIN or a separate API call. Since all cells from one aggregation run share the same `source_fetched_at` and `aggregated_at`, storing it redundantly on each row is the least-friction approach. The values are identical across all rows in a batch — not logically different data, just denormalized for query simplicity. At the scale of this application (hundreds of H3 cells, not millions), the storage overhead is negligible.
 
-**When to use:** The double-click zoom must live in GlobeView because:
-1. GlobeView owns the viewer lifecycle and already registers the custom wheel handler.
-2. Navigation-level input (not entity selection) belongs at the viewer-init boundary, not in layer components.
-3. Timing is guaranteed — the handler registers after the viewer is fully constructed, inside the same async function.
+**The route computes the response-level freshness fields from the first cell:**
 
-**Critical pitfall:** `scene.pickPosition()` returns undefined on sky clicks and may return imprecise results at very low camera altitude. Guard with `Cesium.defined(earthPos)`.
-
-**Key implementation:**
-```typescript
-// Inside initViewer() in GlobeView.tsx, after viewer is constructed:
-const dblClickHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-dblClickHandler.setInputAction((click: { position: Cartesian2 }) => {
-  viewer.trackedEntity = undefined;  // cancel default entity-lock behavior
-  const earthPos = viewer.scene.pickPosition(click.position);
-  if (!defined(earthPos)) return;
-  const currentHeight = viewer.camera.positionCartographic.height;
-  const targetHeight = currentHeight * 0.4;  // zoom ~60% closer each double-click
-  viewer.camera.flyTo({
-    destination: new Cartesian3(earthPos.x, earthPos.y, earthPos.z * (targetHeight / currentHeight)),
-    duration: 0.6,
-  });
-}, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-
-// Register in _cleanup alongside wheel handler
-(viewer as unknown as { _cleanup?: () => void })._cleanup = () => {
-  container.removeEventListener('wheel', onWheel);
-  dblClickHandler.destroy();
-  cancelAnimationFrame(rafId);
-};
-```
-
-### Pattern 4: CameraControlWidget — Pure React, viewerRegistry Bridge
-
-**What:** CameraControlWidget is a fixed-position React overlay with tilt step buttons (+15°/-15°), a top-down reset, and zoom in/out buttons. It calls imperative camera functions from viewerRegistry on button click — no Cesium state is read reactively, no viewer prop is passed.
-
-**When to use:** Any camera control that is purely imperative (fire-and-forget, no reactive feedback). This matches the existing LandmarkNav pattern which calls flyToLandmark() from viewerRegistry without a viewer prop.
-
-**Trade-offs:** No live pitch/heading readout in the widget (non-reactive). Acceptable for v3.0. Add requestAnimationFrame-based readback in v3.1 if live angle display is needed.
-
-**viewerRegistry additions:**
-```typescript
-export function pitchBy(deltaDeg: number): void {
-  const v = getViewer();
-  if (!v || v.isDestroyed()) return;
-  const newPitch = Math.max(
-    CesiumMath.toRadians(-90),
-    Math.min(0, v.camera.pitch + CesiumMath.toRadians(deltaDeg))
-  );
-  v.camera.setView({
-    orientation: { heading: v.camera.heading, pitch: newPitch, roll: v.camera.roll },
-  });
-}
-
-export function zoomStep(factor: number): void {
-  const v = getViewer();
-  if (!v || v.isDestroyed()) return;
-  const h = v.camera.positionCartographic.height;
-  if (factor < 1) v.camera.zoomIn(h * (1 - factor));
-  else v.camera.zoomOut(h * (factor - 1));
-}
-```
-
-### Pattern 5: Collapsible Sidebar Sections — Zustand Slice (Not Local State)
-
-**What:** Each section in LeftSidebar (SEARCH, FILTERS, LAYERS, VISUAL ENGINE) gets its own expanded/collapsed boolean in a new `sidebarSections` slice in useAppStore.
-
-**When to use:** Always for sidebar section state. The key reason for Zustand over useState: when `sidebarOpen` becomes false (sidebar slides closed) and then true again, local state resets — all sections re-expand. Zustand persists across open/close cycles.
-
-**Trade-offs:** Minor increase in store surface area. Completely worth avoiding the disorienting re-expand behavior.
-
-**Store slice:**
-```typescript
-sidebarSections: {
-  search: true,
-  filters: true,
-  layers: true,
-  visual: false,  // collapsed by default — advanced/secondary feature
-};
-setSidebarSection: (section: keyof AppState['sidebarSections'], open: boolean) => void;
+```python
+# In routes_gps_jamming.py
+if cells:
+    first = cells[0]
+    aggregated_at = first.aggregated_at
+    source_fetched_at = first.source_fetched_at
+    source_is_stale = first.source_is_stale
+else:
+    aggregated_at = source_fetched_at = None
+    source_is_stale = True  # no data = stale
 ```
 
 ---
 
 ## Data Flow
 
-### Billboard Integration Flow
+### Aircraft Freshness Flow
 
 ```
-Layer mounts
+OpenSky API (every 90s)
     ↓
-getIconCanvas(svgString) — async, one canvas per entity type
+ingest_aircraft() — async function
+    ↓ (for each state vector)
+pg_insert(Aircraft).values(
+    fetched_at=func.now(),
+    time_position=sv[3],         # Unix timestamp of last position fix
+    geo_altitude=sv[13],         # geometric altitude (metres)
+    vertical_rate=sv[11],        # m/s climb/descent
+    position_source=sv[16],      # 0=ADS-B 1=ASTERIX 2=MLAT 3=FLARM
+    is_active=True,
+    ...
+).on_conflict_do_update(...)
+    ↓ (tombstone pass at end of ingest)
+UPDATE aircraft SET is_active=False
+  WHERE fetched_at < NOW() - INTERVAL '90 seconds'
     ↓
-BillboardCollection.add({ image: canvas, id: entityId, scaleByDistance: NearFarScalar })
-    ↓ (data update)
-Update billboard.position (same as existing point.position update — same code path)
-    ↓ (pick event — LEFT_CLICK)
-viewer.scene.pick() → picked.id (same string/number as before billboard introduction)
+GET /api/aircraft/ (route query)
+    SELECT ... WHERE latitude IS NOT NULL
+                AND longitude IS NOT NULL
+                AND is_active = TRUE
+                AND fetched_at >= NOW() - INTERVAL '120 seconds'
     ↓
-AircraftLayer unified LEFT_CLICK dispatcher (ZERO changes required)
-    ↓
-useAppStore.setSelected*() (unchanged)
+Response includes: fetched_at, is_active, time_position, geo_altitude,
+                   vertical_rate, position_source per entity
 ```
 
-### Double-Click Zoom Flow
+### Military Freshness Flow
 
 ```
-User double-clicks globe canvas
+airplanes.live (every 300s)
     ↓
-GlobeView ScreenSpaceEventHandler (LEFT_DOUBLE_CLICK)
+ingest_military_aircraft() — async function
+    ↓ (upsert all current aircraft)
+pg_insert(MilitaryAircraft).values(
+    fetched_at=func.now(),
+    last_seen_at=func.now(),   # source has no separate "seen_at" timestamp
+    is_active=True,
+    ...
+).on_conflict_do_update(...)
+    ↓ (tombstone pass)
+UPDATE military_aircraft SET is_active=False
+  WHERE fetched_at < NOW() - INTERVAL '300 seconds'
     ↓
-viewer.trackedEntity = undefined  (cancel CesiumJS default entity-lock)
+ingest_gps_jamming() triggered (enqueued after successful military ingest)
     ↓
-viewer.scene.pickPosition(click.position) → Cartesian3 | undefined
-    ↓ (if defined)
-viewer.camera.flyTo({ destination: zoomedPos, duration: 0.6 })
+SELECT military_aircraft WHERE is_active = TRUE (filters stale source)
+    ↓
+aggregate_jamming_cells() — pure function, unchanged
+    ↓
+Write cells with source_fetched_at, source_is_stale, aggregated_at
+    ↓
+GET /api/military/ (route query)
+    SELECT ... WHERE latitude IS NOT NULL
+                AND longitude IS NOT NULL
+                AND is_active = TRUE
+                AND fetched_at >= NOW() - INTERVAL '600 seconds'
 ```
 
-### Camera Tilt Widget Flow
+### Ship Freshness Flow
 
 ```
-User clicks tilt/zoom button in CameraControlWidget
+aisstream.io WebSocket (continuous)
     ↓
-pitchBy(±15) or zoomStep(0.5) from viewerRegistry
+parse_ais_message() — pure function, captures time_utc
     ↓
-viewer.camera.setView({ orientation: ... }) / zoomIn() / zoomOut()
-    (purely imperative — no React state change, no re-render)
+Redis hset("ship:{mmsi}", ...) with TTL 600s
+    ↓ (every 30s)
+batch_flush_ships_to_pg() — scans Redis ship:* keys
+    ↓ (only ships in Redis are flushed — absent ships not touched in PG)
+pg_insert(Ship).values(
+    last_seen_at=parsed["time_utc"],  # source observation time
+    is_active=True,                   # presence in Redis = active
+    ...
+).on_conflict_do_update(...)
+    ↓
+GET /api/ships/ (route query)
+    SELECT ... WHERE latitude IS NOT NULL
+                AND longitude IS NOT NULL
+                AND last_seen_at >= NOW() - INTERVAL '900 seconds'
+    (is_active not used as primary filter — last_seen_at cutoff is equivalent
+     given ships not in Redis are never flushed with is_active=True)
 ```
 
-### Sidebar Collapse Flow
+### GPS Jamming Source Freshness Flow
 
 ```
-User clicks section header in LeftSidebar
+military_aircraft table (updated by ingest_military.py)
     ↓
-useAppStore.setSidebarSection(section, !current)
+ingest_gps_jamming() reads:
+    SELECT military_aircraft WHERE is_active = TRUE
+    → source_fetched_at = max(fetched_at) of loaded rows
+    → source_is_stale = source_fetched_at < NOW() - THRESHOLD
+    → aggregated_at = NOW()
     ↓
-Zustand update → LeftSidebar re-renders
+gps_jamming_cells upserted WITH:
+    source_fetched_at, source_is_stale, aggregated_at on every cell
     ↓
-Section content collapses (height: 0) or expands (height: auto)
-    (CSS transition on maxHeight for animation)
+GET /api/gps-jamming/
+    Returns { aggregated_at, source_fetched_at, source_is_stale, cells: [...] }
+    (top-level freshness fields extracted from cells[0] if cells exist)
 ```
 
 ---
 
 ## Integration Points
 
-### BillboardCollection Alongside Existing PointPrimitiveCollections
+### New vs Modified — Explicit Inventory
 
-| Boundary | Communication | Impact |
-|----------|---------------|--------|
-| Billboard ↔ pick dispatcher | Same `id` on billboard as on point | AircraftLayer dispatcher: ZERO changes |
-| Billboard ↔ replay interpolation | Set `billboard.position` same as `point.position` | Existing replay effects work without modification |
-| Billboard ↔ layer visibility | `billboard.show = layerVisible` (identical pattern) | No store changes |
-| Billboard ↔ filter effects | Set per-billboard `show` flag in same filter useEffect | Billboard loop replaces point loop — one-for-one |
+| File | Change Type | What Changes |
+|------|-------------|--------------|
+| `app/config.py` | MODIFY | Add 3 stale threshold int fields with defaults |
+| `app/freshness.py` | NEW | `stale_cutoff()`, `is_stale()` helper functions |
+| `app/models/aircraft.py` | MODIFY | Add: `fetched_at TIMESTAMPTZ`, `time_position INT`, `geo_altitude FLOAT`, `vertical_rate FLOAT`, `position_source INT`, `is_active BOOL DEFAULT TRUE` |
+| `app/models/military_aircraft.py` | MODIFY | Add: `fetched_at TIMESTAMPTZ`, `last_seen_at TIMESTAMPTZ`, `is_active BOOL DEFAULT TRUE` |
+| `app/models/ship.py` | MODIFY | Add: `last_seen_at TIMESTAMPTZ`, `is_active BOOL DEFAULT TRUE` |
+| `app/models/gps_jamming.py` | MODIFY | Add: `source_fetched_at TIMESTAMPTZ`, `source_is_stale BOOL`, `aggregated_at TIMESTAMPTZ` |
+| `app/tasks/ingest_aircraft.py` | MODIFY | Write new fields in upsert; add tombstone UPDATE at end |
+| `app/tasks/ingest_military.py` | MODIFY | Write `fetched_at`, `last_seen_at`, `is_active=True`; add tombstone UPDATE at end |
+| `app/workers/ingest_ais.py` | MODIFY | Write `last_seen_at`, `is_active=True` in batch flush |
+| `app/tasks/ingest_gps_jamming.py` | MODIFY | Filter source by `is_active`; write freshness metadata to cells |
+| `app/api/routes_aircraft.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
+| `app/api/routes_military.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
+| `app/api/routes_ships.py` | MODIFY | Add stale WHERE clause to list endpoint; add freshness fields to response |
+| `app/api/routes_gps_jamming.py` | MODIFY | Expose `aggregated_at`, `source_fetched_at`, `source_is_stale` in response envelope |
+| `alembic/versions/<hash>_add_freshness_fields.py` | NEW | Single migration adding all new columns |
+| `backend/tests/test_aircraft.py` | MODIFY | Extend for freshness fields in response, stale filtering behavior |
+| `backend/tests/test_military.py` | MODIFY | Extend for is_active filter, stale behavior |
+| `backend/tests/test_ships.py` | MODIFY | Extend for last_seen_at filter, stale behavior |
+| `backend/tests/test_gps_jamming.py` | MODIFY | Extend for source freshness fields in response |
+| `backend/tests/test_ingest_aircraft.py` | MODIFY | Extend for new OpenSky fields, tombstone behavior |
+| `backend/tests/test_ingest_military.py` | MODIFY | Extend for tombstone behavior |
+| `backend/tests/test_freshness.py` | NEW | Unit tests for `stale_cutoff()` and `is_stale()` helpers |
 
-### Event Handler Coexistence
+### Ingest Task ↔ Model Field Mapping
 
-| Handler | Owner | Event Type | Canvas |
-|---------|-------|------------|--------|
-| Unified entity click | AircraftLayer.tsx | LEFT_CLICK | viewer.scene.canvas |
-| AOI setter | SatelliteLayer.tsx | RIGHT_CLICK | viewer.scene.canvas |
-| Double-click zoom (NEW) | GlobeView.tsx | LEFT_DOUBLE_CLICK | viewer.scene.canvas |
+| OpenSky State Vector Index | OpenSky Field | Model Column | Notes |
+|----------------------------|---------------|--------------|-------|
+| sv[3] | `time_position` (Unix int) | `Aircraft.time_position` | Time of last ADS-B position fix; None = position from network |
+| sv[7] | `baro_altitude` (m) | `Aircraft.baro_altitude` | Already exists |
+| sv[13] | `geo_altitude` (m) | `Aircraft.geo_altitude` | Geometric altitude from GNSS |
+| sv[11] | `vertical_rate` (m/s) | `Aircraft.vertical_rate` | +ve = climbing |
+| sv[16] | `position_source` (int) | `Aircraft.position_source` | 0=ADS-B, 1=ASTERIX, 2=MLAT, 3=FLARM |
+| (implicit) | poll timestamp | `Aircraft.fetched_at` | Set via `func.now()` in upsert |
 
-Multiple ScreenSpaceEventHandler instances on the same canvas are explicitly supported by CesiumJS. Each handler only fires for its registered event type. LEFT_DOUBLE_CLICK and LEFT_CLICK are distinct — no interference. The CesiumJS default LEFT_DOUBLE_CLICK entity-tracking behavior is neutralized by setting `viewer.trackedEntity = undefined` at the start of the new handler.
+> NOTE: OpenSky state vector index 16 (`position_source`) is only present in the
+> extended state vector format returned when authenticated. Verify presence in live
+> data during ACFT-01. If absent for some records, default to `None` not `0`.
 
-### CameraControlWidget ↔ viewerRegistry
+### Route Response Field Additions
 
-| Function | Adds To | Used By |
-|----------|---------|---------|
-| `pitchBy(deltaDeg)` | viewerRegistry.ts | CameraControlWidget.tsx |
-| `zoomStep(factor)` | viewerRegistry.ts | CameraControlWidget.tsx |
-| `flyToLandmark()` (existing) | viewerRegistry.ts | LandmarkNav.tsx |
-| `flyToCartesian()` (existing) | viewerRegistry.ts | SatelliteLayer.tsx |
+| Endpoint | New Fields Added to Each Entity |
+|----------|---------------------------------|
+| `GET /api/aircraft/` (list) | `fetched_at`, `is_active`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source` |
+| `GET /api/aircraft/{icao24}` (detail) | Same — detail already returns full record |
+| `GET /api/military/` (list) | `fetched_at`, `last_seen_at`, `is_active` |
+| `GET /api/military/{hex}` (detail) | Same |
+| `GET /api/ships/` (list) | `last_seen_at`, `is_active` |
+| `GET /api/ships/{mmsi}` (detail) | Same |
+| `GET /api/gps-jamming/` | Top-level: `aggregated_at`, `source_fetched_at`, `source_is_stale` |
 
-No prop drilling required — CameraControlWidget is a leaf component that uses the module singleton.
+### Alembic Migration Structure
 
-### Z-Index Allocation
+All schema changes go in a single migration file. Column additions with nullable defaults do not require table rewrites in PostgreSQL — they apply immediately even on large tables.
 
-| Component | Z-Index | Position |
-|-----------|---------|----------|
-| CesiumJS canvas | 0 (implicit) | full viewport |
-| Sidebar panel | 50 | fixed left:0 top:0 |
-| Layer toggle strip | 60 | fixed bottom-left |
-| PostProcessPanel | 75 | fixed top:84 left:12 |
-| PlaybackBar | 79 | fixed bottom |
-| CinematicHUD | 80 | fixed top |
-| TLE stale warning | 80 | fixed bottom-center |
-| **NEW: CameraControlWidget** | **82** | **fixed right:12 top:~200px** |
-| Hamburger button | 85 | fixed top:32 left:12 |
-| LandmarkNav | 90 | fixed top right |
-| OsintEventPanel | 90 | fixed right |
-| RightDrawer | 100 | fixed top:120 right:12 |
-| Error overlay | 999 | fixed inset:0 |
+```python
+# Key columns to add — all nullable to avoid constraint violations on existing rows:
 
-CameraControlWidget at z:82 sits above HUD (80) and below LandmarkNav (90). Positioning at right:12px, top:~200px avoids overlap with RightDrawer (top:120px, 240px wide, height auto max 320px) and LandmarkNav (which is also on the right at top:~70px based on its structure).
+# aircraft table
+op.add_column('aircraft', sa.Column('fetched_at', sa.DateTime(timezone=True), nullable=True))
+op.add_column('aircraft', sa.Column('time_position', sa.Integer(), nullable=True))
+op.add_column('aircraft', sa.Column('geo_altitude', sa.Float(), nullable=True))
+op.add_column('aircraft', sa.Column('vertical_rate', sa.Float(), nullable=True))
+op.add_column('aircraft', sa.Column('position_source', sa.Integer(), nullable=True))
+op.add_column('aircraft', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
 
-### LeftSidebar ↔ useAppStore Changes
+# military_aircraft table
+op.add_column('military_aircraft', sa.Column('fetched_at', sa.DateTime(timezone=True), nullable=True))
+op.add_column('military_aircraft', sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True))
+op.add_column('military_aircraft', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
 
-| Existing Slice | v3.0 Addition |
-|----------------|---------------|
-| `sidebarOpen: boolean` | `sidebarSections: { search: boolean; filters: boolean; layers: boolean; visual: boolean }` |
-| `setSidebarOpen()` | `setSidebarSection(key, value)` |
+# ships table
+op.add_column('ships', sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True))
+op.add_column('ships', sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False))
+
+# gps_jamming_cells table
+op.add_column('gps_jamming_cells', sa.Column('source_fetched_at', sa.DateTime(timezone=True), nullable=True))
+op.add_column('gps_jamming_cells', sa.Column('source_is_stale', sa.Boolean(), nullable=True))
+op.add_column('gps_jamming_cells', sa.Column('aggregated_at', sa.DateTime(timezone=True), nullable=True))
+```
+
+Indexes to add in the same migration for query performance:
+```python
+op.create_index('ix_aircraft_fetched_at', 'aircraft', ['fetched_at'])
+op.create_index('ix_military_aircraft_fetched_at', 'military_aircraft', ['fetched_at'])
+op.create_index('ix_ships_last_seen_at', 'ships', ['last_seen_at'])
+```
 
 ---
 
-## Build Order for Minimal Regression Risk
+## Build Order
 
-Each step either adds net-new components or makes isolated modifications to one existing file. Steps that touch the most-critical files (AircraftLayer.tsx contains the unified click dispatcher, useAppStore.ts is consumed everywhere) are kept late when patterns are proven.
+The build order is dictated by hard dependencies: Alembic migration must run before any code that writes or reads new columns; models must be updated before ingest code; ingest code must be updated before API routes can expose the new fields; tests should be written before implementation (TDD RED) and verified GREEN after.
 
-### Step 1 — Radar Styling + Collapsible Sidebar (CSS/React Only)
+### Step 1 — Schema: Alembic Migration (MIG-01)
 
-**Files:** LeftSidebar.tsx (collapsible sections + radar brackets), useAppStore.ts (add sidebarSections slice), RightDrawer.tsx (radar styling), CinematicHUD.tsx (angular decorations), PostProcessPanel.tsx (styling)
-**Risk:** LOW. Purely visual/layout changes. useAppStore addition is additive — existing slices untouched.
-**Regression surface:** Visual rendering only. No CesiumJS primitives touched. No event handlers touched.
+**Files:** One new migration in `alembic/versions/`
+**Dependency:** None. Must be first.
+**Why first:** All subsequent steps read or write new columns. Without the migration applied, every other step fails at runtime.
+**Risk:** LOW. Column additions to existing tables in PostgreSQL are `ALTER TABLE ... ADD COLUMN` — near-instant operations, no table lock on modern PostgreSQL. `is_active BOOLEAN NOT NULL DEFAULT TRUE` backfills existing rows as active, which is correct.
 
-### Step 2 — CameraControlWidget + viewerRegistry Helpers
+### Step 2 — Models: Add New ORM Fields (ACFT-01, MIL-01, SHIP-01, JAM-01)
 
-**Files:** viewerRegistry.ts (add pitchBy, zoomStep), new CameraControlWidget.tsx, App.tsx (mount in !cleanUI block)
-**Risk:** LOW. viewerRegistry additions are purely additive functions. CameraControlWidget is a new leaf component. App.tsx change is one mount line inside existing !cleanUI block at an unoccupied z-index slot.
-**Regression surface:** Camera movement only. No primitives, no event handlers, no store changes.
+**Files:** `aircraft.py`, `military_aircraft.py`, `ship.py`, `gps_jamming.py`
+**Dependency:** Step 1 (migration applied).
+**Why second:** Ingest tasks and route handlers import model classes directly. If model fields are missing, SQLAlchemy will raise `AttributeError` at task or request time.
+**Risk:** LOW. Additive changes only. Existing columns and `Mapped` types are unchanged.
 
-### Step 3 — Double-Click Zoom in GlobeView
+### Step 3 — Shared Helper: freshness.py + config.py (FRESH-01, FRESH-02)
 
-**Files:** GlobeView.tsx only
-**Risk:** LOW-MEDIUM. Modifies a critical init file but change is additive — registers a new ScreenSpaceEventHandler after viewer construction, inside the same initViewer() async closure. Follows the established _cleanup pattern for the wheel handler. LEFT_DOUBLE_CLICK is a distinct event type and does not fire on single-click entity picks.
-**Regression surface:** Camera navigation. Verify no conflict with LEFT_CLICK entity selection (different event type).
+**Files:** `app/freshness.py` (new), `app/config.py` (modified)
+**Dependency:** None (pure utility, no DB dependency).
+**Why third:** Routes (Step 5) and tests (Step 6) import from these. Must exist before both.
+**Risk:** NONE. New file + additive config fields.
 
-### Step 4 — BillboardCollection for Ships
+### Step 4 — Ingest: Write New Fields (ACFT-02/03, MIL-02/03, SHIP-02/03, JAM-02)
 
-**Files:** ShipLayer.tsx only
-**Risk:** MEDIUM. First BillboardCollection introduction. Ships are the simplest layer: no lerp, no worker, no trail, slow-moving. Validate: billboards appear, pick IDs match, layer toggle works, replay interpolation works.
-**Strategy:** Parallel collections — keep PointPrimitiveCollection with show=false. Rollback = flip show flags.
-**Regression surface:** Ship click → detail panel → replay.
+**Files:** `ingest_aircraft.py`, `ingest_military.py`, `ingest_ais.py`, `ingest_gps_jamming.py`
+**Dependency:** Steps 1 and 2 (schema + model).
+**Why fourth:** Ingest tasks run in the RQ worker process. They must write new fields so the API routes have data to return. The tombstone logic is part of this step.
+**Risk:** MEDIUM. Touching the core ingest loop. The existing test coverage for each ingest task provides a regression safety net. GPS jamming must also be updated here to filter by `is_active` and write freshness metadata.
 
-### Step 5 — BillboardCollection for Military Aircraft
+### Step 5 — API Routes: Stale Filtering + Freshness Fields (ACFT-04/05/06, MIL-04, SHIP-04, JAM-03)
 
-**Files:** MilitaryAircraftLayer.tsx only
-**Risk:** MEDIUM. Identical pattern to Step 4 (no lerp, no trail). Pattern now validated from Step 4.
-**Regression surface:** Military click → detail panel → replay.
+**Files:** `routes_aircraft.py`, `routes_military.py`, `routes_ships.py`, `routes_gps_jamming.py`
+**Dependency:** Steps 2 and 3 (models + freshness helper).
+**Why fifth:** Routes are the public API surface. Changing them after ingest ensures there is real data to validate against in integration tests.
+**Risk:** MEDIUM. Changes query WHERE clauses on list endpoints — alters what is returned. Existing tests that assert specific entity counts will need updating.
 
-### Step 6 — BillboardCollection for Aircraft
+### Step 6 — Tests: All Freshness Behavior (TEST-01 through TEST-07)
 
-**Files:** AircraftLayer.tsx only
-**Risk:** MEDIUM-HIGH. Most complex layer: lerp animation loop, trail polyline, replay interpolation, AND the unified LEFT_CLICK dispatcher. Billboard position must be updated inside the rAF lerp loop (same frame as point.position).
-**Strategy:** Update both point.position and billboard.position in the lerp loop simultaneously until validated. After validation, remove point updates. The click dispatcher is not touched — it reads picked.id which is the same for both billboard and point.
-**Regression surface:** Lerp animation smoothness, trail rendering, aircraft click → detail panel, replay interpolation. The click dispatcher — the riskiest component in the codebase.
+**Files:** Modified test files for aircraft/military/ships/gps-jamming; new `test_freshness.py`
+**Dependency:** Steps 1–5 (everything must be wired before integration tests pass).
+**Why last:** Per the codebase's established TDD discipline, tests are ideally written before implementation (RED phase). For this milestone, write unit tests for `freshness.py` (Step 3) in TDD style. Write ingest and route integration tests after the implementation exists to validate behavior.
+**Risk:** LOW. Test code does not affect production behavior.
 
-### Step 7 — BillboardCollection for Satellites
-
-**Files:** SatelliteLayer.tsx only
-**Risk:** MEDIUM. Largest entity count (~5,000). The POSITIONS worker message handler writes to every point per frame — must also write to every billboard per frame. scaleByDistance is most important here (satellites are viewed from very high altitude). At 5,000 entities BillboardCollection is safe (Cesium docs confirm problems begin at 50,000+).
-**Regression surface:** Satellite rendering at full load, filter effects, orbit display, overpass arcs, replay.
-
-### Step 8 — Remove PointPrimitiveCollections
-
-**Files:** All four *Layer.tsx files
-**Risk:** LOW (at this point). After all billboard layers are validated across all regression checks, remove the now-hidden PointPrimitiveCollections and their update loops. Clean build, single collection per layer.
-**Regression surface:** Full layer regression.
+**Practical TDD order within this milestone:**
+1. Write `test_freshness.py` unit tests (Steps 3) — can be written before implementation
+2. Write route tests asserting freshness fields in responses (Step 5 contract)
+3. Implement Step 3–5 to make tests pass
+4. Write tombstone/lifecycle tests as integration tests that set up DB state directly
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Registering Double-Click in AircraftLayer
+### Anti-Pattern 1: Stale Cutoff Duplicated in Each Route Handler
 
-**What people do:** Add LEFT_DOUBLE_CLICK to the existing ScreenSpaceEventHandler in AircraftLayer because it already handles all clicks.
-**Why it's wrong:** AircraftLayer is a render-null component with a `viewer` prop dependency. Navigation input (zoom toward cursor) is viewer-level, not entity-selection-level. Mixing navigation and entity selection in the same handler conflates two distinct concerns. GlobeView already owns the custom wheel handler — double-click belongs alongside it.
-**Do this instead:** Add double-click handler in GlobeView.tsx initViewer() alongside the wheel handler.
+**What people do:** Copy `datetime.now(timezone.utc) - timedelta(seconds=120)` into each of the three route files.
+**Why it's wrong:** Three copies of the same logic with different magic numbers. When the threshold changes (environment variable), only one file gets updated. Bug in threshold calculation is multiplied by three.
+**Do this instead:** Use `freshness.stale_cutoff(settings.stale_threshold_aircraft_s)` — one call per route, one implementation in `freshness.py`.
 
-### Anti-Pattern 2: One Canvas Per Billboard
+### Anti-Pattern 2: Threshold Hardcoded as Module-Level Constant in Route File
 
-**What people do:** Generate a new `document.createElement('canvas')` or `URL.createObjectURL(blob)` per entity on each data update.
-**Why it's wrong:** BillboardCollection shares GPU textures only for billboards with identical `image` references. A new canvas per entity forces a new TextureAtlas entry per entity — at 5,000 satellites this exhausts the TextureAtlas size limit, causing GPU allocation failures.
-**Do this instead:** Create one canvas per entity type at layer mount time in a module-scope variable. Pass the same canvas reference to every billboard.add() call.
+**What people do:** `STALE_THRESHOLD = 120` at the top of `routes_aircraft.py`.
+**Why it's wrong:** Cannot be overridden without redeploying code. In a homelab context with varying data quality, being able to adjust via `.env` is essential (e.g., if OpenSky is degraded and only polling every 3 minutes, the threshold needs to be 360s, not 120s).
+**Do this instead:** Declare in `Settings` class with a sensible default. The threshold becomes an env var with a safe default that works without any configuration.
 
-### Anti-Pattern 3: Removing PointPrimitiveCollections Before Billboard Validation
+### Anti-Pattern 3: Filtering Stale Entities in the Frontend Instead of the API
 
-**What people do:** Remove PointPrimitiveCollection in the same commit as adding BillboardCollection.
-**Why it's wrong:** If billboard rendering, picking, or replay has a bug, there is no rollback path without reverting commits. The PointPrimitiveCollection removal is irreversible within a running session.
-**Do this instead:** Keep both collections in parallel with points hidden. Validate fully across all regression scenarios. Remove points in a separate step.
+**What people do:** Return all entities from the API and let the frontend filter by `updated_at > (Date.now() - threshold)`.
+**Why it's wrong:** The frontend must carry threshold knowledge. Multiple clients would need synchronized thresholds. Stale entities waste network bandwidth and React render cycles.
+**Do this instead:** Filter at the database query layer. The API returns only live entities. The API's freshness metadata endpoint tells the frontend when data was last updated.
 
-### Anti-Pattern 4: Viewer Prop on CameraControlWidget
+### Anti-Pattern 4: Setting is_active=False in the API Route Layer
 
-**What people do:** `<CameraControlWidget viewer={cesiumViewer} />` because cesiumViewer state lives in App.tsx.
-**Why it's wrong:** The codebase already has a standard pattern for components that make imperative camera calls: use viewerRegistry. LandmarkNav calls flyToLandmark() without a viewer prop. Inconsistency confuses future developers about which pattern to follow.
-**Do this instead:** CameraControlWidget calls pitchBy()/zoomStep() from viewerRegistry — no prop required.
+**What people do:** On `GET /api/military/`, load all rows, then filter in Python by comparing timestamps, and set `is_active=False` for stale rows as a side effect of a GET request.
+**Why it's wrong:** GET requests must not have write side effects (HTTP idempotency contract). A GET request being responsible for state mutation is a correctness bug.
+**Do this instead:** Tombstone writes happen only in the ingest task, which runs on a background schedule. The GET route is pure read.
 
-### Anti-Pattern 5: Sidebar Section State as Local useState
+### Anti-Pattern 5: Separate GPS Jamming Freshness Table
 
-**What people do:** Track section collapse state with `useState` inside LeftSidebar.
-**Why it's wrong:** When `sidebarOpen` becomes false (sidebar closes) and then true again, local state resets — all sections re-expand. Users who collapsed FILTERS will see it forcibly re-expanded on every sidebar toggle.
-**Do this instead:** Put sidebarSections in useAppStore. Collapsed state persists across sidebar open/close cycles.
+**What people do:** Create a `gps_jamming_metadata` table with one row for `(aggregated_at, source_fetched_at, source_is_stale)` and JOIN it in the route.
+**Why it's wrong:** Extra schema complexity, JOIN required in every query, migration complexity, no meaningful benefit at the scale of hundreds of cells.
+**Do this instead:** Store freshness metadata as columns on every `gps_jamming_cells` row. All cells from one batch share identical values. Extract for the response from `cells[0]`.
 
-### Anti-Pattern 6: Using setView() on Camera Without Preserving Position
+### Anti-Pattern 6: Using updated_at as the Stale Filter Column for Aircraft
 
-**What people do:** `camera.setView({ orientation: { heading, pitch, roll } })` expecting it only rotates the camera.
-**Why it's wrong:** `setView()` without a `destination` moves the camera to `undefined` behavior — it can relocate the camera to the origin or to the last set destination.
-**Do this instead:** In pitchBy(), explicitly pass the current camera position as destination along with the new orientation, or use `camera.rotate*` methods that modify orientation without changing position.
+**What people do:** Filter by `Aircraft.updated_at >= cutoff` since `updated_at` already exists.
+**Why it's wrong:** `updated_at` is set by `server_default=func.now()` and `onupdate=func.now()` at the database level. It reflects when the row was last written, not when the source data was fetched. If ingest fails silently (API returns success but empty states), `updated_at` is not refreshed and the stale filter correctly fires. But the intent is clearer with a dedicated `fetched_at` column that the ingest code explicitly sets on every successful poll.
+**Do this instead:** Use `fetched_at` for stale filtering. `updated_at` is retained for general-purpose audit purposes but is not the primary freshness indicator.
 
 ---
 
 ## Scaling Considerations
 
-| Scenario | Architecture Adjustment |
-|----------|------------------------|
-| Current counts (5K sats, 1K aircraft) | BillboardCollection fully viable; one canvas per type avoids TextureAtlas overflow |
-| Satellite count grows to 50K | Switch satellites back to PointPrimitiveCollection for that layer; keep billboards for aircraft/ships/military |
-| Complex SVG icons needed | Keep SVGs simple — no `<image>` tags, no `<filter>` elements (CesiumJS bug #8002 affects embedded images); use Canvas 2D paths as fallback |
-| Mobile/tablet viewport | CameraControlWidget and collapsible sidebar sizing already uses `min(280px, calc(100vw - 24px))` pattern from LeftSidebar — follow same responsive approach |
+| Concern | At Current Scale | Notes |
+|---------|-----------------|-------|
+| Tombstone pass performance | Trivial — UPDATE on ~few thousand rows | A partial index on `(fetched_at) WHERE is_active = TRUE` makes the WHERE clause fast |
+| Stale cutoff query overhead | Trivial — index on fetched_at/last_seen_at | Add index in migration (see Step 1) |
+| GPS jamming cell count | Hundreds of H3 cells | Storing freshness on every cell row is 3 extra columns × hundreds of rows = trivial |
+| AIS flush lag | Ships may appear stale between flushes | 30s flush interval means up to 30s lag between Redis update and PG visibility; threshold of 900s absorbs this |
 
 ---
 
 ## Sources
 
-- [CesiumJS Billboard API](https://cesium.com/learn/cesiumjs/ref-doc/Billboard.html) — image property accepts canvas, scaleByDistance/NearFarScalar confirmed (HIGH confidence)
-- [CesiumJS BillboardCollection API](https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Documentation/BillboardCollection.html) — texture sharing, performance guidance (HIGH confidence)
-- [CesiumJS Performance Tips for Points](https://cesium.com/blog/2016/03/02/performance-tips-for-points/) — PointPrimitive vs BillboardCollection benchmarks: BillboardCollection problems begin at ~50K entities (MEDIUM confidence — 2016, still referenced as authoritative)
-- [CesiumJS Camera API](https://cesium.com/learn/cesiumjs/ref-doc/Camera.html) — pitch/heading/roll via setView, camera.pitch readable property, rotateUp/Down methods (HIGH confidence)
-- [CesiumJS ScreenSpaceEventHandler](https://cesium.com/learn/cesiumjs/ref-doc/ScreenSpaceEventHandler.html) — setInputAction, LEFT_DOUBLE_CLICK override pattern (HIGH confidence)
-- [CesiumJS community: double-click zoom like Google Earth](https://community.cesium.com/t/zoom-in-on-left-double-click-like-google-earth/7111) — pickPosition + flyTo pattern, trackedEntity = undefined override (MEDIUM confidence)
-- [CesiumJS SVG billboard bug #8002](https://github.com/CesiumGS/cesium/issues/8002) — embedded image tags in SVG fail silently (HIGH confidence)
-- Direct codebase analysis: GlobeView.tsx, AircraftLayer.tsx, SatelliteLayer.tsx, ShipLayer.tsx, MilitaryAircraftLayer.tsx, LeftSidebar.tsx, App.tsx, useAppStore.ts, viewerRegistry.ts (HIGH confidence — authoritative)
+- Direct codebase analysis: all backend Python files (HIGH confidence — authoritative)
+- FastAPI dependency injection patterns — official docs (HIGH confidence)
+- SQLAlchemy `on_conflict_do_update` with bulk UPDATE tombstone — established PostgreSQL upsert pattern
+- pydantic-settings `BaseSettings` field declaration — official docs (HIGH confidence)
+- OpenSky Network REST API — state vector format documentation (HIGH confidence)
+  - State vector field 3 = `time_position`, field 11 = `vertical_rate`, field 13 = `geo_altitude`, field 16 = `position_source`
+- PostgreSQL `ALTER TABLE ADD COLUMN` performance on existing tables — near-instant for nullable columns or columns with server_default (HIGH confidence)
+- HTTP idempotency: GET requests must not have write side effects (RFC 7231 §4.2.2, HIGH confidence)
 
 ---
 
-*Architecture research for: Intelligence Globe v3.0 UI Refinement*
-*Researched: 2026-03-12*
+*Architecture research for: Intelligence Globe v4.0 Data Reliability and Freshness — FastAPI + SQLAlchemy stale filtering integration*
+*Researched: 2026-03-13*
