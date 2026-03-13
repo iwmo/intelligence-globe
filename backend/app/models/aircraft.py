@@ -31,6 +31,15 @@ class Aircraft(Base):
     true_track: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_contact: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Freshness columns (MIG-01)
+    time_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    geo_altitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vertical_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    position_source: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fetched_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='true')
+
     # Trail: list of {lon, lat, alt, ts} dicts, newest last, max 20 entries
     trail: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
 

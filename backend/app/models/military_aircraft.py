@@ -10,7 +10,7 @@ No trail column — military layer has no trail requirement in Phase 8.
 Altitude is stored in FEET as received from airplanes.live
 (unlike OpenSky which uses metres).
 """
-from sqlalchemy import Float, Integer, String, DateTime, func
+from sqlalchemy import Boolean, Float, Integer, String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -31,6 +31,11 @@ class MilitaryAircraft(Base):
     squawk: Mapped[str | None] = mapped_column(String, nullable=True)
     nic: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nac_p: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Freshness columns (MIG-01)
+    fetched_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='true')
 
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
