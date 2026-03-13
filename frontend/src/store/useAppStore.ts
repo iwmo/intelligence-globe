@@ -62,6 +62,10 @@ interface AppState {
   replayWindowEnd: number | null;
   setReplayWindow: (start: number, end: number) => void;
 
+  // Phase 23: isPlaying promoted from PlaybackBar local state
+  isPlaying: boolean;
+  setIsPlaying: (v: boolean | ((prev: boolean) => boolean)) => void;
+
   // Phase 12 slices
   areaOfInterest: { lat: number; lon: number } | null;
   setAreaOfInterest: (aoi: { lat: number; lon: number } | null) => void;
@@ -134,6 +138,11 @@ export const useAppStore = create<AppState>((set) => ({
   replayWindowStart: null,
   replayWindowEnd: null,
   setReplayWindow: (start, end) => set({ replayWindowStart: start, replayWindowEnd: end }),
+
+  // Phase 23
+  isPlaying: false,
+  setIsPlaying: (v) =>
+    set((s) => ({ isPlaying: typeof v === 'function' ? v(s.isPlaying) : v })),
 
   // Phase 12 slices
   areaOfInterest: null,
