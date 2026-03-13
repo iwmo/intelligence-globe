@@ -1,5 +1,16 @@
 # OpenSignal Globe
 
+## Current Milestone: v5.0 Playback
+
+**Goal:** Audit and fix the 4D replay engine so all layers behave correctly — satellites use `replayTs`, nothing moves when paused, and end-to-end playback (snapshot fetch → interpolation → scrubber → speed controls) is verified reliable.
+
+**Target features:**
+- Satellite propagation respects `replayTs` in playback mode (not always `Date.now()`)
+- All layers audited for playback correctness (street traffic, GPS jamming, OSINT events)
+- Live lerp guards — aircraft/ships don't animate from live data while in playback
+- End-to-end replay verification: snapshot window, scrubbing, play/pause, auto-stop
+- Frontend freshness indicators for stale entities (VIS-01, deferred from v4.0)
+
 ## What This Is
 
 A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, fully polished draggable panels and custom SVG entity icons, and data reliability guarantees — stale positions filtered from all live endpoints, freshness metadata exposed in every API response.
@@ -52,10 +63,14 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 
 ### Active
 
-- [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
-- [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
+- [ ] Satellite propagation uses replayTs in playback mode (PLAY-01)
+- [ ] All layers audited: no live movement when in playback/paused (PLAY-02)
+- [ ] Live lerp guards: aircraft/ships lerp stops in playback mode (PLAY-03)
+- [ ] End-to-end replay verified: snapshot fetch, interpolation, scrubber, speed, auto-stop (PLAY-04)
 - [ ] Frontend visual indicator for stale entities — grey-out, opacity reduction, or "STALE" badge (VIS-01, deferred from v4.0)
-- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03)
+- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03, deferred)
+- [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05, deferred)
+- [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06, deferred)
 
 ### Out of Scope
 
@@ -155,4 +170,4 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Detail endpoints unaffected by stale filtering | Replay engine and click-to-inspect panels need historical rows; filtering breaks time-scrubber | ✓ Good — list vs detail asymmetry correct |
 
 ---
-*Last updated: 2026-03-13 after v4.0 milestone*
+*Last updated: 2026-03-13 after v5.0 milestone start*
