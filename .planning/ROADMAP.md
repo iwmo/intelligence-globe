@@ -91,7 +91,10 @@ Plans:
   3. `GET /api/aircraft` returns no rows with `fetched_at` older than `AIRCRAFT_STALE_SECONDS`
   4. Each aircraft in the response includes `time_position`, `fetched_at`, `is_stale`, and `position_age_seconds` fields
   5. Existing response keys (`icao24`, `callsign`, `latitude`, `longitude`, `baro_altitude`, `velocity`, `true_track`, `trail`) are all still present and unchanged
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Ingest pipeline: new field parsing, fetched_at/last_seen_at, tombstone sweep (ACFT-01, ACFT-02)
+- [ ] 19-02-PLAN.md — Route freshness filter and new response fields (ACFT-03)
 
 ### Phase 20: Military, Ships, and Jamming Ingest
 **Goal**: Military aircraft, ships, and GPS jamming cells all track lifecycle state — active entities write freshness timestamps, absent entities are tombstoned
@@ -150,8 +153,8 @@ Plans:
 | 15. Camera Navigation Controls | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 17. Schema Migration | v4.0 | 1/1 | Complete | 2026-03-13 |
-| 18. Shared Freshness Helper | 1/1 | Complete    | 2026-03-13 | - |
-| 19. Aircraft Ingest + Route | v4.0 | 0/TBD | Not started | - |
+| 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
+| 19. Aircraft Ingest + Route | v4.0 | 0/2 | Not started | - |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
 | 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
 | 22. Tests | v4.0 | 0/TBD | Not started | - |
