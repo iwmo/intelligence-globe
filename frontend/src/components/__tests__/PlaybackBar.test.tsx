@@ -17,6 +17,8 @@ const mockState = {
   toggleCategory: vi.fn(),
   setAreaOfInterest: vi.fn(),
   tleLastUpdated: null as string | null,
+  isPlaying: false as boolean,
+  setIsPlaying: vi.fn(),
 };
 
 vi.mock('../../store/useAppStore', () => ({
