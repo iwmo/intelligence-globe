@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T11:52:42.483Z"
+last_updated: "2026-03-13T11:56:38.622Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -46,6 +46,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 17 P01 | 15 | 2 tasks | 7 files |
 | Phase 18 P01 | 8m | 3 tasks | 3 files |
 | Phase 19 P01 | 4m | 2 tasks | 3 files |
+| Phase 19 P02 | 150 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 18]: UPPER_SNAKE_CASE field names for stale threshold settings match env var convention and pydantic-settings v2 attribute access
 - [Phase 19]: upsert_aircraft no longer calls db.commit() — session managed by task caller only
 - [Phase 19]: Tombstone sweep guarded by empty seen_icao24s to prevent mass false-tombstone on feed-down
+- [Phase 19]: is_stale computed per-row at response time using stale_cutoff() — no double-truth risk
+- [Phase 19]: position_age_seconds returns None when both time_position and last_contact are null — avoids false-zero misleading the frontend
 
 ### Pending Todos
 

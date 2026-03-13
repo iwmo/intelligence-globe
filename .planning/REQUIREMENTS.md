@@ -17,7 +17,7 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 
 - [x] **ACFT-01**: `ingest_aircraft.py` parses `sv[3]` → `time_position`, `sv[11]` → `vertical_rate`, `sv[13]` → `geo_altitude`, `sv[16]` → `position_source` with `len(sv) > N` guards; all written explicitly in upsert `set_={}` dict
 - [x] **ACFT-02**: Aircraft ingest writes `fetched_at` (OpenSky response `time`), `last_seen_at` (ingest time), sets `is_active=True` for seen rows; tombstone pass marks absent rows `is_active=False` in same commit
-- [ ] **ACFT-03**: `/api/aircraft` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `time_position`, `fetched_at`, `is_stale`, `position_age_seconds`; freshness falls back from `time_position` to `last_contact` when `time_position` is null; existing keys (`icao24`, `callsign`, `latitude`, `longitude`, `baro_altitude`, `velocity`, `true_track`, `trail`) preserved
+- [x] **ACFT-03**: `/api/aircraft` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `time_position`, `fetched_at`, `is_stale`, `position_age_seconds`; freshness falls back from `time_position` to `last_contact` when `time_position` is null; existing keys (`icao24`, `callsign`, `latitude`, `longitude`, `baro_altitude`, `velocity`, `true_track`, `trail`) preserved
 
 ### Military Aircraft (airplanes.live)
 
@@ -80,7 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRESH-02 | Phase 18 | Complete |
 | ACFT-01 | Phase 19 | Complete |
 | ACFT-02 | Phase 19 | Complete |
-| ACFT-03 | Phase 19 | Pending |
+| ACFT-03 | Phase 19 | Complete |
 | MIL-01 | Phase 20 | Pending |
 | SHIP-01 | Phase 20 | Pending |
 | JAM-01 | Phase 20 | Pending |
