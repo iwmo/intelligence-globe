@@ -80,21 +80,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRESH-02 | Phase 18 | Pending |
 | ACFT-01 | Phase 19 | Pending |
 | ACFT-02 | Phase 19 | Pending |
-| ACFT-03 | Phase 20 | Pending |
-| MIL-01 | Phase 21 | Pending |
+| ACFT-03 | Phase 19 | Pending |
+| MIL-01 | Phase 20 | Pending |
+| SHIP-01 | Phase 20 | Pending |
+| JAM-01 | Phase 20 | Pending |
 | MIL-02 | Phase 21 | Pending |
-| SHIP-01 | Phase 21 | Pending |
 | SHIP-02 | Phase 21 | Pending |
-| JAM-01 | Phase 21 | Pending |
-| JAM-02 | Phase 22 | Pending |
-| JAM-03 | Phase 22 | Pending |
-| TEST-01 | Phase 23 | Pending |
-| TEST-02 | Phase 23 | Pending |
-| TEST-03 | Phase 23 | Pending |
-| TEST-04 | Phase 23 | Pending |
-| TEST-05 | Phase 23 | Pending |
-| TEST-06 | Phase 23 | Pending |
-| TEST-07 | Phase 23 | Pending |
+| JAM-02 | Phase 21 | Pending |
+| JAM-03 | Phase 21 | Pending |
+| TEST-01 | Phase 22 | Pending |
+| TEST-02 | Phase 22 | Pending |
+| TEST-03 | Phase 22 | Pending |
+| TEST-04 | Phase 22 | Pending |
+| TEST-05 | Phase 22 | Pending |
+| TEST-06 | Phase 22 | Pending |
+| TEST-07 | Phase 22 | Pending |
 
 **Coverage:**
 - v4.0 requirements: 20 total
@@ -103,4 +103,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 — traceability updated after v4.0 roadmap creation*

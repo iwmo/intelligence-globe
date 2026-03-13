@@ -5,6 +5,7 @@
 - ✅ **v1.0 MVP** — Phases 1-6 (shipped 2026-03-11) — [Archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v2.0 WorldView Parity** — Phases 7-12 (shipped 2026-03-12) — [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v3.0 UI Refinement** — Phases 13-16 (shipped 2026-03-13) — [Archive](milestones/v3.0-ROADMAP.md)
+- 🔄 **v4.0 Data Reliability & Freshness** — Phases 17-22 (in progress)
 
 ## Phases
 
@@ -42,6 +43,88 @@
 
 </details>
 
+### v4.0 Data Reliability & Freshness
+
+- [ ] **Phase 17: Schema Migration** — Additive Alembic migration adds all freshness columns across four tables
+- [ ] **Phase 18: Shared Freshness Helper** — `app/freshness.py` module and configurable stale thresholds in `Settings`
+- [ ] **Phase 19: Aircraft Ingest + Route** — OpenSky ingest writes all new fields, tombstones absent aircraft, route filters stale rows
+- [ ] **Phase 20: Military, Ships, and Jamming Ingest** — Ingest workers for all three remaining sources gain freshness lifecycle columns and tombstone passes
+- [ ] **Phase 21: API Route Filtering** — Military, ships, and GPS jamming routes gain stale filtering and freshness response envelopes
+- [ ] **Phase 22: Tests** — Full test coverage for freshness behavior, stale filtering, route contracts, and ingest correctness
+
+## Phase Details
+
+### Phase 17: Schema Migration
+**Goal**: All four PostgreSQL tables hold the freshness columns the rest of the milestone depends on
+**Depends on**: Phase 16 (v3.0 complete)
+**Requirements**: MIG-01
+**Success Criteria** (what must be TRUE):
+  1. Running `alembic upgrade head` on a fresh Docker Compose stack applies without error
+  2. `aircraft` table has `time_position`, `geo_altitude`, `vertical_rate`, `position_source`, `fetched_at`, `last_seen_at`, `is_active` columns visible in `\d aircraft`
+  3. `military_aircraft`, `ships`, and `gps_jamming_cells` tables each have their respective freshness columns visible in schema inspection
+  4. All existing rows have `is_active = true` immediately after migration (no backfill UPDATE required)
+  5. Migration file is hand-written with no autogenerate — `position_snapshots` partition child tables are not dropped
+**Plans**: TBD
+
+### Phase 18: Shared Freshness Helper
+**Goal**: A reusable, testable freshness module exists and all stale thresholds are configurable via environment variables
+**Depends on**: Phase 17
+**Requirements**: FRESH-01, FRESH-02
+**Success Criteria** (what must be TRUE):
+  1. `from app.freshness import stale_cutoff, is_stale` imports without error from any route or worker file
+  2. `stale_cutoff(120)` returns a timezone-aware datetime exactly 120 seconds before `datetime.now(UTC)`
+  3. Setting `AIRCRAFT_STALE_SECONDS=300` in the environment changes the aircraft threshold without a code change
+  4. `Settings` class exposes `AIRCRAFT_STALE_SECONDS`, `MILITARY_STALE_SECONDS`, `SHIP_STALE_SECONDS`, `GPS_JAMMING_STALE_SECONDS` with correct defaults (120, 600, 900, 600)
+**Plans**: TBD
+
+### Phase 19: Aircraft Ingest + Route
+**Goal**: Commercial aircraft data is honest — stale positions are excluded from the API, and richer OpenSky fields are stored and returned
+**Depends on**: Phase 18
+**Requirements**: ACFT-01, ACFT-02, ACFT-03
+**Success Criteria** (what must be TRUE):
+  1. After an ingest run, each aircraft row has `fetched_at` set to the OpenSky response `time` value and `last_seen_at` set to the ingest timestamp
+  2. Aircraft rows absent from the latest OpenSky snapshot have `is_active = false` in the database after that ingest cycle
+  3. `GET /api/aircraft` returns no rows with `fetched_at` older than `AIRCRAFT_STALE_SECONDS`
+  4. Each aircraft in the response includes `time_position`, `fetched_at`, `is_stale`, and `position_age_seconds` fields
+  5. Existing response keys (`icao24`, `callsign`, `latitude`, `longitude`, `baro_altitude`, `velocity`, `true_track`, `trail`) are all still present and unchanged
+**Plans**: TBD
+
+### Phase 20: Military, Ships, and Jamming Ingest
+**Goal**: Military aircraft, ships, and GPS jamming cells all track lifecycle state — active entities write freshness timestamps, absent entities are tombstoned
+**Depends on**: Phase 19
+**Requirements**: MIL-01, SHIP-01, JAM-01
+**Success Criteria** (what must be TRUE):
+  1. After each 300s military poll cycle, aircraft absent from the response have `is_active = false` in `military_aircraft`
+  2. After each AIS batch flush, ships not present in the current flush have `is_active = false` in `ships` — bridging Redis TTL expiry to PostgreSQL
+  3. GPS jamming ingest only aggregates rows where `military_aircraft.is_active = true`
+  4. Every GPS jamming cell row written includes `aggregated_at`, `source_fetched_at`, and `source_is_stale` values from the current aggregation cycle
+**Plans**: TBD
+
+### Phase 21: API Route Filtering
+**Goal**: All four list endpoints only return fresh, active entities — and every response tells the caller exactly how fresh the data is
+**Depends on**: Phase 20
+**Requirements**: MIL-02, SHIP-02, JAM-02, JAM-03
+**Success Criteria** (what must be TRUE):
+  1. `GET /api/military` returns no rows where `is_active = false` or `fetched_at` is older than `MILITARY_STALE_SECONDS`
+  2. `GET /api/ships` returns no rows where `is_active = false` or `last_seen_at` is older than `SHIP_STALE_SECONDS`
+  3. `GET /api/gps-jamming` response envelope includes `aggregated_at`, `source_fetched_at`, and `source_is_stale` at the top level
+  4. When military source data is stale, `GET /api/gps-jamming` returns cells with `source_is_stale = true` rather than an empty set
+  5. Existing response keys for all three endpoints are preserved — no previously-returned field is removed or renamed
+**Plans**: TBD
+
+### Phase 22: Tests
+**Goal**: Every freshness and stale-filtering behavior introduced in this milestone is verified by an automated test
+**Depends on**: Phase 21
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05, TEST-06, TEST-07
+**Success Criteria** (what must be TRUE):
+  1. Running `pytest` passes 100% — all new tests green, all pre-existing happy-path contracts still pass
+  2. A test confirms that aircraft rows with stale `time_position` are excluded from `/api/aircraft`, with fallback to `last_contact` when `time_position` is null
+  3. A test confirms `geo_altitude`, `vertical_rate`, and `position_source` are stored by ingest and returned in the aircraft response
+  4. Tests confirm stale row exclusion independently for `/api/military` and `/api/ships`
+  5. A test asserts `source_is_stale = true` appears in the GPS jamming response when source military data is stale
+  6. Unit tests for `freshness.py` cover the stale cutoff boundary, `is_stale` true/false transition, and clock mock behavior
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -62,3 +145,9 @@
 | 14. Entity Icons and Altitude Scaling | v3.0 | 4/4 | Complete | 2026-03-12 |
 | 15. Camera Navigation Controls | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
+| 17. Schema Migration | v4.0 | 0/TBD | Not started | - |
+| 18. Shared Freshness Helper | v4.0 | 0/TBD | Not started | - |
+| 19. Aircraft Ingest + Route | v4.0 | 0/TBD | Not started | - |
+| 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
+| 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
+| 22. Tests | v4.0 | 0/TBD | Not started | - |
