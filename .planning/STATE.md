@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: UI Refinement
 status: completed
-stopped_at: Completed 15-03-PLAN.md — browser validation gate passed, Phase 15 complete
-last_updated: "2026-03-13T09:03:06.806Z"
-last_activity: 2026-03-12 — v3.0 roadmap created
+stopped_at: Completed 16-01-PLAN.md — useSettingsStore persist store built, 16 tests green
+last_updated: "2026-03-13T09:33:00Z"
+last_activity: 2026-03-13 — Phase 16 Plan 01 complete
 progress:
   total_phases: 4
   completed_phases: 3
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-12 after v3.0 milestone start)
 
 ## Current Position
 
-Phase: 13 of 16 (Collapsible Sidebar Layout)
-Plan: 3 of 3 in current phase — COMPLETE
-Status: Phase complete
-Last activity: 2026-03-12 — v3.0 roadmap created
+Phase: 16 of 16 (Persistent Settings Panel)
+Plan: 1 of 3 in current phase — complete
+Status: In progress
+Last activity: 2026-03-13 — Phase 16 Plan 01 complete
 
 Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 
@@ -85,6 +85,11 @@ Progress: [__________] 0% (v3.0 — 0/13 plans complete)
 - [Phase 15]: clickTimer at module scope — persists across re-renders, cleared on cleanup; 200ms debounce matches CesiumJS issue #1171 double-click window
 | Phase 15-camera-navigation-controls P03 | 10 | 2 tasks | 0 files |
 - [Phase 15-camera-navigation-controls]: All 13 NAV browser checks passed first run — double-click zoom, tilt presets, zoom buttons, and widget layout approved without fixes
+| Phase 16-persistent-settings-panel P01 | 5 | 2 tasks | 2 files |
+- [Phase 16-persistent-settings-panel]: useSettingsStore is separate from useAppStore — prevents transient runtime values (selectedId, replayTs, replayWindowStart) from being persisted
+- [Phase 16-persistent-settings-panel]: persist name 'globe-settings' — no partialize needed, entire state is configuration
+- [Phase 16-persistent-settings-panel]: defaultCamera: null is the sentinel for 'no flyTo on boot' — null is explicitly typed and preserved in localStorage
+- [Phase 16-persistent-settings-panel]: Initial defaultLayers exactly mirrors useAppStore initial defaults so first-ever load produces identical behavior
 
 ### Pending Todos
 
@@ -98,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:03:06.804Z
-Stopped at: Completed 15-03-PLAN.md — browser validation gate passed, Phase 15 complete
-Resume: Run `/gsd:plan-phase 14` or proceed to next phase
+Last session: 2026-03-13T09:33:00Z
+Stopped at: Completed 16-01-PLAN.md — useSettingsStore persist store built, 16 tests green
+Resume: Execute 16-02-PLAN.md (Settings Panel UI)

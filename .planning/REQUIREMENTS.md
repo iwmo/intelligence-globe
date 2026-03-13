@@ -29,11 +29,11 @@
 ### CONFIG — Default Settings Panel
 
 - [ ] **CONFIG-01**: Hidden settings panel accessible via keyboard shortcut or icon (not cluttering main view)
-- [ ] **CONFIG-02**: User can configure which layers are enabled on initial load
-- [ ] **CONFIG-03**: User can set the default visual preset (Normal, NVG, CRT, FLIR, Noir)
-- [ ] **CONFIG-04**: User can set the default camera starting position, zoom level, and tilt
-- [ ] **CONFIG-05**: User can set whether the app starts in LIVE or PLAYBACK mode
-- [ ] **CONFIG-06**: All settings persist in localStorage and apply on next load
+- [x] **CONFIG-02**: User can configure which layers are enabled on initial load
+- [x] **CONFIG-03**: User can set the default visual preset (Normal, NVG, CRT, FLIR, Noir)
+- [x] **CONFIG-04**: User can set the default camera starting position, zoom level, and tilt
+- [x] **CONFIG-05**: User can set whether the app starts in LIVE or PLAYBACK mode
+- [x] **CONFIG-06**: All settings persist in localStorage and apply on next load
 
 ## Future Requirements (v3.1)
 
@@ -68,11 +68,11 @@
 | NAV-02 | Phase 15 | Complete |
 | NAV-03 | Phase 15 | Complete |
 | CONFIG-01 | Phase 16 | Pending |
-| CONFIG-02 | Phase 16 | Pending |
-| CONFIG-03 | Phase 16 | Pending |
-| CONFIG-04 | Phase 16 | Pending |
-| CONFIG-05 | Phase 16 | Pending |
-| CONFIG-06 | Phase 16 | Pending |
+| CONFIG-02 | Phase 16 | Complete |
+| CONFIG-03 | Phase 16 | Complete |
+| CONFIG-04 | Phase 16 | Complete |
+| CONFIG-05 | Phase 16 | Complete |
+| CONFIG-06 | Phase 16 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 15 total

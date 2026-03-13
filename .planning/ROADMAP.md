@@ -130,4 +130,4 @@ Plans:
 | 13. Collapsible Sidebar Layout | 3/3 | Complete    | 2026-03-13 | — |
 | 14. Entity Icons and Altitude Scaling | 4/4 | Complete    | 2026-03-12 | — |
 | 15. Camera Navigation Controls | 3/3 | Complete   | 2026-03-13 | — |
-| 16. Persistent Settings Panel | v3.0 | 0/3 | Not started | — |
+| 16. Persistent Settings Panel | 1/3 | In Progress|  | — |
