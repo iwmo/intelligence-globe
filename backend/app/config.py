@@ -10,5 +10,11 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     version: str = "0.1.0"
 
+    # Freshness thresholds (FRESH-02) — overridable via environment variables
+    AIRCRAFT_STALE_SECONDS: int = 120
+    MILITARY_STALE_SECONDS: int = 600
+    SHIP_STALE_SECONDS: int = 900
+    GPS_JAMMING_STALE_SECONDS: int = 600
+
 
 settings = Settings()
