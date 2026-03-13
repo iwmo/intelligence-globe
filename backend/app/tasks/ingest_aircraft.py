@@ -16,10 +16,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import select, update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db import AsyncSessionLocal
@@ -71,15 +71,19 @@ async def fetch_opensky_token(client_id: str, client_secret: str) -> str:
         return resp.json()["access_token"]
 
 
-async def fetch_aircraft_states(token: str) -> list:
-    """Poll the OpenSky /states/all endpoint and return the state-vector list.
+async def fetch_aircraft_states(token: str) -> tuple[list, int]:
+    """Poll the OpenSky /states/all endpoint and return the state-vector list
+    together with the response timestamp.
 
     Args:
         token: Valid Bearer access token from fetch_opensky_token().
 
     Returns:
-        List of state vectors (each a 17-element list).  Empty list when the
-        API returns no states.
+        A 2-tuple of (states, response_time) where:
+        - states: List of state vectors (each a 17-element list).  Empty list
+          when the API returns no states.
+        - response_time: Integer Unix timestamp from the OpenSky `time` field.
+          Defaults to 0 if the field is absent.
 
     Raises:
         RuntimeError: When the server responds with HTTP 429 (rate-limited).
@@ -105,7 +109,9 @@ async def fetch_aircraft_states(token: str) -> list:
 
         resp.raise_for_status()
         data = resp.json()
-        return data.get("states") or []
+        response_time: int = data.get("time", 0)
+        states: list = data.get("states") or []
+        return states, response_time
 
 
 # ---------------------------------------------------------------------------
@@ -119,11 +125,14 @@ async def ingest_aircraft() -> int:
     Workflow:
     1. Read credentials from environment (raises KeyError with clear message if absent).
     2. Obtain OAuth2 Bearer token.
-    3. Poll /states/all.
+    3. Poll /states/all — returns (states, response_time) tuple.
     4. Filter state vectors missing a position (sv[5] or sv[6] is None).
-    5. Pre-fetch existing trails in one SELECT to avoid N+1 queries.
-    6. Build updated trail for each aircraft (cap at TRAIL_MAX_LEN).
-    7. Batch-upsert into aircraft table.
+    5. Convert response_time to fetched_at datetime; capture last_seen_at = now(UTC).
+    6. Pre-fetch existing trails in one SELECT to avoid N+1 queries.
+    7. Build updated trail for each aircraft (cap at TRAIL_MAX_LEN).
+    8. Batch-upsert into aircraft table with all freshness fields.
+    9. Tombstone sweep: set is_active=False for aircraft absent from this snapshot.
+    10. Single commit after both the upsert loop and the tombstone sweep.
 
     Returns:
         Number of aircraft rows upserted.
@@ -150,13 +159,17 @@ async def ingest_aircraft() -> int:
     token = await fetch_opensky_token(client_id, client_secret)
     logger.info("OpenSky OAuth2 token obtained")
 
-    raw_states = await fetch_aircraft_states(token)
+    raw_states, response_time = await fetch_aircraft_states(token)
     logger.info("Received %d raw state vectors from OpenSky", len(raw_states))
+
+    # Convert OpenSky response timestamp to UTC datetime
+    fetched_at = datetime.fromtimestamp(response_time, tz=timezone.utc)
+    last_seen_at = datetime.now(timezone.utc)
 
     # Filter: skip aircraft without a known position
     valid_states = [
         sv for sv in raw_states
-        if sv[5] is not None and sv[6] is not None
+        if len(sv) > 6 and sv[5] is not None and sv[6] is not None
     ]
     skipped = len(raw_states) - len(valid_states)
     logger.info(
@@ -181,14 +194,20 @@ async def ingest_aircraft() -> int:
         for sv in valid_states:
             icao24: str = sv[0]
             callsign: str | None = sv[1].strip() if sv[1] else None
-            origin_country: str | None = sv[2]
-            last_contact: int | None = sv[4]
+            origin_country: str | None = sv[2] if len(sv) > 2 else None
+            last_contact: int | None = sv[4] if len(sv) > 4 else None
             longitude: float = sv[5]
             latitude: float = sv[6]
-            baro_altitude: float | None = sv[7]
-            on_ground: bool = bool(sv[8]) if sv[8] is not None else False
-            velocity: float | None = sv[9]
-            true_track: float | None = sv[10]
+            baro_altitude: float | None = sv[7] if len(sv) > 7 else None
+            on_ground: bool = bool(sv[8]) if len(sv) > 8 and sv[8] is not None else False
+            velocity: float | None = sv[9] if len(sv) > 9 else None
+            true_track: float | None = sv[10] if len(sv) > 10 else None
+
+            # New fields — length-guarded to handle short state vectors
+            time_position: int | None = sv[3] if len(sv) > 3 else None
+            vertical_rate: float | None = sv[11] if len(sv) > 11 else None
+            geo_altitude: float | None = sv[13] if len(sv) > 13 else None
+            position_source: int | None = sv[16] if len(sv) > 16 else None
 
             new_point = {
                 "lon": longitude,
@@ -215,6 +234,13 @@ async def ingest_aircraft() -> int:
                     true_track=true_track,
                     last_contact=last_contact,
                     trail=trail,
+                    time_position=time_position,
+                    vertical_rate=vertical_rate,
+                    geo_altitude=geo_altitude,
+                    position_source=position_source,
+                    fetched_at=fetched_at,
+                    last_seen_at=last_seen_at,
+                    is_active=True,
                 )
                 .on_conflict_do_update(
                     index_elements=["icao24"],
@@ -229,12 +255,30 @@ async def ingest_aircraft() -> int:
                         true_track=true_track,
                         last_contact=last_contact,
                         trail=trail,
-                        updated_at=func.now(),
+                        time_position=time_position,
+                        vertical_rate=vertical_rate,
+                        geo_altitude=geo_altitude,
+                        position_source=position_source,
+                        fetched_at=fetched_at,
+                        last_seen_at=last_seen_at,
+                        is_active=True,
                     ),
                 )
             )
             await session.execute(stmt)
 
+        # Tombstone sweep: mark aircraft absent from this snapshot as inactive.
+        # Guard: skip if seen_icao24s is empty to prevent mass false-tombstone.
+        seen_icao24s = list({sv[0] for sv in valid_states})
+        if seen_icao24s:
+            tombstone_stmt = (
+                sa_update(Aircraft)
+                .where(Aircraft.icao24.not_in(seen_icao24s))
+                .values(is_active=False)
+            )
+            await session.execute(tombstone_stmt)
+
+        # Single commit after both upsert loop and tombstone sweep
         await session.commit()
 
     logger.info("Upserted %d aircraft records into PostgreSQL", len(valid_states))
