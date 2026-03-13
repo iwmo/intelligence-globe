@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
-status: planning
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-03-13T19:24:13.041Z"
-last_activity: 2026-03-13 — v5.0 roadmap created; phases 23-26 defined
+status: executing
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-03-13T19:28:34.145Z"
+last_activity: "2026-03-13 — Plan 24-01 complete: resolveTimestamp pure function + PLAY-02 tests"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 68
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 Phase: 24 of 26 (Satellite Propagation Fix)
 Plan: 1 of 2 in current phase
 Status: In Progress
-Last activity: 2026-03-13 — Plan 24-01 complete: resolveTimestamp pure function + PLAY-02 tests
+Last activity: 2026-03-13 — Plan 24-02 complete: four propagation mutations wired to replayTs
 
-Progress: [████████████████████░░░░░░░░░░] 68% (v4.0 complete, v5.0 starting)
+Progress: [██████████████████████████████] 100% (v5.0 phase 24 complete)
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████████████████░░░
 | Phase 23 P04 | 3 min | 2 tasks | 3 files |
 | Phase 23-store-foundation-viewer-clock P03 | 6 | 2 tasks | 3 files |
 | Phase 24-satellite-propagation-fix P01 | 7 | 2 tasks | 3 files |
+| Phase 24-satellite-propagation-fix P02 | 8 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Progress: [████████████████████░░░
 - `refetchInterval: false` alone insufficient — focus-triggered React Query refetches bypass it; add `replayMode` guard inside Effect 2 as defense in depth
 - `resolveTimestamp` returns null (not 0) for pause guard — null is a deliberate skip-dispatch signal, not a timestamp [24-01]
 - PLAY-02 tests use deterministic 2026-01-01T12:00:00Z reference time to avoid wall-clock flakiness [24-01]
+- orbitTimestamp read via getState() inside Effect 2 body (not in deps) — orbit anchored to satellite selection moment, not latest scrub [24-02]
+- GET_POSITION added to Effect 2 alongside COMPUTE_ORBIT — globe click fly-to fixed without any change to AircraftLayer [24-02]
 
 ### Preserved from v4.0
 
@@ -84,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T19:24:13.037Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-03-13T19:28:34.141Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
