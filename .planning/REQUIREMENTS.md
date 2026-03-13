@@ -1,84 +1,106 @@
 # Requirements: OpenSignal Globe
 
-**Defined:** 2026-03-12
-**Milestone:** v3.0 UI Refinement
+**Defined:** 2026-03-13
 **Core Value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
 
-## v3.0 Requirements
+## v4.0 Requirements
 
-### LAYOUT — Panel Organization
+Requirements for v4.0 Data Reliability & Freshness milestone.
 
-- [x] **LAYOUT-01**: User can collapse and expand each sidebar section independently with smooth animation
-- [x] **LAYOUT-02**: Visual preset sliders and aircraft filter panels no longer visually overlap
-- [x] **LAYOUT-03**: Sidebar content is grouped into named sections (LAYERS / FILTERS / NAVIGATION / PRESETS) with clear visual hierarchy
+### Schema & Configuration
 
-### ICONS — Entity Icons
+- [ ] **MIG-01**: Alembic hand-written migration adds `is_active`, `fetched_at`, `last_seen_at`, `time_position`, `geo_altitude`, `vertical_rate`, `position_source` to `aircraft`; `fetched_at`, `last_seen_at`, `is_active` to `military_aircraft`; `last_seen_at`, `is_active` to `ships`; `aggregated_at`, `source_fetched_at`, `source_is_stale` to `gps_jamming_cells` — all with safe `server_default`/nullable settings, hand-written only (no autogenerate)
+- [ ] **FRESH-01**: New `app/freshness.py` module provides `stale_cutoff(threshold_s) -> datetime` and `is_stale(ts, threshold_s) -> bool` reused by all routes
+- [ ] **FRESH-02**: `Settings` class gains `AIRCRAFT_STALE_SECONDS` (120), `MILITARY_STALE_SECONDS` (600), `SHIP_STALE_SECONDS` (900), `GPS_JAMMING_STALE_SECONDS` (600) with automatic env var coercion via pydantic-settings
 
-- [x] **ICONS-01**: Commercial aircraft displayed as airplane-shaped SVG billboard icons on the globe
-- [x] **ICONS-02**: Military flights displayed as a distinct military aircraft SVG billboard icon
-- [x] **ICONS-03**: Ships displayed as vessel-shaped SVG billboard icons
-- [x] **ICONS-04**: Satellites displayed as improved orbital-cross markers (PointPrimitive — billboard not used at 5,000+ entity count due to GPU texture limit)
-- [x] **ICONS-05**: Aircraft, military, and ship icons scale proportionally with camera altitude
+### Commercial Aircraft (OpenSky)
 
-### NAV — Navigation Controls
+- [ ] **ACFT-01**: `ingest_aircraft.py` parses `sv[3]` → `time_position`, `sv[11]` → `vertical_rate`, `sv[13]` → `geo_altitude`, `sv[16]` → `position_source` with `len(sv) > N` guards; all written explicitly in upsert `set_={}` dict
+- [ ] **ACFT-02**: Aircraft ingest writes `fetched_at` (OpenSky response `time`), `last_seen_at` (ingest time), sets `is_active=True` for seen rows; tombstone pass marks absent rows `is_active=False` in same commit
+- [ ] **ACFT-03**: `/api/aircraft` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `time_position`, `fetched_at`, `is_stale`, `position_age_seconds`; freshness falls back from `time_position` to `last_contact` when `time_position` is null; existing keys (`icao24`, `callsign`, `latitude`, `longitude`, `baro_altitude`, `velocity`, `true_track`, `trail`) preserved
 
-- [x] **NAV-01**: Double-clicking the globe zooms the camera smoothly toward the clicked point
-- [x] **NAV-02**: Tilt/pitch control widget visible on globe with Top-down / 45° Oblique / Horizon presets
-- [x] **NAV-03**: On-screen +/− zoom buttons as alternative to scroll wheel
+### Military Aircraft (airplanes.live)
 
-### CONFIG — Default Settings Panel
+- [ ] **MIL-01**: `military_aircraft` model gains `fetched_at`, `last_seen_at`, `is_active`; ingest marks seen rows active and writes `fetched_at`/`last_seen_at` explicitly in `set_={}`; tombstone pass marks absent rows `is_active=False` after each 300s poll
+- [ ] **MIL-02**: `/api/military` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `fetched_at`, `is_stale`; existing keys (`hex`, `flight`, `aircraft_type`, `alt_baro`, `gs`, `track`, `lat`, `lon`, `squawk`) preserved
 
-- [x] **CONFIG-01**: Hidden settings panel accessible via keyboard shortcut or icon (not cluttering main view)
-- [x] **CONFIG-02**: User can configure which layers are enabled on initial load
-- [x] **CONFIG-03**: User can set the default visual preset (Normal, NVG, CRT, FLIR, Noir)
-- [x] **CONFIG-04**: User can set the default camera starting position, zoom level, and tilt
-- [x] **CONFIG-05**: User can set whether the app starts in LIVE or PLAYBACK mode
-- [x] **CONFIG-06**: All settings persist in localStorage and apply on next load
+### Ships (aisstream.io)
 
-## Future Requirements (v3.1)
+- [ ] **SHIP-01**: `ships` model gains `last_seen_at` (typed TIMESTAMPTZ parsed from `time_utc`) and `is_active`; `batch_flush_ships_to_pg` gains deactivation sweep marking ships not seen in current flush as `is_active=False`, bridging Redis TTL expiry to PostgreSQL
+- [ ] **SHIP-02**: `/api/ships` filters to `is_active=True AND last_seen_at >= stale_cutoff`; response includes `last_seen_at`, `fetched_at`, `is_stale`; existing keys preserved
 
-### Data Layers
+### GPS Jamming
 
-- **LAY-05**: Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers
-- **LAY-06**: Weather radar overlay — NOAA NEXRAD WMS tiles on globe
+- [ ] **JAM-01**: `ingest_gps_jamming.py` filters source military rows to `is_active=True` before aggregation; writes `aggregated_at`, `source_fetched_at`, `source_is_stale` to every cell in the batch
+- [ ] **JAM-02**: `/api/gps-jamming` response envelope includes `aggregated_at`, `source_fetched_at`, `source_is_stale`
+- [ ] **JAM-03**: When military source data is stale, cells are returned with `source_is_stale=true` (not an empty set); behavior documented in a code comment and covered by a dedicated test
+
+### Tests
+
+- [ ] **TEST-01**: Aircraft rows with stale `time_position` excluded from `/api/aircraft`; fallback from `time_position` to `last_contact` when `time_position` is null
+- [ ] **TEST-02**: Aircraft `geo_altitude`, `vertical_rate`, `position_source` stored by ingest and returned in response
+- [ ] **TEST-03**: Military stale rows excluded from `/api/military`
+- [ ] **TEST-04**: Ships stale rows excluded from `/api/ships`
+- [ ] **TEST-05**: GPS jamming response includes freshness metadata; `source_is_stale=true` when military data is stale
+- [ ] **TEST-06**: `freshness.py` unit tests — stale cutoff boundary, `is_stale` true/false, clock mock behavior
+- [ ] **TEST-07**: Existing happy-path contracts for `/api/aircraft`, `/api/military`, `/api/ships`, `/api/gps-jamming` still work after all changes
+
+## Future Requirements
+
+### v4.1 (Deferred)
+
+- **VIS-01**: Frontend visual indicator for stale entities (grey-out, opacity reduction, or "STALE" badge) — deferred from v4.0; backend freshness flags will be available
+- **FRESH-03**: `/api/military/freshness` and `/api/ships/freshness` dedicated freshness endpoints — parallel to existing `/api/aircraft/freshness`
+
+### v5.0+ (Deferred)
+
+- **AIS-SAT-01**: Satellite AIS staleness handling with separate `is_satellite_ais` flag and extended threshold — satellite relay has inherent multi-hour gaps
+- **VIS-02**: `position_source` string label rendered in frontend detail panel ("ADS-B", "MLAT", "FLARM")
+- **HIST-01**: Per-entity staleness history (how often stale in last 24h)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Satellite billboard icons | GPU TextureAtlas limit — 5,000+ entities requires PointPrimitive; visual improvement via marker shape instead |
-| Radar sweep animation on globe | Cosmetic only, deferred — focus on functional improvements first |
-| Angular bracket panel borders | Deferred — user chose to skip styling changes for this milestone |
-| framer-motion animation library | Unnecessary overhead — `grid-template-rows` CSS transition achieves same result |
-| Full radial/circular layout | Too disruptive to existing panel structure; deferred to future milestone |
+| Switch providers | OpenSky/airplanes.live/aisstream.io/CelesTrak are correct choices — no switching this milestone |
+| Rename existing response keys | Backward compatibility required — only additive fields allowed |
+| Hard-delete stale rows | Breaks replay engine and detail endpoints — soft expiry only |
+| Frontend stale visual indicators | Deferred to v4.1; backend flags ready but UI work is separate milestone |
+| Earthquake layer (USGS) | Deferred from v3.0 — not in this milestone scope |
+| Weather radar (NOAA) | Deferred from v3.0 — not in this milestone scope |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAYOUT-01 | Phase 13 | Complete |
-| LAYOUT-02 | Phase 13 | Complete |
-| LAYOUT-03 | Phase 13 | Complete |
-| ICONS-01 | Phase 14 | Complete |
-| ICONS-02 | Phase 14 | Complete |
-| ICONS-03 | Phase 14 | Complete |
-| ICONS-04 | Phase 14 | Complete |
-| ICONS-05 | Phase 14 | Complete |
-| NAV-01 | Phase 15 | Complete |
-| NAV-02 | Phase 15 | Complete |
-| NAV-03 | Phase 15 | Complete |
-| CONFIG-01 | Phase 16 | Complete |
-| CONFIG-02 | Phase 16 | Complete |
-| CONFIG-03 | Phase 16 | Complete |
-| CONFIG-04 | Phase 16 | Complete |
-| CONFIG-05 | Phase 16 | Complete |
-| CONFIG-06 | Phase 16 | Complete |
+| MIG-01 | Phase 17 | Pending |
+| FRESH-01 | Phase 18 | Pending |
+| FRESH-02 | Phase 18 | Pending |
+| ACFT-01 | Phase 19 | Pending |
+| ACFT-02 | Phase 19 | Pending |
+| ACFT-03 | Phase 20 | Pending |
+| MIL-01 | Phase 21 | Pending |
+| MIL-02 | Phase 21 | Pending |
+| SHIP-01 | Phase 21 | Pending |
+| SHIP-02 | Phase 21 | Pending |
+| JAM-01 | Phase 21 | Pending |
+| JAM-02 | Phase 22 | Pending |
+| JAM-03 | Phase 22 | Pending |
+| TEST-01 | Phase 23 | Pending |
+| TEST-02 | Phase 23 | Pending |
+| TEST-03 | Phase 23 | Pending |
+| TEST-04 | Phase 23 | Pending |
+| TEST-05 | Phase 23 | Pending |
+| TEST-06 | Phase 23 | Pending |
+| TEST-07 | Phase 23 | Pending |
 
 **Coverage:**
-- v3.0 requirements: 15 total
-- Mapped to phases: 15
+- v4.0 requirements: 20 total
+- Mapped to phases: 20
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 — traceability confirmed after roadmap creation*
+*Requirements defined: 2026-03-13*
+*Last updated: 2026-03-13 after initial definition*
