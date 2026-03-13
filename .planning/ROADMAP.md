@@ -92,7 +92,11 @@ Plans:
   1. Scrubbing to a timestamp 6 hours ago places satellites at positions consistent with that historical time, visibly different from their current real-world positions
   2. Pressing pause during playback causes all satellite positions to freeze instantly with no further movement
   3. Orbit ring overlay and click-to-fly destination for a selected satellite match the replay timestamp, not wall-clock time
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — TDD: resolveTimestamp pure function + PLAY-02 test coverage (propagation.test.ts extension)
+- [ ] 24-02-PLAN.md — Apply three-file surgery: SatelliteLayer loop + COMPUTE_ORBIT, worker handler timestamps, SearchBar GET_POSITION
 
 ### Phase 25: Layer Audit
 **Goal**: Every remaining layer — aircraft, ships, military, GPS jamming, and street traffic — is inert in playback mode; snapshot interpolation has exclusive position ownership; returning to LIVE delivers fresh data immediately
@@ -143,7 +147,7 @@ Plans:
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 23. Store Foundation + Viewer Clock | 4/4 | Complete    | 2026-03-13 | - |
-| 24. Satellite Propagation Fix | v5.0 | 0/? | Not started | - |
+| 23. Store Foundation + Viewer Clock | v5.0 | 4/4 | Complete | 2026-03-13 |
+| 24. Satellite Propagation Fix | v5.0 | 0/2 | Not started | - |
 | 25. Layer Audit | v5.0 | 0/? | Not started | - |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |
