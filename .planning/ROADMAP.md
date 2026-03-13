@@ -108,7 +108,13 @@ Plans:
   3. GPS jamming layer shows an amber "LIVE DATA" badge while playback is active, and its underlying data does not refresh on the daily poll interval during playback
   4. Street traffic particles are hidden during playback and reappear immediately on return to LIVE
   5. Switching from PLAYBACK back to LIVE shows current-time entity positions within 5 seconds (no 90-second stale data window)
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Wave 0: extract queryClient.ts module + write failing tests for all LAYR-01..04 and PLAY-04 behaviors
+- [ ] 25-02-PLAN.md — LAYR-01 aircraft lerp guard + LAYR-02 ships/military Effect 2 guards
+- [ ] 25-03-PLAN.md — LAYR-03: useGpsJamming refetchInterval freeze + amber badge in GpsJammingLayer
+- [ ] 25-04-PLAN.md — LAYR-04: street traffic playback hide + PLAY-04: invalidateQueries on return to LIVE
 
 ### Phase 26: End-to-End Verification + Stale Indicators
 **Goal**: The complete replay experience is verified correct across a real 2-hour data window at all speed presets, FPS stays above 30 at high speed with all layers active, and live-mode entities with stale backend data are visually distinct
@@ -148,6 +154,6 @@ Plans:
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 23. Store Foundation + Viewer Clock | v5.0 | 4/4 | Complete | 2026-03-13 |
-| 24. Satellite Propagation Fix | 2/2 | Complete    | 2026-03-13 | - |
-| 25. Layer Audit | v5.0 | 0/? | Not started | - |
+| 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
+| 25. Layer Audit | v5.0 | 0/4 | Not started | - |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |
