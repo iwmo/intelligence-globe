@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { VisualPreset } from './useAppStore';
+import type { VisualPreset } from './useAppStore';
 
 export interface SettingsState {
   defaultLayers: {
