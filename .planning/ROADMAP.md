@@ -86,12 +86,12 @@ Plans:
   2. Double-clicking does not open an entity detail panel even when an entity is under the cursor
   3. On-screen + and − buttons zoom the camera in and out as an alternative to the scroll wheel
   4. Tilt/pitch widget offers Top-down, 45° Oblique, and Horizon preset buttons that reorient the camera to the corresponding pitch
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 15-01: Add `pitchBy(deltaDeg)` and `zoomStep(factor)` helpers to `viewerRegistry.ts`; build `CameraControlWidget.tsx` with zoom +/− and tilt preset buttons
-- [ ] 15-02: Register custom `LEFT_DOUBLE_CLICK` handler in `GlobeView.tsx initViewer()`; remove CesiumJS built-in entity-tracking double-click; apply 200ms debounce to `LEFT_CLICK` to prevent co-fire
-- [ ] 15-03: Validate double-click zoom on terrain, water, and sky; validate 200ms debounce is imperceptible for normal entity selection; confirm widget does not overlap layer toggles or CesiumJS credit attribution
+- [ ] 15-01-PLAN.md — Add `zoomStep` and `setPitchPreset` helpers to `viewerRegistry.ts`; build `CameraControlWidget.tsx` with zoom +/− and tilt preset buttons (TDD)
+- [ ] 15-02-PLAN.md — Register custom `LEFT_DOUBLE_CLICK` handler in `GlobeView.tsx`; apply 200ms debounce to `LEFT_CLICK` in `AircraftLayer.tsx`; mount widget in `App.tsx`
+- [ ] 15-03-PLAN.md — Human browser validation: double-click zoom on terrain/water/sky, entity panel debounce, widget layout
 
 ### Phase 16: Persistent Settings Panel
 **Goal**: Users can configure the application's startup defaults through a hidden settings panel — which layers load, which visual preset is active, where the camera starts, and whether the app opens in LIVE or PLAYBACK mode — and those settings survive page reload
