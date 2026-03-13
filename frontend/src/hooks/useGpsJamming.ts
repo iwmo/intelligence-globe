@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAppStore } from '../store/useAppStore';
 
 export interface GpsJammingCell {
   h3index: string;
@@ -9,6 +10,7 @@ export interface GpsJammingCell {
 }
 
 export function useGpsJamming() {
+  const replayMode = useAppStore(s => s.replayMode);
   return useQuery<{ cells: GpsJammingCell[] }>({
     queryKey: ['gps-jamming'],
     queryFn: async () => {
@@ -23,7 +25,7 @@ export function useGpsJamming() {
       }
     },
     staleTime: 86_400_000,    // 24 hours — matches daily aggregation cadence
-    refetchInterval: 86_400_000,
+    refetchInterval: replayMode === 'live' ? 86_400_000 : false,  // LAYR-03
     retry: 3,
     retryDelay: 5_000,
   });

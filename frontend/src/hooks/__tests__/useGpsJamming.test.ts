@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockReplayMode: { value: 'live' | 'playback' } = { value: 'live' };
 
-vi.mock('../store/useAppStore', () => ({
+vi.mock('../../store/useAppStore', () => ({
   useAppStore: vi.fn((selector: (s: { replayMode: 'live' | 'playback' }) => unknown) =>
     selector({ replayMode: mockReplayMode.value })
   ),
