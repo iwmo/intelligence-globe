@@ -45,6 +45,14 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 
 ### Active
 
+- [ ] Commercial aircraft freshness — time_position, geo_altitude, vertical_rate, position_source, fetched_at, is_active, stale filtering (ACFT-01 – ACFT-06)
+- [ ] Military aircraft freshness — fetched_at, last_seen_at, is_active, stale filtering on /api/military (MIL-01 – MIL-04)
+- [ ] Ship freshness — last_seen_at, is_active, stale filtering on /api/ships consistent with Redis TTL (SHIP-01 – SHIP-04)
+- [ ] GPS jamming freshness metadata — aggregation timestamp, source staleness flag, stale behavior documented (JAM-01 – JAM-03)
+- [ ] Shared freshness config — configurable stale thresholds per source in settings (FRESH-01 – FRESH-02)
+- [ ] Alembic migrations for all schema changes (MIG-01)
+- [ ] Tests covering all stale/freshness behavior changes (TEST-01 – TEST-07)
+
 - [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
 - [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
 
@@ -128,5 +136,18 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Settings gear icon NOT gated by cleanUI | Settings must remain accessible in cinematic mode | ✓ Good — correct precedence |
 | LEFT_CLICK debounced 200ms when double-click zoom active | CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click | ✓ Good — prevents entity panel on zoom |
 
+## Current Milestone: v4.0 Data Reliability & Freshness
+
+**Goal:** Make all real-time data layers honest about staleness — stale positions excluded from list endpoints, freshness metadata exposed in every API response, richer source fields ingested where available.
+
+**Target features:**
+- Commercial aircraft: ingest time_position/geo_altitude/vertical_rate/position_source, stale filtering, freshness metadata in responses
+- Military aircraft: fetched_at/last_seen_at/is_active lifecycle, stale filtering on /api/military
+- Ships: last_seen_at/is_active lifecycle, stale filtering consistent with Redis TTL
+- GPS jamming: explicit freshness/staleness metadata exposing source data age
+- Shared configurable stale thresholds per data source
+- Alembic migrations for all schema changes
+- Tests for all stale/freshness behavior
+
 ---
-*Last updated: 2026-03-13 after v3.0 UI Refinement milestone*
+*Last updated: 2026-03-13 after v4.0 milestone started*
