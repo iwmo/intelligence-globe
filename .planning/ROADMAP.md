@@ -104,12 +104,12 @@ Plans:
   4. User can set a default camera starting position, zoom level, and tilt — the globe flies to that view on next load instead of the default position
   5. User can choose whether the app starts in LIVE or PLAYBACK mode — that choice is applied immediately on next page load
   6. All settings changes are saved to localStorage automatically; closing and reopening the browser tab restores all configured defaults
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 16-01: Define settings schema and `useSettingsStore` Zustand slice with localStorage persistence; write unit tests
-- [ ] 16-02: Build `SettingsPanel.tsx` UI (layer defaults, visual preset selector, camera defaults, start mode toggle); keyboard shortcut and icon toggle
-- [ ] 16-03: Wire settings to application boot sequence — apply layer defaults, preset, camera starting position, and start mode on mount; validate all settings survive hard reload
+- [ ] 16-01-PLAN.md — Define `useSettingsStore` Zustand slice (TDD) — persist middleware, all four defaults, localStorage key 'globe-settings'
+- [ ] 16-02-PLAN.md — Build `SettingsPanel.tsx` DraggablePanel UI + keyboard shortcut ',' + gear icon toggle in App.tsx
+- [ ] 16-03-PLAN.md — Wire settings to onViewerReady boot sequence; browser validation of all CONFIG requirements
 
 ## Progress
 
