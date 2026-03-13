@@ -1,5 +1,22 @@
 # Milestones
 
+## v4.0 Data Reliability & Freshness (Shipped: 2026-03-13)
+
+**Phases completed:** 6 phases, 13 plans
+**Lines of code:** ~6,216 Python (+9,704 lines across 71 files)
+**Git range:** `feat(17-01)` → `feat(22-02)` (45 commits)
+**Timeline:** 2026-03-13 (single day sprint)
+**Test suite:** 95 passed, 2 skipped, 0 failed
+
+**Key accomplishments:**
+- Alembic hand-written migration adds freshness lifecycle columns across all 4 tables (aircraft, military_aircraft, ships, gps_jamming_cells) with zero-downtime safe defaults
+- Reusable `app/freshness.py` module with env-var configurable stale thresholds (pydantic-settings) shared across all routes and ingest workers
+- Aircraft, military, and ship API endpoints filter stale/inactive entities — only fresh data reaches the frontend via `is_active + fetched_at >= stale_cutoff` pattern
+- GPS jamming staleness transparency: `source_is_stale=true` propagated when military source data is stale, preventing silent empty-set feed-down masking
+- Full 95-test DB-level integration suite verifying all freshness contracts, stale filtering, ingest correctness, and route preservation — with human checkpoint approval gate
+
+---
+
 ## v3.0 UI Refinement (Shipped: 2026-03-13)
 
 **Phases completed:** 4 phases, 13 plans

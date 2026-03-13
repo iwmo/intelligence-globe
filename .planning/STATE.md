@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
-status: executing
-last_updated: "2026-03-13T14:14:33.044Z"
-last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
+status: complete
+last_updated: "2026-03-13"
+last_activity: 2026-03-13 — v4.0 milestone complete (20/20 requirements, 95 tests green)
 progress:
   total_phases: 6
   completed_phases: 6
@@ -16,33 +16,32 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13 after v4.0 milestone started)
+See: .planning/PROJECT.md (updated 2026-03-13 after v4.0 milestone)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v4.0 Data Reliability & Freshness — Phase 17 ready to plan
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 17 — Schema Migration (Plan 01 complete)
-Plan: 01 (complete)
-Status: Phase 17 in progress — awaiting next plan
-Last activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
+Phase: v4.0 complete
+Status: Milestone archived — ready for next milestone
+Last activity: 2026-03-13 — v4.0 shipped (20/20 requirements, 95 tests green, all 6 phases verified)
 
 ## Progress Bar
 
 ```
-v4.0: [~] [ ] [ ] [ ] [ ] [ ]
+v4.0: [x] [x] [x] [x] [x] [x]
        17  18  19  20  21  22
-~17% complete (1 plan done in Phase 17)
+100% complete — SHIPPED 2026-03-13
 ```
 
 ## Performance Metrics
 
 | Metric | v1.0 | v2.0 | v3.0 | v4.0 |
 |--------|------|------|------|------|
-| Phases | 6 | 6 | 4 | 6 (planned) |
-| Plans | 17 | 28 | 13 | TBD |
-| LOC added | ~4,400 | ~20,732 | ~8,275 | TBD |
+| Phases | 6 | 6 | 4 | 6 |
+| Plans | 17 | 28 | 13 | 13 |
+| LOC added | ~4,400 | ~20,732 | ~8,275 | ~9,704 |
 | Phase 17 P01 | 15 | 2 tasks | 7 files |
 | Phase 18 P01 | 8m | 3 tasks | 3 files |
 | Phase 19 P01 | 4m | 2 tasks | 3 files |
@@ -105,9 +104,8 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 
 ### Pending Todos
 
-- Verify `position_source` (sv[16]) presence in live OpenSky data before writing assertions (may require authenticated endpoint)
-- Confirm AIS nav_status threshold strategy: research recommends Redis-TTL-only for v4.0 simplicity
+None — v4.0 complete.
 
 ### Blockers/Concerns
 
-None at roadmap stage. Two items flagged for Phase 19 and Phase 20 validation respectively (see Pending Todos).
+None.

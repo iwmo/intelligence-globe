@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, and a fully polished UI with draggable panels, custom SVG entity icons, and persistent user settings.
+A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, fully polished draggable panels and custom SVG entity icons, and data reliability guarantees — stale positions filtered from all live endpoints, freshness metadata exposed in every API response.
 
 ## Core Value
 
@@ -42,19 +42,20 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Double-click zoom toward cursor with 200ms LEFT_CLICK debounce — v3.0
 - ✓ CameraControlWidget: on-screen +/− zoom buttons and Top-down/45°/Horizon tilt presets — v3.0
 - ✓ Persistent settings panel (Zustand persist, localStorage) — defaultLayers, defaultPreset, defaultMode, defaultCamera — v3.0
+- ✓ Alembic hand-written migration adds freshness lifecycle columns across all 4 tables with zero-downtime defaults — v4.0
+- ✓ Shared `app/freshness.py` module with env-var configurable stale thresholds (pydantic-settings) — v4.0
+- ✓ Commercial aircraft freshness: time_position, geo_altitude, vertical_rate, position_source, fetched_at, is_active; stale rows filtered from /api/aircraft — v4.0
+- ✓ Military aircraft freshness: fetched_at, last_seen_at, is_active lifecycle; tombstone sweep; stale filter on /api/military — v4.0
+- ✓ Ship freshness: last_seen_at, is_active lifecycle derived from Redis AIS TTL; stale filter on /api/ships — v4.0
+- ✓ GPS jamming freshness transparency: aggregated_at, source_fetched_at, source_is_stale metadata; stale cells returned with source_is_stale=true (not empty set) — v4.0
+- ✓ Full 95-test DB-level integration suite verifying all freshness contracts and route preservation — v4.0
 
 ### Active
 
-- [ ] Commercial aircraft freshness — time_position, geo_altitude, vertical_rate, position_source, fetched_at, is_active, stale filtering (ACFT-01 – ACFT-06)
-- [ ] Military aircraft freshness — fetched_at, last_seen_at, is_active, stale filtering on /api/military (MIL-01 – MIL-04)
-- [ ] Ship freshness — last_seen_at, is_active, stale filtering on /api/ships consistent with Redis TTL (SHIP-01 – SHIP-04)
-- [ ] GPS jamming freshness metadata — aggregation timestamp, source staleness flag, stale behavior documented (JAM-01 – JAM-03)
-- [ ] Shared freshness config — configurable stale thresholds per source in settings (FRESH-01 – FRESH-02)
-- [ ] Alembic migrations for all schema changes (MIG-01)
-- [ ] Tests covering all stale/freshness behavior changes (TEST-01 – TEST-07)
-
 - [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
 - [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
+- [ ] Frontend visual indicator for stale entities — grey-out, opacity reduction, or "STALE" badge (VIS-01, deferred from v4.0)
+- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03)
 
 ### Out of Scope
 
@@ -74,8 +75,9 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 **Shipped v1.0:** 2026-03-11 — Live multi-layer globe (satellites, aircraft, search, filters)
 **Shipped v2.0:** 2026-03-12 — WorldView Parity (visual engine, new layers, replay, OSINT)
 **Shipped v3.0:** 2026-03-13 — UI Refinement (draggable panels, SVG icons, camera controls, settings)
+**Shipped v4.0:** 2026-03-13 — Data Reliability & Freshness (stale filtering, freshness metadata, full test suite)
 **Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose
-**Codebase:** ~12,415 LOC TypeScript/Python across 58 plans
+**Codebase:** ~6,216 Python LOC backend; full stack ~18,000+ LOC across 71 plans
 
 **Key learnings from v3.0:**
 - CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
@@ -85,7 +87,16 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - Billboard migration per-layer must be done in two atomic steps (add new, remove old) — parallel PointPrimitive + BillboardCollection causes doubled draw calls and double-pickable entities
 - useSettingsStore separate from useAppStore — prevents transient runtime values from being persisted to localStorage
 
-**Key learnings from v2.0:**
+**Key learnings from v4.0:**
+- OpenSky persists state vectors 300s after last contact — use `time_position` (sv[3]) not `last_contact` (sv[4]) for positional freshness
+- `onupdate` is silently ignored on SQLAlchemy's `on_conflict_do_update` path — all freshness fields must be explicit in every `set_={}` dict
+- AIS vessels moored/anchored report every 3 minutes — uniform timestamp threshold would incorrectly mark them inactive; use Redis key presence (TTL) not timestamp arithmetic
+- GPS jamming empty response on feed-down silently converts a staleness event into a blank globe layer — `source_is_stale=true` preserves observability
+- `is_active = server_default=true` avoids NOT NULL violation on pre-migration rows with no backfill required
+- Import `from datetime import datetime` (not `import datetime`) in freshness helpers for `patch()` patchability in tests
+- stale_cutoff() must be called inside handler body (never at module scope) — module-scope call freezes the cutoff at server start time
+
+**Key learnings from v3.0:**
 - PostProcessEngine must be a singleton created at init — recreating on preset switch causes stale uniforms
 - aisstream.io has 2-minute server-initiated disconnects; exponential backoff reconnect + Redis position cache required
 - airplanes.live /v2/mil replaced ADSB Exchange (moved to paid RapidAPI March 2025)
@@ -135,19 +146,13 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | useSettingsStore separate from useAppStore | Prevents transient runtime values (selectedId, replayTs) from being persisted | ✓ Good — correct separation |
 | Settings gear icon NOT gated by cleanUI | Settings must remain accessible in cinematic mode | ✓ Good — correct precedence |
 | LEFT_CLICK debounced 200ms when double-click zoom active | CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click | ✓ Good — prevents entity panel on zoom |
-
-## Current Milestone: v4.0 Data Reliability & Freshness
-
-**Goal:** Make all real-time data layers honest about staleness — stale positions excluded from list endpoints, freshness metadata exposed in every API response, richer source fields ingested where available.
-
-**Target features:**
-- Commercial aircraft: ingest time_position/geo_altitude/vertical_rate/position_source, stale filtering, freshness metadata in responses
-- Military aircraft: fetched_at/last_seen_at/is_active lifecycle, stale filtering on /api/military
-- Ships: last_seen_at/is_active lifecycle, stale filtering consistent with Redis TTL
-- GPS jamming: explicit freshness/staleness metadata exposing source data age
-- Shared configurable stale thresholds per data source
-- Alembic migrations for all schema changes
-- Tests for all stale/freshness behavior
+| Hand-written Alembic migrations only (no autogenerate) | Autogenerate may drop position_snapshots partition child tables; hand-written is safe | ✓ Good — partitioned table preserved |
+| is_active=server_default='true' (no backfill UPDATE) | Pre-migration rows treated as active immediately; backfill UPDATE locks live tables | ✓ Good — zero-downtime migration |
+| All freshness fields explicit in upsert set_={} dicts | SQLAlchemy onupdate silently ignored on on_conflict_do_update path | ✓ Good — critical correctness |
+| AIS is_active from Redis TTL presence (not timestamp arithmetic) | ITU-R M.1371 moored vessels report every 3 min; threshold-based approach marks them inactive | ✓ Good — preserves ship coverage |
+| GPS jamming returns source_is_stale=true on feed-down (not empty set) | Empty response silently converts staleness event into blank layer on the globe | ✓ Good — preserves observability |
+| stale_cutoff() called inside handler body (not module scope) | Module-scope call freezes cutoff at server start — all rows would eventually appear fresh | ✓ Good — correctness critical |
+| Detail endpoints unaffected by stale filtering | Replay engine and click-to-inspect panels need historical rows; filtering breaks time-scrubber | ✓ Good — list vs detail asymmetry correct |
 
 ---
-*Last updated: 2026-03-13 after v4.0 milestone started*
+*Last updated: 2026-03-13 after v4.0 milestone*

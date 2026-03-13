@@ -157,6 +157,58 @@
 
 ---
 
+## Milestone: v4.0 — Data Reliability & Freshness
+
+**Shipped:** 2026-03-13
+**Phases:** 6 | **Plans:** 13 | **LOC:** ~9,704 Python (+9,704 lines, 71 files)
+**Test suite:** 95 passed, 2 skipped, 0 failed
+
+### What Was Built
+
+- Alembic hand-written migration adds freshness lifecycle columns to all 4 tables (`aircraft`, `military_aircraft`, `ships`, `gps_jamming_cells`) with zero-downtime safe defaults — `is_active=server_default='true'`, all timestamps nullable
+- `app/freshness.py` module with `stale_cutoff()` and `is_stale()` helpers; env-var configurable thresholds via pydantic-settings (`AIRCRAFT_STALE_SECONDS=120`, `MILITARY=600`, `SHIP=900`, `GPS_JAMMING=600`)
+- Aircraft, military, ship list endpoints filter by `is_active=True AND timestamp >= stale_cutoff` — only fresh entities reach the frontend
+- GPS jamming transparency: `aggregated_at`, `source_fetched_at`, `source_is_stale` propagated to API envelope; stale cells returned with `source_is_stale=true` (not empty set) to preserve observability
+- Full DB-level integration test suite: 95 passing tests across freshness unit tests, stale filtering, ingest correctness, route preservation — with human-checkpoint approval gate
+
+### What Worked
+
+- **TDD discipline throughout** — all 6 phases applied RED→GREEN; `freshness.py` tests were committed before the module existed; route filter tests were written before implementations; 0 test failures during human QA
+- **`stale_cutoff()` inside handler body pattern** — identified during Phase 18 research; module-scope call would freeze the cutoff at server start; calling inside the handler body means every request computes fresh cutoff
+- **Tombstone guard pattern** — `if seen_ids: ... tombstone sweep` prevents mass false-deactivation on feed-down (empty set → no tombstone); implemented consistently across aircraft, military, and ships ingest
+- **Audit-first approach** — running `/gsd:audit-milestone` before archiving confirmed 20/20 requirements satisfied and 14/14 cross-phase integrations wired; no post-archive surprises
+- **GPS jamming non-empty policy** — `source_is_stale=true` on stale cells rather than empty response preserves globe layer observability; the decision was validated during Phase 21
+
+### What Was Inefficient
+
+- **TDD sequence inversion in Phase 21** — plans 21-02 and 21-03 were implemented before 21-01 wrote tests; noted in audit as process deviation; contracts are valid and tests pass but the sequence inverts the TDD intent
+- **Nyquist VALIDATION.md scaffold-only** — all 6 VALIDATION.md files were created as scaffolds but frontmatter was never updated to reflect TDD execution; `nyquist_compliant: false` across all phases despite wave-0 behavior being present
+- **Two-loop architecture in aircraft ingest** — `tasks/ingest_aircraft.py` has its own inline upsert loop duplicating `workers/ingest_aircraft.py::upsert_aircraft()`; acknowledged in audit as a maintenance surface but not fixed in v4.0
+
+### Patterns Established
+
+- **`from datetime import datetime` (not `import datetime`)** — module-level import name is required for `patch('app.freshness.datetime')` to target correctly in tests
+- **All freshness fields explicit in `set_={}` dict** — SQLAlchemy `onupdate` is silently ignored on `on_conflict_do_update`; never rely on it for freshness columns
+- **`stale_cutoff()` inside handler body** — never at module scope; module-scope call is frozen at server start time
+- **AIS `is_active` from Redis key presence** — uniform timestamp threshold incorrectly marks moored vessels (ITU-R M.1371: report every 3 min) as inactive; Redis TTL is authoritative for AIS
+- **`TRUNCATE TABLE` for GPS jamming test isolation** — `cells[0]` metadata lift pattern requires clean table; TRUNCATE before insert guarantees the test row is cells[0]
+
+### Key Lessons
+
+1. **stale_cutoff() call placement is correctness-critical** — a module-scope call looks identical to a handler-body call but produces wrong results; document this as a required rule in freshness patterns
+2. **Tombstone guard is non-negotiable** — mass false-deactivation on feed-down (empty response → all rows tombstoned) would blank the globe layer; `if seen_ids:` guard is required in every tombstone sweep
+3. **GPS jamming non-empty policy is architectural** — returning stale cells with metadata is the correct behavior; an empty response silently converts a staleness event into a blank layer with no observability
+4. **onupdate is unreliable on upsert** — SQLAlchemy `onupdate` on model columns is silently ignored on conflict-do-update paths; always write freshness columns explicitly in the `set_={}` dict
+5. **Nyquist VALIDATION.md must be updated at execution time** — creating scaffold files is not sufficient; the `nyquist_compliant` and `wave_0_complete` frontmatter fields must be updated when TDD wave-0 is executed
+
+### Cost Observations
+
+- Sessions: 1 continuous session (2026-03-13, ~6 hours)
+- Model: balanced profile (sonnet-4.6)
+- Notable: 13 plans across 6 phases entirely backend; the most test-heavy milestone to date; human-checkpoint gate for test suite approval added verifiable confidence at milestone boundary
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | LOC | Key Pattern |
@@ -164,3 +216,4 @@
 | v1.0 MVP | 6 | 17 | ~4,400 | Primitive API + Web Worker for scale |
 | v2.0 WorldView Parity | 6 | 28 | ~9,326 | Singleton engine + partitioned storage + replay |
 | v3.0 UI Refinement | 4 | 13 | ~12,415 | DraggablePanel + SVG icons + camera controls + settings |
+| v4.0 Data Reliability | 6 | 13 | ~9,704 | Freshness lifecycle columns + stale filtering + DB-level tests |
