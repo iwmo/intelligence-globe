@@ -128,9 +128,9 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 26-01-PLAN.md — Wave 0: VIS-01 stale-tint contract tests + VRFY-01 tick boundary contracts
-- [ ] 26-02-PLAN.md — VIS-01: extend 3 hook interfaces with is_stale + stale-tint effects in 3 layer components
-- [ ] 26-03-PLAN.md — VRFY-01: start app + manual 2h scrub verification checkpoint
+- [x] 26-01-PLAN.md — Wave 0: VIS-01 stale-tint contract tests + VRFY-01 tick boundary contracts
+- [x] 26-02-PLAN.md — VIS-01: extend 3 hook interfaces with is_stale + stale-tint effects in 3 layer components
+- [x] 26-03-PLAN.md — VRFY-01: start app + manual 2h scrub verification checkpoint
 - [ ] 26-04-PLAN.md — VRFY-02: FPS gate measurement + conditional interpolation throttle optimisation
 
 ## Progress
@@ -162,4 +162,4 @@ Plans:
 | 23. Store Foundation + Viewer Clock | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
 | 25. Layer Audit | 4/4 | Complete    | 2026-03-13 | - |
-| 26. End-to-End Verification + Stale Indicators | 2/4 | In Progress|  | - |
+| 26. End-to-End Verification + Stale Indicators | v5.0 | 3/4 | In Progress | - |
