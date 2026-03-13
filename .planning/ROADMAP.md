@@ -138,7 +138,11 @@ Plans:
   4. Tests confirm stale row exclusion independently for `/api/military` and `/api/ships`
   5. A test asserts `source_is_stale = true` appears in the GPS jamming response when source military data is stale
   6. Unit tests for `freshness.py` cover the stale cutoff boundary, `is_stale` true/false transition, and clock mock behavior
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 22-01-PLAN.md — Military and ships stale/inactive exclusion tests (TEST-03, TEST-04)
+- [ ] 22-02-PLAN.md — Aircraft geo_altitude route addition + test; GPS jamming source_is_stale DB test (TEST-02, TEST-05)
+- [ ] 22-03-PLAN.md — Full suite verification: TEST-01, TEST-06, TEST-07 regression gate + human checkpoint
 
 ## Progress
 
@@ -164,5 +168,5 @@ Plans:
 | 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 21. API Route Filtering | 3/3 | Complete    | 2026-03-13 | - |
-| 22. Tests | v4.0 | 0/TBD | Not started | - |
+| 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
+| 22. Tests | v4.0 | 0/3 | Not started | - |
