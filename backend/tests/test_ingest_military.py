@@ -106,10 +106,14 @@ async def test_fetched_at_written():
          patch("httpx.AsyncClient", return_value=mock_http_cm):
         await ingest_military_aircraft()
 
-    # The first execute call is the upsert for "ae0001"
-    first_call_args = str(mock_session.execute.call_args_list[0])
-    assert "fetched_at" in first_call_args
-    assert "last_seen_at" in first_call_args
+    # The first execute call is the upsert — inspect via SQLAlchemy _post_values_clause
+    insert_stmt = mock_session.execute.call_args_list[0][0][0]
+    conflict_clause = insert_stmt._post_values_clause
+    update_dict = dict(conflict_clause.update_values_to_set)
+    assert "fetched_at" in update_dict, f"fetched_at missing from set_: {list(update_dict.keys())}"
+    assert "last_seen_at" in update_dict, f"last_seen_at missing from set_: {list(update_dict.keys())}"
+    assert isinstance(update_dict["fetched_at"], datetime), "fetched_at must be a datetime"
+    assert isinstance(update_dict["last_seen_at"], datetime), "last_seen_at must be a datetime"
 
 
 @pytest.mark.asyncio
@@ -129,8 +133,11 @@ async def test_is_active_true_for_seen():
          patch("httpx.AsyncClient", return_value=mock_http_cm):
         await ingest_military_aircraft()
 
-    first_call_args = str(mock_session.execute.call_args_list[0])
-    assert "is_active" in first_call_args
+    insert_stmt = mock_session.execute.call_args_list[0][0][0]
+    conflict_clause = insert_stmt._post_values_clause
+    update_dict = dict(conflict_clause.update_values_to_set)
+    assert "is_active" in update_dict, f"is_active missing from set_: {list(update_dict.keys())}"
+    assert update_dict["is_active"] is True, f"is_active must be True, got {update_dict['is_active']}"
 
 
 @pytest.mark.asyncio
@@ -139,8 +146,9 @@ async def test_tombstone_marks_absent_inactive():
 
     Response contains only "ae0001" — so "ae9999" (previously active) should be
     swept inactive. We verify by asserting a second execute() call occurs (the tombstone)
-    and that it references 'not_in' in its string representation.
+    and that its compiled SQL contains 'NOT IN' or equivalent.
     """
+    from sqlalchemy.dialects import postgresql
     from app.tasks.ingest_military import ingest_military_aircraft
 
     mock_cm, mock_session = _make_mock_session()
@@ -159,9 +167,12 @@ async def test_tombstone_marks_absent_inactive():
     assert mock_session.execute.call_count == 2, (
         f"Expected 2 execute calls (1 upsert + 1 tombstone), got {mock_session.execute.call_count}"
     )
-    tombstone_call_args = str(mock_session.execute.call_args_list[-1])
-    assert "not_in" in tombstone_call_args.lower() or "notin" in tombstone_call_args.lower(), (
-        f"Tombstone call does not appear to use not_in: {tombstone_call_args}"
+    tombstone_stmt = mock_session.execute.call_args_list[-1][0][0]
+    compiled = tombstone_stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True})
+    sql = str(compiled).upper()
+    assert "NOT IN" in sql, f"Tombstone SQL must contain NOT IN, got: {sql}"
+    assert "IS_ACTIVE" in sql or "IS ACTIVE" in sql or "is_active" in str(compiled), (
+        f"Tombstone SQL must set is_active: {compiled}"
     )
 
 

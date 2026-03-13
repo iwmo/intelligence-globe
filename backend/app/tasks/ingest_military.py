@@ -16,10 +16,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import func
+from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db import AsyncSessionLocal
@@ -96,6 +97,9 @@ async def ingest_military_aircraft() -> int:
     """
     logger.info("Starting military aircraft ingest from airplanes.live /v2/mil")
 
+    fetched_at = datetime.now(timezone.utc)
+    last_seen_at = fetched_at
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(AIRPLANES_LIVE_MIL_URL)
         resp.raise_for_status()
@@ -141,10 +145,21 @@ async def ingest_military_aircraft() -> int:
                         "nic": record["nic"],
                         "nac_p": record["nac_p"],
                         "updated_at": func.now(),
+                        "fetched_at": fetched_at,
+                        "last_seen_at": last_seen_at,
+                        "is_active": True,
                     },
                 )
             )
             await session.execute(stmt)
+
+        seen_hexes = list({record["hex"] for record in valid_records})
+        if seen_hexes:
+            await session.execute(
+                sa_update(MilitaryAircraft)
+                .where(MilitaryAircraft.hex.not_in(seen_hexes))
+                .values(is_active=False)
+            )
 
         await session.commit()
 
