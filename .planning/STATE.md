@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
-status: executing
+status: completed
 stopped_at: Completed 25-04-PLAN.md
-last_updated: "2026-03-13T20:14:53.735Z"
-last_activity: "2026-03-13 — Plan 25-03 complete: GPS jamming poll frozen in playback (refetchInterval: false), amber GPS LIVE DATA badge rendered, LAYR-03 GREEN"
+last_updated: "2026-03-13T20:18:48.959Z"
+last_activity: "2026-03-13 — Plan 25-04 complete: street traffic particles hidden in playback, rAF loop frozen, road fetch debounced blocked, invalidateQueries wired on LIVE return — LAYR-04 and PLAY-04 GREEN; full 192-test suite green"
 progress:
   total_phases: 4
   completed_phases: 3
