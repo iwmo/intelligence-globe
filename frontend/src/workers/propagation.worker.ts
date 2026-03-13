@@ -25,12 +25,12 @@ interface PropagateMessage {
 
 interface ComputeOrbitMessage {
   type: 'COMPUTE_ORBIT';
-  payload: { omm: Record<string, unknown>; periodSeconds: number };
+  payload: { omm: Record<string, unknown>; periodSeconds: number; timestamp?: number };
 }
 
 interface GetPositionMessage {
   type: 'GET_POSITION';
-  payload: { norad: number };
+  payload: { norad: number; timestamp?: number };
 }
 
 interface ComputeOverpassMessage {
@@ -89,15 +89,19 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
   }
 
   if (type === 'COMPUTE_ORBIT') {
-    const { omm, periodSeconds } = payload as { omm: Record<string, unknown>; periodSeconds: number };
+    const { omm, periodSeconds, timestamp } = payload as {
+      omm: Record<string, unknown>;
+      periodSeconds: number;
+      timestamp?: number;
+    };
     const satrec = satellite.json2satrec(omm as satellite.OMMJsonObject);
-    const now = Date.now();
+    const startMs = timestamp ?? Date.now();
     const stepCount = Math.ceil(periodSeconds / 60);
     const orbitPoints: number[][] = [];
     const groundPoints: number[][] = [];
 
     for (let i = 0; i <= stepCount; i++) {
-      const t = new Date(now + i * 60_000);
+      const t = new Date(startMs + i * 60_000);
       const gmst = satellite.gstime(t);
       const pv = satellite.propagate(satrec, t);
 
@@ -123,13 +127,13 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
   }
 
   if (type === 'GET_POSITION') {
-    const { norad } = payload as { norad: number };
+    const { norad, timestamp } = payload as { norad: number; timestamp?: number };
     const entry = satrecs.find(s => s.norad === norad);
     if (!entry) {
       self.postMessage({ type: 'POSITION_RESULT', norad, position: null });
       return;
     }
-    const now = new Date();
+    const now = new Date(timestamp ?? Date.now());
     const gmst = satellite.gstime(now);
     const pv = satellite.propagate(entry.satrec, now);
     if (pv === null || typeof pv.position === 'boolean' || pv.position === undefined) {
