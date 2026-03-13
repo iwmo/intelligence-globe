@@ -16,18 +16,30 @@ import { CinematicHUD } from './components/CinematicHUD';
 import { LandmarkNav } from './components/LandmarkNav';
 import { PlaybackBar } from './components/PlaybackBar';
 import { OsintEventPanel } from './components/OsintEventPanel';
+import { SettingsPanel } from './components/SettingsPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
 import { CameraControlWidget } from './components/CameraControlWidget';
+import { Settings } from 'lucide-react';
 
 export default function App() {
   const [cesiumViewer, setCesiumViewer] = useState<Viewer | null>(null);
   const [satWorker, setSatWorker] = useState<Worker | null>(null);
   const satWorkerRef = useRef<Worker | null>(null);
   const [osintPanelOpen, setOsintPanelOpen] = useState(false);
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const { cleanUI } = useAppStore();
 
   useKeyboardShortcuts();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === ',') setSettingsPanelOpen(v => !v);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   useEffect(() => {
     satWorkerRef.current = satWorker;
@@ -67,6 +79,35 @@ export default function App() {
 
       {/* Phase 15: Camera control widget — zoom +/− and tilt presets — unconditional like LandmarkNav */}
       <CameraControlWidget />
+
+      {/* Phase 16: Gear icon — always visible, not gated by cleanUI so settings are always reachable */}
+      <button
+        onClick={() => setSettingsPanelOpen(v => !v)}
+        title="Settings (,)"
+        style={{
+          position: 'fixed',
+          bottom: '200px',
+          right: '12px',
+          zIndex: 1000,
+          background: 'rgba(0,0,0,0.7)',
+          border: '1px solid rgba(0,212,255,0.3)',
+          borderRadius: '4px',
+          color: 'rgba(0,212,255,0.8)',
+          cursor: 'pointer',
+          width: '32px',
+          height: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+        }}
+        aria-label="Open settings"
+      >
+        <Settings size={16} />
+      </button>
+
+      {/* Phase 16: Settings panel — unmount-based toggle (not display:none) */}
+      {settingsPanelOpen && <SettingsPanel onClose={() => setSettingsPanelOpen(false)} />}
 
       {/* UI chrome overlays — gated by cleanUI (VIS-04) */}
       {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}
