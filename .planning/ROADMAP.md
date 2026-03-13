@@ -63,7 +63,7 @@
 - [x] **Phase 23: Store Foundation + Viewer Clock** — Promote `isPlaying` to `useAppStore`, create `useViewerClock` hook, wire HUD and play button loading state (completed 2026-03-13)
 - [x] **Phase 24: Satellite Propagation Fix** — Satellites propagate at `replayTs` in playback; propagation loop skips dispatch when paused (completed 2026-03-13)
 - [x] **Phase 25: Layer Audit** — Aircraft, ships, military, GPS jamming, and street traffic all gated on `replayMode`; return-to-live triggers cache invalidation (completed 2026-03-13)
-- [ ] **Phase 26: End-to-End Verification + Stale Indicators** — Full scrub test across 2-hour window, FPS gate, frontend stale entity visual degradation
+- [x] **Phase 26: End-to-End Verification + Stale Indicators** — Full scrub test across 2-hour window, FPS gate, frontend stale entity visual degradation (completed 2026-03-13)
 
 ## Phase Details
 
@@ -162,4 +162,4 @@ Plans:
 | 23. Store Foundation + Viewer Clock | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
 | 25. Layer Audit | 4/4 | Complete    | 2026-03-13 | - |
-| 26. End-to-End Verification + Stale Indicators | v5.0 | 3/4 | In Progress | - |
+| 26. End-to-End Verification + Stale Indicators | 4/4 | Complete   | 2026-03-13 | - |

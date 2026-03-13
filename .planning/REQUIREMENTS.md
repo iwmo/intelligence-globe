@@ -30,7 +30,7 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 ### Verification
 
 - [x] **VRFY-01**: End-to-end scrub test across 2-hour window — pause freeze, all speed presets, auto-stop at window end, all layers correct
-- [ ] **VRFY-02**: FPS gate above 30 at 15m/s+ with aircraft + ships active; optimisation applied if gate fails
+- [x] **VRFY-02**: FPS gate above 30 at 15m/s+ with aircraft + ships active; optimisation applied if gate fails
 
 ## v6.0 Requirements
 
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAYR-04 | Phase 25 | Complete |
 | VIS-01 | Phase 26 | Complete |
 | VRFY-01 | Phase 26 | Complete |
-| VRFY-02 | Phase 26 | Pending |
+| VRFY-02 | Phase 26 | Complete |
 
 **Coverage:**
 - v5.0 requirements: 13 total
