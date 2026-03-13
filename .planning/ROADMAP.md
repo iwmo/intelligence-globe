@@ -36,7 +36,7 @@
 
 **Milestone Goal:** Refine the globe UI with collapsible sidebar panels, zoom-scalable entity icons, improved camera navigation controls, and a persistent settings panel.
 
-- [ ] **Phase 13: Collapsible Sidebar Layout** — Sidebar restructured into named collapsible sections with smooth animation and no panel overlap
+- [x] **Phase 13: Collapsible Sidebar Layout** — Sidebar restructured into named collapsible sections with smooth animation and no panel overlap (completed 2026-03-13)
 - [x] **Phase 14: Entity Icons and Altitude Scaling** — Custom icons for aircraft, military, ships, and improved satellite markers, all scaling with camera altitude (completed 2026-03-12)
 - [ ] **Phase 15: Camera Navigation Controls** — Double-click zoom toward cursor, tilt/pitch widget, and on-screen zoom buttons
 - [ ] **Phase 16: Persistent Settings Panel** — Hidden settings panel with configurable defaults for layers, preset, camera position, and start mode
@@ -127,7 +127,7 @@ Plans:
 | 10. Snapshot Infrastructure | v2.0 | 3/3 | Complete | 2026-03-12 |
 | 11. Replay Engine | v2.0 | 4/4 | Complete | 2026-03-12 |
 | 12. OSINT Event Correlation | v2.0 | 5/5 | Complete | 2026-03-12 |
-| 13. Collapsible Sidebar Layout | 2/3 | In Progress|  | — |
+| 13. Collapsible Sidebar Layout | 3/3 | Complete    | 2026-03-13 | — |
 | 14. Entity Icons and Altitude Scaling | 4/4 | Complete    | 2026-03-12 | — |
 | 15. Camera Navigation Controls | v3.0 | 0/3 | Not started | — |
 | 16. Persistent Settings Panel | v3.0 | 0/3 | Not started | — |
