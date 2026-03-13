@@ -18,6 +18,7 @@ import { PlaybackBar } from './components/PlaybackBar';
 import { OsintEventPanel } from './components/OsintEventPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
+import { CameraControlWidget } from './components/CameraControlWidget';
 
 export default function App() {
   const [cesiumViewer, setCesiumViewer] = useState<Viewer | null>(null);
@@ -63,6 +64,9 @@ export default function App() {
 
       {/* Phase 12: OsintEventPanel — ALWAYS mounted, controlled by osintPanelOpen state */}
       <OsintEventPanel open={osintPanelOpen} onClose={() => setOsintPanelOpen(false)} />
+
+      {/* Phase 15: Camera control widget — zoom +/− and tilt presets — unconditional like LandmarkNav */}
+      <CameraControlWidget />
 
       {/* UI chrome overlays — gated by cleanUI (VIS-04) */}
       {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}

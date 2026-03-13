@@ -5,6 +5,12 @@ import {
   Color,
   EllipsoidTerrainProvider,
   UrlTemplateImageryProvider,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  Cartesian2,
+  Cartesian3,
+  Cartographic,
+  defined,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import '../styles/globe.css';
@@ -76,6 +82,46 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
         viewerRef.current = viewer;
         onViewerReady?.(viewer);
 
+        // NAV-01: Remove CesiumJS built-in entity-tracking double-click BEFORE
+        // registering custom handler. Without this, two conflicting camera flights
+        // fire simultaneously (STATE.md locked decision).
+        viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+          ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+        );
+
+        // NAV-01: Register custom double-click zoom toward cursor point
+        const dblHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+        dblHandler.setInputAction((event: { position: Cartesian2 }) => {
+          // Primary: pick terrain/water surface position
+          let picked: Cartesian3 | undefined = viewer.scene.pickPosition(event.position);
+
+          // Fallback: if pickPosition fails (e.g. billboard/entity surface, sky edge),
+          // project click to nearest ellipsoid point. This handles entities where
+          // scene.pickPosition returns undefined (pitfall 3 from research).
+          if (!defined(picked)) {
+            const ellipsoidPick = viewer.scene.camera.pickEllipsoid(event.position);
+            picked = ellipsoidPick ?? undefined;
+          }
+
+          // Sky guard: if still undefined, click hit sky — do nothing (NAV-01 requirement)
+          if (!picked) return;
+
+          const carto = Cartographic.fromCartesian(picked);
+          const currentAlt = viewer.camera.positionCartographic.height;
+          // Zoom ~2.5x per double-click; 500m minimum prevents zooming into terrain
+          const targetAlt = Math.max(500, currentAlt * 0.4);
+
+          viewer.camera.flyTo({
+            destination: Cartesian3.fromRadians(carto.longitude, carto.latitude, targetAlt),
+            duration: 0.6,
+            orientation: {
+              heading: viewer.camera.heading,
+              pitch: viewer.camera.pitch,
+              roll: 0,
+            },
+          });
+        }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
         // Direct wheel handler — bypasses CesiumJS canvas-level listener
         const onWheel = (e: WheelEvent) => {
           e.preventDefault();
@@ -89,9 +135,11 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
 
         container.addEventListener('wheel', onWheel, { passive: false });
 
+        (viewer as unknown as { _cleanup?: () => void; _dblHandler?: ScreenSpaceEventHandler })._dblHandler = dblHandler;
         (viewer as unknown as { _cleanup?: () => void })._cleanup = () => {
           container.removeEventListener('wheel', onWheel);
           cancelAnimationFrame(rafId);
+          dblHandler.destroy(); // cleanup double-click handler
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

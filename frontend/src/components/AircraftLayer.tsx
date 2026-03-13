@@ -79,6 +79,9 @@ function matchesAircraftFilter(
 // Module-scope maps — survive re-renders, reset on full unmount
 const prevPositions = new Map<string, Cartesian3>();
 const currPositions = new Map<string, Cartesian3>();
+// NAV-01: debounce timer for LEFT_CLICK — prevents entity panel opening on
+// first click of a double-click zoom gesture (CesiumJS issue #1171)
+let clickTimer: ReturnType<typeof setTimeout> | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const billboardsByIcao24 = new Map<string, any>(); // Billboard reference
 let lastUpdateTime = Date.now();
@@ -125,47 +128,55 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
       handlerRef.current = handler;
       handler.setInputAction((click: { position: Cartesian2 }) => {
-        const picked = viewer.scene.pick(click.position);
-        if (!picked) return;
-        if (typeof picked.id === 'string') {
-          if (picked.id.startsWith('mmsi:')) {
-            const mmsi = picked.id.slice(5);
-            useAppStore.getState().setSelectedShipId(mmsi);
+        // NAV-01: 200ms debounce prevents entity panel opening on the first click
+        // of a double-click gesture. CesiumJS fires LEFT_CLICK before
+        // LEFT_DOUBLE_CLICK (issue #1171 — STATE.md locked decision).
+        if (clickTimer !== null) clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          const picked = viewer.scene.pick(click.position);
+          if (!picked) return;
+          if (typeof picked.id === 'string') {
+            if (picked.id.startsWith('mmsi:')) {
+              const mmsi = picked.id.slice(5);
+              useAppStore.getState().setSelectedShipId(mmsi);
+              useAppStore.getState().setSelectedMilitaryId(null);
+              useAppStore.getState().setSelectedAircraftId(null);
+              useAppStore.getState().setSelectedSatelliteId(null);
+            } else if (picked.id.startsWith('mil:')) {
+              const hex = picked.id.slice(4);
+              useAppStore.getState().setSelectedMilitaryId(hex);
+              useAppStore.getState().setSelectedShipId(null);
+              useAppStore.getState().setSelectedAircraftId(null);
+              useAppStore.getState().setSelectedSatelliteId(null);
+            } else {
+              // Commercial aircraft: bare ICAO24 string (no prefix)
+              useAppStore.getState().setSelectedAircraftId(picked.id);
+              useAppStore.getState().setSelectedMilitaryId(null);
+              useAppStore.getState().setSelectedShipId(null);
+              useAppStore.getState().setSelectedSatelliteId(null);
+            }
+          } else if (typeof picked.id === 'number' && picked.id > 1000) {
+            // Satellite: NORAD catalog ID is a number > 1000
+            useAppStore.getState().setSelectedSatelliteId(picked.id);
+            useAppStore.getState().setSelectedAircraftId(null);
             useAppStore.getState().setSelectedMilitaryId(null);
-            useAppStore.getState().setSelectedAircraftId(null);
-            useAppStore.getState().setSelectedSatelliteId(null);
-          } else if (picked.id.startsWith('mil:')) {
-            const hex = picked.id.slice(4);
-            useAppStore.getState().setSelectedMilitaryId(hex);
             useAppStore.getState().setSelectedShipId(null);
-            useAppStore.getState().setSelectedAircraftId(null);
-            useAppStore.getState().setSelectedSatelliteId(null);
           } else {
-            // Commercial aircraft: bare ICAO24 string (no prefix)
-            useAppStore.getState().setSelectedAircraftId(picked.id);
+            // Clicked globe background or unrecognised primitive — clear all
+            useAppStore.getState().setSelectedSatelliteId(null);
+            useAppStore.getState().setSelectedAircraftId(null);
             useAppStore.getState().setSelectedMilitaryId(null);
             useAppStore.getState().setSelectedShipId(null);
-            useAppStore.getState().setSelectedSatelliteId(null);
           }
-        } else if (typeof picked.id === 'number' && picked.id > 1000) {
-          // Satellite: NORAD catalog ID is a number > 1000
-          useAppStore.getState().setSelectedSatelliteId(picked.id);
-          useAppStore.getState().setSelectedAircraftId(null);
-          useAppStore.getState().setSelectedMilitaryId(null);
-          useAppStore.getState().setSelectedShipId(null);
-        } else {
-          // Clicked globe background or unrecognised primitive — clear all
-          useAppStore.getState().setSelectedSatelliteId(null);
-          useAppStore.getState().setSelectedAircraftId(null);
-          useAppStore.getState().setSelectedMilitaryId(null);
-          useAppStore.getState().setSelectedShipId(null);
-        }
+        }, 200);
       }, ScreenSpaceEventType.LEFT_CLICK);
     }
 
     return () => {
       cancelAnimationFrame(rafRef.current);
       rafRunningRef.current = false;
+      if (clickTimer !== null) { clearTimeout(clickTimer); clickTimer = null; }
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
