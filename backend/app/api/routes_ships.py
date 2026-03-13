@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models.ship import Ship
+from app.freshness import stale_cutoff, is_stale
+from app.config import settings
 
 router = APIRouter()
 
@@ -19,11 +21,14 @@ router = APIRouter()
 @router.get("")
 @router.get("/")
 async def list_ships(db: AsyncSession = Depends(get_db)):
-    """Return all ships with valid positions."""
+    """Return fresh, active ships with freshness metadata."""
+    cutoff = stale_cutoff(settings.SHIP_STALE_SECONDS)
     result = await db.execute(
         select(Ship).where(
+            Ship.is_active == True,
             Ship.latitude.is_not(None),
             Ship.longitude.is_not(None),
+            Ship.last_seen_at >= cutoff,
         )
     )
     rows = result.scalars().all()
@@ -40,6 +45,9 @@ async def list_ships(db: AsyncSession = Depends(get_db)):
             "nav_status": r.nav_status,
             "last_update": r.last_update,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "last_seen_at": r.last_seen_at.isoformat() if r.last_seen_at else None,
+            "fetched_at": None,  # Ship model has no fetched_at column — AIS is a stream, not polled
+            "is_stale": is_stale(r.last_seen_at, settings.SHIP_STALE_SECONDS),
         }
         for r in rows
     ]
