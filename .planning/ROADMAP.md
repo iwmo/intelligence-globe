@@ -64,7 +64,9 @@
   3. `military_aircraft`, `ships`, and `gps_jamming_cells` tables each have their respective freshness columns visible in schema inspection
   4. All existing rows have `is_active = true` immediately after migration (no backfill UPDATE required)
   5. Migration file is hand-written with no autogenerate — `position_snapshots` partition child tables are not dropped
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 17-01-PLAN.md — Hand-written Alembic migration + 4 model updates + test scaffold
 
 ### Phase 18: Shared Freshness Helper
 **Goal**: A reusable, testable freshness module exists and all stale thresholds are configurable via environment variables
@@ -145,7 +147,7 @@
 | 14. Entity Icons and Altitude Scaling | v3.0 | 4/4 | Complete | 2026-03-12 |
 | 15. Camera Navigation Controls | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
-| 17. Schema Migration | v4.0 | 0/TBD | Not started | - |
+| 17. Schema Migration | v4.0 | 0/1 | Not started | - |
 | 18. Shared Freshness Helper | v4.0 | 0/TBD | Not started | - |
 | 19. Aircraft Ingest + Route | v4.0 | 0/TBD | Not started | - |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
