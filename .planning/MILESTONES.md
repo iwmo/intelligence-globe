@@ -1,5 +1,20 @@
 # Milestones
 
+## v3.0 UI Refinement (Shipped: 2026-03-13)
+
+**Phases completed:** 4 phases, 13 plans
+**Lines of code:** ~12,415 TypeScript/Python (+8,275 lines across 65 files)
+**Git range:** docs(13-collapsible-sidebar-layout) → docs(phase-16)
+
+**Key accomplishments:**
+- Replaced rigid sliding sidebar with free-floating draggable panels — each panel has independent position/size persistence via localStorage, +/− collapse, and resize handle; no hamburger button
+- Custom SVG billboard icons for commercial aircraft (airplane silhouette), military flights (distinct shape), and ships (vessel hull) with NearFarScalar altitude scaling from 500m to 20,000km
+- CameraControlWidget with double-click zoom toward cursor (CesiumJS LEFT_DOUBLE_CLICK, 200ms LEFT_CLICK debounce), on-screen +/− zoom buttons, and Top-down/45°/Horizon tilt presets
+- Persistent settings panel (Zustand v5 persist middleware, `globe-settings` localStorage key) — configurable defaultLayers, defaultPreset, defaultMode, defaultCamera applied in onViewerReady boot sequence
+- 15/15 requirements shipped; 129 tests green, 13 NAV browser checks and 8 CONFIG browser checks validated
+
+---
+
 ## v2.0 WorldView Parity (Shipped: 2026-03-12)
 
 **Phases completed:** 6 phases, 28 plans

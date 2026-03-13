@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, and OSINT event correlation with satellite overpass lines.
+A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, and a fully polished UI with draggable panels, custom SVG entity icons, and persistent user settings.
 
 ## Core Value
 
@@ -36,32 +36,17 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ OSINT event markers on timeline with category filtering — v2.0
 - ✓ Satellite overpass arc lines to area of interest during replay — v2.0
 - ✓ OSINT event entry panel (location, timestamp, category, source URL) — v2.0
-
-## Current Milestone: v3.0 UI Refinement
-
-**Goal:** Refine the globe UI with radar-style visual language, collapsible sidebar panels, zoom-scalable entity icons, and improved camera navigation controls.
-
-**Target features:**
-- Radar aesthetic on panels (angular brackets, scan decorations, pulsing active indicators)
-- Collapsible sidebar sections with logical grouping and no overlap
-- Custom SVG billboard icons for satellites, aircraft, military flights, and ships — scaling with camera altitude
-- Double-click zoom toward cursor (Google Earth / FlightRadar24 style)
-- Tilt/pitch control widget and on-screen zoom buttons
+- ✓ Free-floating draggable panels replacing sidebar — position/size in localStorage, +/− collapse — v3.0
+- ✓ Custom SVG billboard icons for aircraft, military, ships with NearFarScalar altitude scaling — v3.0
+- ✓ Satellite PointPrimitive markers with scaleByDistance (GPU budget constraint — no billboards at 5,000+ entities) — v3.0
+- ✓ Double-click zoom toward cursor with 200ms LEFT_CLICK debounce — v3.0
+- ✓ CameraControlWidget: on-screen +/− zoom buttons and Top-down/45°/Horizon tilt presets — v3.0
+- ✓ Persistent settings panel (Zustand persist, localStorage) — defaultLayers, defaultPreset, defaultMode, defaultCamera — v3.0
 
 ### Active
 
-- [ ] Radar-style visual language applied to all UI panels (STYLE-01, STYLE-02)
-- [ ] Collapsible sidebar sections with animated expand/collapse (LAYOUT-01)
-- [ ] Panel overlap eliminated, logical grouping of controls (LAYOUT-02, LAYOUT-03)
-- [ ] Custom SVG billboard icons for all entity types (ICONS-01–04)
-- [ ] Entity icons scale proportionally with camera altitude (ICONS-05)
-- [ ] Double-click globe zooms camera toward clicked point (NAV-01)
-- [ ] Tilt/pitch control widget and zoom buttons in UI (NAV-02, NAV-03)
-
-### Deferred to v3.1
-
-- Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
-- Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
+- [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05)
+- [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06)
 
 ### Out of Scope
 
@@ -80,8 +65,17 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 
 **Shipped v1.0:** 2026-03-11 — Live multi-layer globe (satellites, aircraft, search, filters)
 **Shipped v2.0:** 2026-03-12 — WorldView Parity (visual engine, new layers, replay, OSINT)
+**Shipped v3.0:** 2026-03-13 — UI Refinement (draggable panels, SVG icons, camera controls, settings)
 **Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose
-**Codebase:** ~9,326 LOC TypeScript/Python across 45 plans
+**Codebase:** ~12,415 LOC TypeScript/Python across 58 plans
+
+**Key learnings from v3.0:**
+- CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
+- SVG icon canvases must be pre-rendered once at module scope — per-entity dynamic SVG strings exhaust TextureAtlas GPU texture budget (DeveloperError at >5,000 entries)
+- LEFT_DOUBLE_CLICK must remove CesiumJS built-in entity-tracking handler first — two conflicting flyTo animations fire simultaneously otherwise
+- LEFT_CLICK debounce (200ms) required when double-click zoom is active — CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click
+- Billboard migration per-layer must be done in two atomic steps (add new, remove old) — parallel PointPrimitive + BillboardCollection causes doubled draw calls and double-pickable entities
+- useSettingsStore separate from useAppStore — prevents transient runtime values from being persisted to localStorage
 
 **Key learnings from v2.0:**
 - PostProcessEngine must be a singleton created at init — recreating on preset switch causes stale uniforms
@@ -125,6 +119,14 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Street traffic gated below 500km altitude, viewport-scoped | Full road network at global zoom is unusable | ✓ Good — prevents performance collapse |
 | TLE age > 7 days triggers visible overpass warning | SGP4 error grows to km beyond 7 days; fail visibly not silently | ✓ Good — honest UX |
 | Category filter on event markers only (not layer visibility) | Avoids regression risk in complex multi-layer system | ⚠️ Revisit — full layer gating deferred |
+| CSS `grid-template-rows` transition for sidebar collapse | scrollHeight forces synchronous layout reflow on CesiumJS render thread | ✓ Good — no FPS impact |
+| Free-floating DraggablePanel over collapsible sidebar sections | Human-approved in Phase 13 browser validation — more flexible UI paradigm | ✓ Good — cleaner UX |
+| SVG icon canvases pre-rendered at module scope (not per-entity) | TextureAtlas GPU budget exceeded at >5,000 dynamic entries | ✓ Good — avoids DeveloperError |
+| Billboard migration in two atomic steps per layer | Parallel old+new collections cause doubled draw calls and pickable entities | ✓ Good — clean cutover |
+| Satellite layer stays on PointPrimitiveCollection (never billboards) | 5,000+ billboard entities degrade frame rate on integrated GPU — hard constraint | ✓ Good — performance critical |
+| useSettingsStore separate from useAppStore | Prevents transient runtime values (selectedId, replayTs) from being persisted | ✓ Good — correct separation |
+| Settings gear icon NOT gated by cleanUI | Settings must remain accessible in cinematic mode | ✓ Good — correct precedence |
+| LEFT_CLICK debounced 200ms when double-click zoom active | CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click | ✓ Good — prevents entity panel on zoom |
 
 ---
-*Last updated: 2026-03-12 after v3.0 UI Refinement milestone start*
+*Last updated: 2026-03-13 after v3.0 UI Refinement milestone*
