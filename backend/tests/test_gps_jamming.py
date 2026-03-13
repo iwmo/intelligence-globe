@@ -256,9 +256,10 @@ async def test_aggregated_at_written_to_cells():
         await ingest_gps_jamming()
 
     # Extract set_={} from the upsert statement via _post_values_clause
+    # update_values_to_set is a list of (key, value) tuples — convert to dict
     assert len(captured_stmts) == 1
     stmt = captured_stmts[0]
-    set_dict = stmt._post_values_clause.update_values_to_set
+    set_dict = dict(stmt._post_values_clause.update_values_to_set)
     assert "aggregated_at" in set_dict
     agg_at = set_dict["aggregated_at"]
     assert isinstance(agg_at, datetime)
@@ -307,9 +308,10 @@ async def test_source_fetched_at_is_max_of_active_rows():
         await ingest_gps_jamming()
 
     # Both aircraft are in different cells — check source_fetched_at in any stmt
+    # update_values_to_set is a list of (key, value) tuples — convert to dict
     assert len(captured_stmts) >= 1
     stmt = captured_stmts[0]
-    set_dict = stmt._post_values_clause.update_values_to_set
+    set_dict = dict(stmt._post_values_clause.update_values_to_set)
     assert "source_fetched_at" in set_dict
     assert set_dict["source_fetched_at"] == t2
 
@@ -390,8 +392,9 @@ async def test_source_is_stale_false_when_recent_fetched_at():
         from app.tasks.ingest_gps_jamming import ingest_gps_jamming
         await ingest_gps_jamming()
 
+    # update_values_to_set is a list of (key, value) tuples — convert to dict
     assert len(captured_stmts) == 1
     stmt = captured_stmts[0]
-    set_dict = stmt._post_values_clause.update_values_to_set
+    set_dict = dict(stmt._post_values_clause.update_values_to_set)
     assert "source_is_stale" in set_dict
     assert set_dict["source_is_stale"] is False

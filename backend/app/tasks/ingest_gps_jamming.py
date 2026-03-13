@@ -4,11 +4,18 @@ GPS Jamming aggregation RQ task.
 Reads military aircraft NIC/NACp accuracy fields and aggregates them into
 H3 resolution-5 cells to identify geographic areas with GPS jamming.
 
-Jamming detection formula (from gpsjam.org methodology):
+Jamming detection formula (adapted from gpsjam.org for snapshot data):
   - is_bad = (nic is not None and nic < 7) or (nac_p is not None and nac_p < 8)
   - Aircraft with both nic=None and nac_p=None → treated as GOOD (no signal)
-  - bad_ratio = max(0.0, (bad_count - 1) / total_count)
+  - bad_ratio = bad_count / total_count
   - Severity thresholds: red >= 0.3, yellow >= 0.1, green < 0.1
+
+Note: gpsjam.org uses (bad - 1) / total to reduce false positives when accumulating
+24 hours of per-hex aircraft traffic. Our military_aircraft table is a live snapshot
+(one row per aircraft, updated in place), so most cells have only 1 aircraft at
+aggregation time. The -1 correction eliminates all signal from single-aircraft cells,
+making the layer show only green. We use bad / total instead, which is appropriate
+for snapshot-based aggregation.
 
 The sync wrapper self-re-enqueues every 86400 seconds (daily) to keep
 GPS jamming cell data current.
@@ -19,12 +26,14 @@ import asyncio
 import logging
 import os
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import h3
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.config import settings
 from app.db import AsyncSessionLocal
+from app.freshness import is_stale
 from app.models.gps_jamming import GpsJammingCell
 from app.models.military_aircraft import MilitaryAircraft
 from sqlalchemy import select
@@ -57,7 +66,7 @@ def aggregate_jamming_cells(aircraft_list: list[dict]) -> list[dict]:
     - Aircraft without valid lat AND lon are excluded entirely.
     - Aircraft with both nic=None and nac_p=None are treated as GOOD.
     - is_bad = (nic is not None and nic < 7) or (nac_p is not None and nac_p < 8)
-    - bad_ratio = max(0.0, (bad_count - 1) / total_count)
+    - bad_ratio = bad_count / total_count
     - Severity: red >= 0.3, yellow >= 0.1, green < 0.1
 
     Args:
@@ -93,8 +102,10 @@ def aggregate_jamming_cells(aircraft_list: list[dict]) -> list[dict]:
         total = counts["total"]
         bad = counts["bad"]
 
-        # Formula: max(0.0, (bad - 1) / total) — subtract 1 to reduce false positives
-        bad_ratio = max(0.0, (bad - 1) / total) if total > 0 else 0.0
+        # Formula: bad / total — snapshot-based aggregation; no -1 correction needed
+        # (gpsjam.org uses bad-1 to reduce false positives from 24h accumulated data,
+        # but our snapshot has ≤1 aircraft per cell so -1 eliminates all signal)
+        bad_ratio = bad / total if total > 0 else 0.0
 
         if bad_ratio >= SEVERITY_RED_THRESHOLD:
             severity = "red"
@@ -133,16 +144,31 @@ async def ingest_gps_jamming() -> int:
     """
     logger.info("Starting GPS jamming aggregation from military_aircraft table")
 
+    # Capture aggregation timestamp at function start (one value shared across all cells).
+    aggregated_at = datetime.now(timezone.utc)
+
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(MilitaryAircraft).where(
                 MilitaryAircraft.latitude.is_not(None),
                 MilitaryAircraft.longitude.is_not(None),
+                MilitaryAircraft.is_active == True,   # JAM-01: only active aircraft
             )
         )
         aircraft_rows = result.scalars().all()
 
-    logger.info("Found %d military aircraft with valid position", len(aircraft_rows))
+    logger.info("Found %d active military aircraft with valid position", len(aircraft_rows))
+
+    # Compute source freshness metadata for this aggregation cycle.
+    # source_fetched_at = max fetched_at across active rows; None when no rows.
+    # is_stale(None, ...) returns True — correct when feed is down.
+    source_fetched_at: datetime | None = None
+    for ac in aircraft_rows:
+        if ac.fetched_at is not None:
+            if source_fetched_at is None or ac.fetched_at > source_fetched_at:
+                source_fetched_at = ac.fetched_at
+
+    source_is_stale = is_stale(source_fetched_at, settings.MILITARY_STALE_SECONDS)
 
     aircraft_dicts = [
         {
@@ -159,6 +185,8 @@ async def ingest_gps_jamming() -> int:
 
     if not cells:
         logger.warning("No GPS jamming cells produced — nothing to upsert")
+        # JAM-03 (Phase 21): returning stale cells when feed is down requires
+        # writing metadata to existing rows — deferred to the API route phase.
         return 0
 
     async with AsyncSessionLocal() as session:
@@ -172,6 +200,9 @@ async def ingest_gps_jamming() -> int:
                         "bad_ratio": cell["bad_ratio"],
                         "severity": cell["severity"],
                         "aircraft_count": cell["aircraft_count"],
+                        "aggregated_at": aggregated_at,
+                        "source_fetched_at": source_fetched_at,
+                        "source_is_stale": source_is_stale,
                     },
                 )
             )
