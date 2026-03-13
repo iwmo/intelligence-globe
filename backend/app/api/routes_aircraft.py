@@ -7,6 +7,7 @@ so FastAPI matches the literal path "freshness" before treating it as a string.
 /{icao24}/route uses a longer path so it is always distinguished from /{icao24}.
 """
 import logging
+import time as time_module
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
+from app.freshness import stale_cutoff, is_stale
+from app.config import settings
 from app.models.aircraft import Aircraft
 
 logger = logging.getLogger(__name__)
@@ -21,14 +24,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _position_age_seconds(r: Aircraft) -> "float | None":
+    """Use time_position for position age, fall back to last_contact when null."""
+    ref_ts = r.time_position if r.time_position is not None else r.last_contact
+    if ref_ts is None:
+        return None
+    return time_module.time() - ref_ts
+
+
 @router.get("")
 @router.get("/")
 async def list_aircraft(db: AsyncSession = Depends(get_db)):
-    """Return all aircraft with valid positions, including trail for frontend polylines."""
+    """Return fresh, active aircraft with valid positions and freshness metadata."""
+    cutoff = stale_cutoff(settings.AIRCRAFT_STALE_SECONDS)
     result = await db.execute(
         select(Aircraft).where(
+            Aircraft.is_active == True,
             Aircraft.latitude.is_not(None),
             Aircraft.longitude.is_not(None),
+            Aircraft.fetched_at >= cutoff,
         )
     )
     rows = result.scalars().all()
@@ -43,6 +57,10 @@ async def list_aircraft(db: AsyncSession = Depends(get_db)):
             "velocity": r.velocity,
             "true_track": r.true_track,
             "trail": r.trail,
+            "time_position": r.time_position,
+            "fetched_at": r.fetched_at.isoformat() if r.fetched_at else None,
+            "is_stale": is_stale(r.fetched_at, settings.AIRCRAFT_STALE_SECONDS),
+            "position_age_seconds": _position_age_seconds(r),
         }
         for r in rows
     ]
