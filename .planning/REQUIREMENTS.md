@@ -11,7 +11,7 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 
 - [x] **PLAY-01**: `isPlaying` promoted from `PlaybackBar` local state to `useAppStore` so all layer components can read it
 - [ ] **PLAY-02**: Satellites propagate at `replayTs` during playback; propagation loop skips dispatch when `isPlaying` is false
-- [ ] **PLAY-03**: Globe day/night shading follows `replayTs` via new `useViewerClock` hook syncing `viewer.clock.currentTime`
+- [x] **PLAY-03**: Globe day/night shading follows `replayTs` via new `useViewerClock` hook syncing `viewer.clock.currentTime`
 - [ ] **PLAY-04**: Returning to LIVE triggers `queryClient.invalidateQueries()` — no 90-second stale-data window after mode switch
 
 ### Layer Behaviour
@@ -24,8 +24,8 @@ Requirements for the Playback milestone. Each maps to roadmap phases.
 ### Visual Feedback
 
 - [ ] **VIS-01**: Stale entities show visual degradation (grey tint / opacity reduction) in LIVE mode — requires backend to serialise `is_stale` per entity from v4.0 freshness columns
-- [ ] **VIS-02**: CinematicHUD shows `REPLAY [ISO timestamp]` instead of `REC` when in playback mode
-- [ ] **VIS-03**: Play button disabled with "Loading snapshots…" indicator while snapshot fetch is in progress
+- [x] **VIS-02**: CinematicHUD shows `REPLAY [ISO timestamp]` instead of `REC` when in playback mode
+- [x] **VIS-03**: Play button disabled with "Loading snapshots…" indicator while snapshot fetch is in progress
 
 ### Verification
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PLAY-01 | Phase 23 | Complete |
-| PLAY-03 | Phase 23 | Pending |
-| VIS-02 | Phase 23 | Pending |
-| VIS-03 | Phase 23 | Pending |
+| PLAY-03 | Phase 23 | Complete |
+| VIS-02 | Phase 23 | Complete |
+| VIS-03 | Phase 23 | Complete |
 | PLAY-02 | Phase 24 | Pending |
 | PLAY-04 | Phase 25 | Pending |
 | LAYR-01 | Phase 25 | Pending |
