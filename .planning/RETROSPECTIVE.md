@@ -209,6 +209,57 @@
 
 ---
 
+## Milestone: v5.0 — Playback
+
+**Shipped:** 2026-03-14
+**Phases:** 4 | **Plans:** 14 | **LOC:** ~12,261 (combined TS/TSX/Python; 71 files changed, +7,364/-163 lines this milestone)
+
+### What Was Built
+
+- `isPlaying` promoted from `PlaybackBar` local state to `useAppStore` global store; `useViewerClock` hook syncs CesiumJS globe day/night shading to `replayTs` via `postUpdate` listener
+- `resolveTimestamp` pure function: sends historical `replayTs` to propagation worker in playback mode, returns `null` on pause (satellites freeze instantly), `Date.now()` in live mode
+- All 5 live-data layers (aircraft lerp, ships/military Effect 2, GPS jamming poll, street traffic particles) guarded against playback contamination; `queryClient.invalidateQueries()` on LIVE return
+- End-to-end 2-hour replay verified: PlaybackBar tick() auto-stop at window boundary, all speed presets, FPS gate ≥30 at 15m/s — no optimization pass needed
+- Stale entity grey-tint VIS-01: `is_stale` from backend routes serialized through React Query to Cesium billboard `Color.GRAY.withAlpha(0.4)` in aircraft, ships, and military layers
+
+### What Worked
+
+- **`resolveTimestamp` as pure function** — extracting the three-branch logic into a pure function enabled 6 deterministic unit tests without any Cesium or rAF mocking; TDD on this function was the most efficient test work of any milestone
+- **`getState()` inside rAF pattern** — documenting this as the mandatory pattern for animation loops prevented stale-closure bugs across satellite loop, aircraft lerp, and `useViewerClock`
+- **`replayModeRef` pattern for street traffic** — discovering that `useRef` synced from the selector each render is the correct approach for values read inside animation loops; clean solution to a subtle closure problem
+- **FPS gate passed with no optimization** — the scrubber and interpolation were already efficient; the verification phase confirmed quality without requiring a follow-up engineering pass
+- **Manual VRFY-01 checkpoint in plan 26-03** — having a formal human approval gate for the E2E scrub created a clear handoff point; the user confirmed all 5 checks in one session
+
+### What Was Inefficient
+
+- **VALIDATION.md files remain in `draft` status** — all 4 phases have VALIDATION.md files but `nyquist_compliant: false` throughout; not updated at execution time despite the tests being green; a recurring cross-milestone pattern
+- **Phase 23 store migration could have been 2 plans** — the 4-plan structure (scaffold → store migration → hook → HUD/gate) was correct but the scaffold plan (23-01) was lightweight; could have merged 23-01 + 23-02 without loss of clarity
+- **`useSatellites` refetchInterval gap** — the TLE polling freeze was never added to requirements; discovered post-execution as a tech debt item; adding it to the Phase 25 requirements at planning time would have closed it cleanly
+
+### Patterns Established
+
+- **`getState()` in rAF/postUpdate callbacks** — mandatory pattern for reading Zustand store inside CesiumJS animation loops; selector captured at render time goes stale
+- **`replayModeRef` pattern** — `useRef` synced from selector each render, read inside rAF body — prevents stale closure without the overhead of a selector inside the animation frame
+- **`resolveTimestamp` pure function** — single testable function for all timestamp resolution logic; replaces ad-hoc `Date.now()` calls scattered across multiple components
+- **Null-as-skip in rAF dispatchers** — returning `null` from a resolution function means "skip this tick" with unambiguous semantics; avoids sending 0/undefined which could be valid values
+- **`queryClient` singleton from `lib/queryClient.ts`** — `PlaybackBar` and `main.tsx` must import the exact same instance; named export from a shared module is the only reliable pattern
+
+### Key Lessons
+
+1. **`getState()` vs selector in animation loops is a correctness issue, not a style issue** — a captured selector looks correct but produces subtle frame-delayed reads; document this as a hard rule for any future rAF work in this codebase
+2. **Null semantics for skip beats undefined/0** — `resolveTimestamp` returning `null` to mean "don't dispatch" is explicit and type-safe; callers can't accidentally use it as a timestamp
+3. **FPS gate should be the last plan in a verification phase** — having it as plan 26-04 meant it could only run after all implementation was confirmed working; correct ordering, re-confirm this pattern for v6.0
+4. **VALIDATION.md lifecycle needs enforcement** — four consecutive milestones (v2-v5) have phases with `nyquist_compliant: false`; add updating VALIDATION frontmatter to the execute-phase checklist
+5. **Manual E2E gate before FPS gate** — VRFY-01 (human 2-hour scrub) before VRFY-02 (FPS measurement) is the right order; visual correctness must be confirmed before performance is measured
+
+### Cost Observations
+
+- Sessions: 1 continuous session (2026-03-13 → 2026-03-14, ~3 hours)
+- Model: balanced profile (sonnet-4.6)
+- Notable: 14 plans across 4 phases; shortest milestone by wall-clock time; audit + milestone completion in same session as final plan execution
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | LOC | Key Pattern |
@@ -217,3 +268,4 @@
 | v2.0 WorldView Parity | 6 | 28 | ~9,326 | Singleton engine + partitioned storage + replay |
 | v3.0 UI Refinement | 4 | 13 | ~12,415 | DraggablePanel + SVG icons + camera controls + settings |
 | v4.0 Data Reliability | 6 | 13 | ~9,704 | Freshness lifecycle columns + stale filtering + DB-level tests |
+| v5.0 Playback | 4 | 14 | ~12,261 | getState() in rAF + resolveTimestamp pure fn + layer guards |

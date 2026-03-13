@@ -1,5 +1,14 @@
 # Milestones
 
+## v5.0 Playback (Shipped: 2026-03-13)
+
+**Phases completed:** 4 phases, 14 plans, 4 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v4.0 Data Reliability & Freshness (Shipped: 2026-03-13)
 
 **Phases completed:** 6 phases, 13 plans

@@ -1,16 +1,5 @@
 # OpenSignal Globe
 
-## Current Milestone: v5.0 Playback
-
-**Goal:** Audit and fix the 4D replay engine so all layers behave correctly — satellites use `replayTs`, nothing moves when paused, and end-to-end playback (snapshot fetch → interpolation → scrubber → speed controls) is verified reliable.
-
-**Target features:**
-- Satellite propagation respects `replayTs` in playback mode (not always `Date.now()`)
-- All layers audited for playback correctness (street traffic, GPS jamming, OSINT events)
-- Live lerp guards — aircraft/ships don't animate from live data while in playback
-- End-to-end replay verification: snapshot window, scrubbing, play/pause, auto-stop
-- Frontend freshness indicators for stale entities (VIS-01, deferred from v4.0)
-
 ## What This Is
 
 A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, fully polished draggable panels and custom SVG entity icons, and data reliability guarantees — stale positions filtered from all live endpoints, freshness metadata exposed in every API response.
@@ -60,17 +49,20 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Ship freshness: last_seen_at, is_active lifecycle derived from Redis AIS TTL; stale filter on /api/ships — v4.0
 - ✓ GPS jamming freshness transparency: aggregated_at, source_fetched_at, source_is_stale metadata; stale cells returned with source_is_stale=true (not empty set) — v4.0
 - ✓ Full 95-test DB-level integration suite verifying all freshness contracts and route preservation — v4.0
+- ✓ `isPlaying` promoted to `useAppStore`; `useViewerClock` hook syncs CesiumJS globe day/night shading to replay timestamp — v5.0
+- ✓ `resolveTimestamp` pure function drives satellite historical propagation; pause guard freezes satellites instantly (null → skip PROPAGATE dispatch) — v5.0
+- ✓ All 5 live-data layers (aircraft, ships, military, GPS jamming, street traffic) guarded against playback contamination; `queryClient.invalidateQueries()` on LIVE return eliminates 90s stale-data window — v5.0
+- ✓ End-to-end 2-hour replay verified; PlaybackBar tick() auto-stop at window boundary; FPS gate ≥30 at 15m/s with all layers active — v5.0
+- ✓ Stale entity grey-tint (`Color.GRAY.withAlpha(0.4)`) in LIVE mode: `is_stale` field from backend routes serialised through React Query to Cesium billboards in aircraft, ships, and military layers — v5.0
 
 ### Active
 
-- [ ] Satellite propagation uses replayTs in playback mode (PLAY-01)
-- [ ] All layers audited: no live movement when in playback/paused (PLAY-02)
-- [ ] Live lerp guards: aircraft/ships lerp stops in playback mode (PLAY-03)
-- [ ] End-to-end replay verified: snapshot fetch, interpolation, scrubber, speed, auto-stop (PLAY-04)
-- [ ] Frontend visual indicator for stale entities — grey-out, opacity reduction, or "STALE" badge (VIS-01, deferred from v4.0)
-- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03, deferred)
+- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03, deferred from v4.0)
 - [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05, deferred)
 - [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06, deferred)
+- [ ] Keyboard shortcuts: Space for play/pause, L for LIVE/PLAYBACK toggle (KYBD-01, deferred from v5.0)
+- [ ] Replay speed readout ("60×") beside timestamp in CinematicHUD (LIVE-02, deferred from v5.0)
+- [ ] Replay window time-range labels at scrubber track ends (LIVE-03, deferred from v5.0)
 
 ### Out of Scope
 
@@ -91,8 +83,9 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 **Shipped v2.0:** 2026-03-12 — WorldView Parity (visual engine, new layers, replay, OSINT)
 **Shipped v3.0:** 2026-03-13 — UI Refinement (draggable panels, SVG icons, camera controls, settings)
 **Shipped v4.0:** 2026-03-13 — Data Reliability & Freshness (stale filtering, freshness metadata, full test suite)
+**Shipped v5.0:** 2026-03-14 — Playback (replay engine correctness, layer guards, stale indicators, 213 tests)
 **Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose
-**Codebase:** ~6,216 Python LOC backend; full stack ~18,000+ LOC across 71 plans
+**Codebase:** ~12,261 LOC (frontend TS/TSX + backend Python); full stack across 85 plans, 213 frontend tests
 
 **Key learnings from v3.0:**
 - CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
@@ -101,6 +94,14 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - LEFT_CLICK debounce (200ms) required when double-click zoom is active — CesiumJS issue #1171: both LEFT_CLICK and LEFT_DOUBLE_CLICK fire on double-click
 - Billboard migration per-layer must be done in two atomic steps (add new, remove old) — parallel PointPrimitive + BillboardCollection causes doubled draw calls and double-pickable entities
 - useSettingsStore separate from useAppStore — prevents transient runtime values from being persisted to localStorage
+
+**Key learnings from v5.0:**
+- `useAppStore.getState()` inside rAF/postUpdate callbacks is required — selectors captured at render time become stale in animation loops; `getState()` reads the always-current store value
+- Satellite rAF pause guard must return `null`, not `0`/`undefined` — `0` is a valid Unix epoch timestamp that would propagate satellites to 1970
+- `resolveTimestamp` as a pure function (not inlined) is the correct pattern — enables full branch coverage in unit tests without mocking CesiumJS or rAF
+- `queryClient` must be a module-level singleton exported from `lib/queryClient.ts` — components that call `invalidateQueries()` imperatively must import the exact same instance as `QueryClientProvider`
+- `replayModeRef` pattern required for rAF loops: `useRef` synced from the Zustand selector each render, read inside rAF body — prevents stale closure on `replayMode` in animation frames
+- FPS gate at 15m/s playback passed without any throttle guard — snapshot interpolation was already efficient; no optimization needed at milestone close
 
 **Key learnings from v4.0:**
 - OpenSky persists state vectors 300s after last contact — use `time_position` (sv[3]) not `last_contact` (sv[4]) for positional freshness
@@ -168,6 +169,13 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | GPS jamming returns source_is_stale=true on feed-down (not empty set) | Empty response silently converts staleness event into blank layer on the globe | ✓ Good — preserves observability |
 | stale_cutoff() called inside handler body (not module scope) | Module-scope call freezes cutoff at server start — all rows would eventually appear fresh | ✓ Good — correctness critical |
 | Detail endpoints unaffected by stale filtering | Replay engine and click-to-inspect panels need historical rows; filtering breaks time-scrubber | ✓ Good — list vs detail asymmetry correct |
+| `isPlaying` in `useAppStore` (not `useSettingsStore`) | `isPlaying` is transient runtime state, not a persisted preference; `useSettingsStore` uses `persist` middleware | ✓ Good — correct store separation |
+| `resolveTimestamp` as pure function (not inline in rAF loop) | Testable in isolation; all three branches (live, playback+playing, playback+paused) unit-tested deterministically | ✓ Good — enables 6-test coverage of PLAY-02 |
+| `getState()` inside rAF/postUpdate callbacks (not captured selectors) | Selectors captured at render time go stale in rAF closures; `getState()` always reads current store value | ✓ Good — prevents stale-closure bugs in satellite loop, aircraft lerp, useViewerClock |
+| Pause guard: `resolveTimestamp` returns null → skip PROPAGATE (don't send 0/undefined) | `null` is unambiguous "skip this tick"; sending 0 would propagate to Unix epoch 1970 | ✓ Good — explicit skip semantics |
+| `queryClient` as shared singleton in `lib/queryClient.ts` (not recreated in components) | `PlaybackBar` needs to call `invalidateQueries()` imperatively; only possible if it imports the same instance as `QueryClientProvider` | ✓ Good — single source of truth for cache invalidation |
+| Stale-tint effect reads `aircraft.data` for `is_stale`, does not add a separate query | Avoids extra API round-trip; `is_stale` is already in the list response payload | ✓ Good — zero network cost for VIS-01 |
+| `useSatellites` refetchInterval not frozen in playback | TLE data changes on 2h cadence; `resolveTimestamp` provides historically-accurate timestamps regardless; no requirement targets this | — Accepted tech debt (low impact) |
 
 ---
-*Last updated: 2026-03-13 after v5.0 milestone start*
+*Last updated: 2026-03-14 after v5.0 milestone*

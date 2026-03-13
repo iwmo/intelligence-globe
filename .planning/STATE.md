@@ -4,7 +4,7 @@ milestone: v5.0
 milestone_name: Playback
 status: completed
 stopped_at: Completed 26-04-PLAN.md
-last_updated: "2026-03-13T21:07:08.037Z"
+last_updated: "2026-03-13T21:17:34.991Z"
 last_activity: "2026-03-14 — Plan 26-04 complete: VRFY-02 FPS gate PASSED (>= 30 FPS at 15m/s playback) — no throttle guard needed, v5.0 milestone closes cleanly, 213-test suite green"
 progress:
   total_phases: 4
@@ -18,17 +18,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Phase 26 — End-to-End Verification + Stale Indicators
+**Current focus:** Planning next milestone (v6.0)
 
 ## Current Position
 
-Phase: 26 of 26 (End-to-End Verification + Stale Indicators)
-Plan: 4 of 4 complete in current phase
-Status: Complete
-Last activity: 2026-03-14 — Plan 26-04 complete: VRFY-02 FPS gate PASSED (>= 30 FPS at 15m/s playback) — no throttle guard needed, v5.0 milestone closes cleanly, 213-test suite green
+Phase: 26 of 26 (End-to-End Verification + Stale Indicators) — COMPLETE
+Status: v5.0 Playback milestone archived — ready for /gsd:new-milestone
+Last activity: 2026-03-14 — v5.0 milestone archived; 13/13 requirements satisfied; 213-test suite green; git tagged v5.0
 
 Progress: [██████████] 100% (v5.0 complete)
 
@@ -104,7 +103,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 26: FPS gate at 15m/s may trigger optimisation pass if snapshot interpolation at 1h/s exhausts CPU with 1,000+ aircraft; design only after profiling confirms the problem
+None. v5.0 complete and archived.
 
 ## Session Continuity
 
