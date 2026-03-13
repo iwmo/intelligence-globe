@@ -18,6 +18,7 @@ import {
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
 import { flyToCartesian } from '../lib/viewerRegistry';
+import { resolveTimestamp } from '../lib/resolveTimestamp';
 import type { OverheadSat } from '../workers/overpassElevation';
 
 // ---------------------------------------------------------------------------
@@ -256,8 +257,15 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
     // Propagation loop at 1 Hz
     let lastProp = 0;
     function loop(ts: number) {
+      const { replayMode, replayTs, isPlaying } = useAppStore.getState();
+      const timestamp = resolveTimestamp(replayMode, isPlaying, replayTs);
+      if (timestamp === null) {
+        // Paused in playback: keep rAF alive for instant resume, skip dispatch
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       if (ts - lastProp > 1000) {
-        worker.postMessage({ type: 'PROPAGATE', payload: { timestamp: Date.now() } });
+        worker.postMessage({ type: 'PROPAGATE', payload: { timestamp } });
         lastProp = ts;
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -311,9 +319,11 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
     // Estimate orbital period from MEAN_MOTION (revolutions/day → period in seconds)
     const meanMotion = (sat.omm as Record<string, number>).MEAN_MOTION ?? 14;
     const periodSeconds = Math.round(86400 / meanMotion);
+    const { replayMode: rm, replayTs: rts } = useAppStore.getState();
+    const orbitTimestamp = rm === 'playback' ? rts : Date.now();
     workerRef.current.postMessage({
       type: 'COMPUTE_ORBIT',
-      payload: { omm: sat.omm, periodSeconds },
+      payload: { omm: sat.omm, periodSeconds, timestamp: orbitTimestamp },
     });
   }, [selectedId, satellites.data, viewer]);
 
