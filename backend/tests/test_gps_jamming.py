@@ -398,3 +398,45 @@ async def test_source_is_stale_false_when_recent_fetched_at():
     set_dict = dict(stmt._post_values_clause.update_values_to_set)
     assert "source_is_stale" in set_dict
     assert set_dict["source_is_stale"] is False
+
+
+# ---------------------------------------------------------------------------
+# JAM-02 and JAM-03: Route envelope includes freshness metadata
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_gps_jamming_envelope_includes_metadata_keys():
+    """GET /api/gps-jamming returns 200 with aggregated_at, source_fetched_at, source_is_stale at envelope top level.
+
+    JAM-02: The response envelope must include freshness metadata alongside cells
+    so callers can detect when the military data source was stale.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/gps-jamming")
+    assert response.status_code == 200
+    body = response.json()
+    assert "cells" in body
+    assert "aggregated_at" in body
+    assert "source_fetched_at" in body
+    assert "source_is_stale" in body
+
+
+@pytest.mark.asyncio
+async def test_gps_jamming_source_is_stale_present_in_envelope():
+    """GET /api/gps-jamming always has source_is_stale key — null when table empty.
+
+    JAM-03: source_is_stale key must always be present in response envelope —
+    stale cells are returned with source_is_stale=true rather than silently
+    dropping cells. When the table is empty (test env / before first ingest run),
+    the key is present with value null.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/gps-jamming")
+    assert response.status_code == 200
+    body = response.json()
+    assert "source_is_stale" in body
