@@ -21,7 +21,7 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 
 ### Military Aircraft (airplanes.live)
 
-- [ ] **MIL-01**: `military_aircraft` model gains `fetched_at`, `last_seen_at`, `is_active`; ingest marks seen rows active and writes `fetched_at`/`last_seen_at` explicitly in `set_={}`; tombstone pass marks absent rows `is_active=False` after each 300s poll
+- [x] **MIL-01**: `military_aircraft` model gains `fetched_at`, `last_seen_at`, `is_active`; ingest marks seen rows active and writes `fetched_at`/`last_seen_at` explicitly in `set_={}`; tombstone pass marks absent rows `is_active=False` after each 300s poll
 - [ ] **MIL-02**: `/api/military` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `fetched_at`, `is_stale`; existing keys (`hex`, `flight`, `aircraft_type`, `alt_baro`, `gs`, `track`, `lat`, `lon`, `squawk`) preserved
 
 ### Ships (aisstream.io)
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACFT-01 | Phase 19 | Complete |
 | ACFT-02 | Phase 19 | Complete |
 | ACFT-03 | Phase 19 | Complete |
-| MIL-01 | Phase 20 | Pending |
+| MIL-01 | Phase 20 | Complete |
 | SHIP-01 | Phase 20 | Pending |
 | JAM-01 | Phase 20 | Pending |
 | MIL-02 | Phase 21 | Pending |

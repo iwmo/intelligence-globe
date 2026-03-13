@@ -159,6 +159,6 @@ Plans:
 | 17. Schema Migration | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
-| 20. Military, Ships, and Jamming Ingest | v4.0 | 0/3 | Not started | - |
+| 20. Military, Ships, and Jamming Ingest | 1/3 | In Progress|  | - |
 | 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
 | 22. Tests | v4.0 | 0/TBD | Not started | - |

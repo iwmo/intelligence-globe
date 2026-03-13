@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T11:59:45.676Z"
+last_updated: "2026-03-13T12:26:52.516Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
 ---
 
 # Project State
@@ -47,6 +47,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 18 P01 | 8m | 3 tasks | 3 files |
 | Phase 19 P01 | 4m | 2 tasks | 3 files |
 | Phase 19 P02 | 150 | 1 tasks | 2 files |
+| Phase 20-military-ships-jamming-ingest P01 | 12 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 19]: Tombstone sweep guarded by empty seen_icao24s to prevent mass false-tombstone on feed-down
 - [Phase 19]: is_stale computed per-row at response time using stale_cutoff() — no double-truth risk
 - [Phase 19]: position_age_seconds returns None when both time_position and last_contact are null — avoids false-zero misleading the frontend
+- [Phase 20-01]: Wall-clock datetime.now(timezone.utc) used for fetched_at in military ingest (airplanes.live /v2/mil has no response-level timestamp)
+- [Phase 20-01]: MIL tombstone: if seen_hexes guard prevents mass deactivation on feed-down; tombstone and all upserts share a single session.commit()
 
 ### Pending Todos
 
