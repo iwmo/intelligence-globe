@@ -325,7 +325,13 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
       type: 'COMPUTE_ORBIT',
       payload: { omm: sat.omm, periodSeconds, timestamp: orbitTimestamp },
     });
+    // Globe click fly-to: request historical position so POSITION_RESULT triggers flyToCartesian
+    workerRef.current.postMessage({
+      type: 'GET_POSITION',
+      payload: { norad: selectedId, timestamp: orbitTimestamp },
+    });
   }, [selectedId, satellites.data, viewer]);
+  // NOTE: replayTs deliberately NOT in deps — orbit and position are anchored to selection time
 
   // Effect 3: Clear orbit polylines when selection is cleared
   useEffect(() => {
