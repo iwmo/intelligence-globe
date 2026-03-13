@@ -37,13 +37,13 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 
 ### Tests
 
-- [ ] **TEST-01**: Aircraft rows with stale `time_position` excluded from `/api/aircraft`; fallback from `time_position` to `last_contact` when `time_position` is null
+- [x] **TEST-01**: Aircraft rows with stale `time_position` excluded from `/api/aircraft`; fallback from `time_position` to `last_contact` when `time_position` is null
 - [x] **TEST-02**: Aircraft `geo_altitude`, `vertical_rate`, `position_source` stored by ingest and returned in response
 - [x] **TEST-03**: Military stale rows excluded from `/api/military`
 - [x] **TEST-04**: Ships stale rows excluded from `/api/ships`
 - [x] **TEST-05**: GPS jamming response includes freshness metadata; `source_is_stale=true` when military data is stale
-- [ ] **TEST-06**: `freshness.py` unit tests — stale cutoff boundary, `is_stale` true/false, clock mock behavior
-- [ ] **TEST-07**: Existing happy-path contracts for `/api/aircraft`, `/api/military`, `/api/ships`, `/api/gps-jamming` still work after all changes
+- [x] **TEST-06**: `freshness.py` unit tests — stale cutoff boundary, `is_stale` true/false, clock mock behavior
+- [x] **TEST-07**: Existing happy-path contracts for `/api/aircraft`, `/api/military`, `/api/ships`, `/api/gps-jamming` still work after all changes
 
 ## Future Requirements
 
@@ -88,13 +88,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SHIP-02 | Phase 21 | Complete |
 | JAM-02 | Phase 21 | Complete |
 | JAM-03 | Phase 21 | Complete |
-| TEST-01 | Phase 22 | Pending |
+| TEST-01 | Phase 22 | Complete |
 | TEST-02 | Phase 22 | Complete |
 | TEST-03 | Phase 22 | Complete |
 | TEST-04 | Phase 22 | Complete |
 | TEST-05 | Phase 22 | Complete |
-| TEST-06 | Phase 22 | Pending |
-| TEST-07 | Phase 22 | Pending |
+| TEST-06 | Phase 22 | Complete |
+| TEST-07 | Phase 22 | Complete |
 
 **Coverage:**
 - v4.0 requirements: 20 total

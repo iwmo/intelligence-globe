@@ -50,7 +50,7 @@
 - [x] **Phase 19: Aircraft Ingest + Route** — OpenSky ingest writes all new fields, tombstones absent aircraft, route filters stale rows (completed 2026-03-13)
 - [x] **Phase 20: Military, Ships, and Jamming Ingest** — Ingest workers for all three remaining sources gain freshness lifecycle columns and tombstone passes (completed 2026-03-13)
 - [x] **Phase 21: API Route Filtering** — Military, ships, and GPS jamming routes gain stale filtering and freshness response envelopes (completed 2026-03-13)
-- [ ] **Phase 22: Tests** — Full test coverage for freshness behavior, stale filtering, route contracts, and ingest correctness
+- [x] **Phase 22: Tests** — Full test coverage for freshness behavior, stale filtering, route contracts, and ingest correctness (completed 2026-03-13)
 
 ## Phase Details
 
@@ -169,4 +169,4 @@ Plans:
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 22. Tests | 2/3 | In Progress|  | - |
+| 22. Tests | 3/3 | Complete   | 2026-03-13 | - |

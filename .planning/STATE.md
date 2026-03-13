@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T13:58:37.464Z"
+last_updated: "2026-03-13T14:11:42.659Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -55,6 +55,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 21-api-route-filtering P02 | 8 | 2 tasks | 2 files |
 | Phase 22-tests P01 | 2 | 2 tasks | 2 files |
 | Phase 22-tests P02 | 158s | 2 tasks | 3 files |
+| Phase 22-tests P03 | 5 | 3 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 21-api-route-filtering]: Detail endpoints /api/military/{hex} and /api/ships/{mmsi} left unchanged per architectural decision (replay/detail panels need historical rows)
 - [Phase 22-tests]: Ships tests use last_seen_at not fetched_at — Ship model has no fetched_at column (AIS streamed, not polled); military test fixtures must include non-null lat/lon to satisfy route latitude.is_not(None) WHERE filter
 - [Phase 22-tests]: GPS jamming source_is_stale test truncates entire gps_jamming_cells table to ensure cells[0] is the test row
+- [Phase 22-tests]: Full pytest suite (95 passed, 2 skipped, 0 failed) used as phase gate with human checkpoint approval before milestone sign-off
 
 ### Pending Todos
 
