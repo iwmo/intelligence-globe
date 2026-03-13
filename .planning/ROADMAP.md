@@ -121,7 +121,11 @@ Plans:
   3. `GET /api/gps-jamming` response envelope includes `aggregated_at`, `source_fetched_at`, and `source_is_stale` at the top level
   4. When military source data is stale, `GET /api/gps-jamming` returns cells with `source_is_stale = true` rather than an empty set
   5. Existing response keys for all three endpoints are preserved — no previously-returned field is removed or renamed
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 21-01-PLAN.md — Failing tests for MIL-02, SHIP-02, JAM-02, JAM-03 (TDD Wave 0)
+- [ ] 21-02-PLAN.md — Military and ships routes: active+freshness filter + response fields (MIL-02, SHIP-02)
+- [ ] 21-03-PLAN.md — GPS jamming route: freshness envelope metadata (JAM-02, JAM-03)
 
 ### Phase 22: Tests
 **Goal**: Every freshness and stale-filtering behavior introduced in this milestone is verified by an automated test
@@ -159,6 +163,6 @@ Plans:
 | 17. Schema Migration | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
-| 20. Military, Ships, and Jamming Ingest | 3/3 | Complete    | 2026-03-13 | - |
-| 21. API Route Filtering | v4.0 | 0/TBD | Not started | - |
+| 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
+| 21. API Route Filtering | v4.0 | 0/3 | Not started | - |
 | 22. Tests | v4.0 | 0/TBD | Not started | - |
