@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
-status: complete
+status: completed
 stopped_at: Completed 26-04-PLAN.md
-last_updated: "2026-03-14T00:05:00.000Z"
+last_updated: "2026-03-13T21:07:08.037Z"
 last_activity: "2026-03-14 — Plan 26-04 complete: VRFY-02 FPS gate PASSED (>= 30 FPS at 15m/s playback) — no throttle guard needed, v5.0 milestone closes cleanly, 213-test suite green"
 progress:
   total_phases: 4
