@@ -172,3 +172,64 @@ describe('LAYR-01: lerp guard in playback', () => {
     expect(mockBb.position).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// VIS-01: Stale billboard tint contract
+//
+// RED tests: when is_stale=true in live mode, bb.color must be set to a
+// stale-sentinel value. When replayMode='playback', the effect must return
+// early without touching bb.color. Tests fail until 26-02 adds the effect.
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulates the planned stale-tint effect from AircraftLayer (VIS-01).
+ * In playback mode: returns early, no color writes.
+ * In live mode: sets bb.color based on entity.is_stale.
+ */
+function simulateAircraftStaleTint(
+  replayMode: 'live' | 'playback',
+  entities: Array<{ icao24: string; is_stale: boolean }>,
+  billboards: Map<string, { color: unknown }>,
+) {
+  if (replayMode === 'playback') return;  // VIS-01 guard
+  const byId = new Map(entities.map(e => [e.icao24, e]));
+  for (const [id, bb] of billboards) {
+    const entity = byId.get(id);
+    if (!entity || !bb) continue;
+    bb.color = entity.is_stale ? 'STALE_GREY' : 'FRESH_WHITE'; // sentinels
+  }
+}
+
+describe('VIS-01: stale billboard tint contract (AircraftLayer)', () => {
+  it('returns early in playback mode — no color writes', () => {
+    const bb = { color: undefined as unknown };
+    const billboards = new Map([['ABC123', bb]]);
+    const entities = [{ icao24: 'ABC123', is_stale: true }];
+    simulateAircraftStaleTint('playback', entities, billboards);
+    expect(bb.color).toBeUndefined();
+  });
+
+  it('sets stale color when is_stale=true in live mode', () => {
+    const bb = { color: undefined as unknown };
+    const billboards = new Map([['ABC123', bb]]);
+    const entities = [{ icao24: 'ABC123', is_stale: true }];
+    simulateAircraftStaleTint('live', entities, billboards);
+    expect(bb.color).toBe('STALE_GREY');
+  });
+
+  it('sets fresh color when is_stale=false in live mode', () => {
+    const bb = { color: undefined as unknown };
+    const billboards = new Map([['ABC123', bb]]);
+    const entities = [{ icao24: 'ABC123', is_stale: false }];
+    simulateAircraftStaleTint('live', entities, billboards);
+    expect(bb.color).toBe('FRESH_WHITE');
+  });
+
+  it('skips billboard with no matching entity', () => {
+    const bb = { color: 'original' as unknown };
+    const billboards = new Map([['UNKNOWN', bb]]);
+    const entities = [{ icao24: 'OTHER', is_stale: true }];
+    simulateAircraftStaleTint('live', entities, billboards);
+    expect(bb.color).toBe('original');  // untouched
+  });
+});
