@@ -239,6 +239,35 @@ describe('useAppStore — sidebarSections slice', () => {
   });
 });
 
+describe('useAppStore — isPlaying slice', () => {
+  beforeEach(() => {
+    useAppStore.setState({ isPlaying: false } as Parameters<typeof useAppStore.setState>[0]);
+  });
+
+  it('isPlaying defaults to false', () => {
+    expect((useAppStore.getState() as Record<string, unknown>)['isPlaying']).toBe(false);
+  });
+
+  it('setIsPlaying(true) sets isPlaying to true', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['setIsPlaying'] as (v: boolean) => void)(true);
+    expect((useAppStore.getState() as Record<string, unknown>)['isPlaying']).toBe(true);
+  });
+
+  it('setIsPlaying(false) returns isPlaying to false', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['setIsPlaying'] as (v: boolean) => void)(true);
+    (state['setIsPlaying'] as (v: boolean) => void)(false);
+    expect((useAppStore.getState() as Record<string, unknown>)['isPlaying']).toBe(false);
+  });
+
+  it('setIsPlaying with functional updater flips the value', () => {
+    const state = useAppStore.getState() as Record<string, unknown>;
+    (state['setIsPlaying'] as (v: (p: boolean) => boolean) => void)(p => !p);
+    expect((useAppStore.getState() as Record<string, unknown>)['isPlaying']).toBe(true);
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({
