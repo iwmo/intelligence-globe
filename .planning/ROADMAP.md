@@ -45,7 +45,7 @@
 
 ### v4.0 Data Reliability & Freshness
 
-- [ ] **Phase 17: Schema Migration** — Additive Alembic migration adds all freshness columns across four tables
+- [x] **Phase 17: Schema Migration** — Additive Alembic migration adds all freshness columns across four tables (completed 2026-03-13)
 - [ ] **Phase 18: Shared Freshness Helper** — `app/freshness.py` module and configurable stale thresholds in `Settings`
 - [ ] **Phase 19: Aircraft Ingest + Route** — OpenSky ingest writes all new fields, tombstones absent aircraft, route filters stale rows
 - [ ] **Phase 20: Military, Ships, and Jamming Ingest** — Ingest workers for all three remaining sources gain freshness lifecycle columns and tombstone passes
@@ -147,7 +147,7 @@ Plans:
 | 14. Entity Icons and Altitude Scaling | v3.0 | 4/4 | Complete | 2026-03-12 |
 | 15. Camera Navigation Controls | v3.0 | 3/3 | Complete | 2026-03-13 |
 | 16. Persistent Settings Panel | v3.0 | 3/3 | Complete | 2026-03-13 |
-| 17. Schema Migration | v4.0 | 0/1 | Not started | - |
+| 17. Schema Migration | 1/1 | Complete   | 2026-03-13 | - |
 | 18. Shared Freshness Helper | v4.0 | 0/TBD | Not started | - |
 | 19. Aircraft Ingest + Route | v4.0 | 0/TBD | Not started | - |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 0/TBD | Not started | - |
