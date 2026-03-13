@@ -26,7 +26,7 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 
 ### Ships (aisstream.io)
 
-- [ ] **SHIP-01**: `ships` model gains `last_seen_at` (typed TIMESTAMPTZ parsed from `time_utc`) and `is_active`; `batch_flush_ships_to_pg` gains deactivation sweep marking ships not seen in current flush as `is_active=False`, bridging Redis TTL expiry to PostgreSQL
+- [x] **SHIP-01**: `ships` model gains `last_seen_at` (typed TIMESTAMPTZ parsed from `time_utc`) and `is_active`; `batch_flush_ships_to_pg` gains deactivation sweep marking ships not seen in current flush as `is_active=False`, bridging Redis TTL expiry to PostgreSQL
 - [ ] **SHIP-02**: `/api/ships` filters to `is_active=True AND last_seen_at >= stale_cutoff`; response includes `last_seen_at`, `fetched_at`, `is_stale`; existing keys preserved
 
 ### GPS Jamming
@@ -82,7 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACFT-02 | Phase 19 | Complete |
 | ACFT-03 | Phase 19 | Complete |
 | MIL-01 | Phase 20 | Complete |
-| SHIP-01 | Phase 20 | Pending |
+| SHIP-01 | Phase 20 | Complete |
 | JAM-01 | Phase 20 | Pending |
 | MIL-02 | Phase 21 | Pending |
 | SHIP-02 | Phase 21 | Pending |
