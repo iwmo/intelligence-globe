@@ -16,7 +16,9 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime, timezone
 
+from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
@@ -26,6 +28,23 @@ logger = logging.getLogger(__name__)
 
 WS_URL = "wss://stream.aisstream.io/v0/stream"
 BATCH_INTERVAL = 30  # seconds between PostgreSQL flushes
+
+
+def parse_time_utc(raw: "str | None") -> "datetime | None":
+    """Parse an ISO datetime string from Redis to a timezone-aware datetime.
+
+    Returns None if raw is falsy, unparseable, or raises any error.
+    The Ship.last_seen_at column is TIMESTAMPTZ — naive datetimes get UTC attached.
+    """
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
 
 
 def parse_ais_message(msg: dict) -> dict | None:
@@ -73,6 +92,7 @@ async def batch_flush_ships_to_pg(redis_client, session_factory) -> int:
     """
     count = 0
     rows = []
+    seen_mmsis = []
 
     # Scan Redis for all ship keys
     async for key in redis_client.scan_iter("ship:*"):
@@ -101,28 +121,49 @@ async def batch_flush_ships_to_pg(redis_client, session_factory) -> int:
             "true_heading": float(decoded["true_heading"]) if decoded.get("true_heading") not in (None, "None", "") else None,
             "nav_status": int(decoded["nav_status"]) if decoded.get("nav_status") not in (None, "None", "") else None,
             "last_update": decoded.get("time_utc"),
+            "last_seen_at": parse_time_utc(decoded.get("time_utc")),
         }
         rows.append(row)
+        seen_mmsis.append(str(mmsi))
 
     if not rows:
         return 0
 
+    # asyncpg caps at 32,767 bind parameters per query; Ship has 10 value columns
+    # so chunk at 3,000 rows (3000 × 10 = 30,000 — safely under the limit)
+    CHUNK_SIZE = 3_000
     async with session_factory() as session:
-        stmt = pg_insert(Ship).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["mmsi"],
-            set_={
-                "vessel_name": stmt.excluded.vessel_name,
-                "latitude": stmt.excluded.latitude,
-                "longitude": stmt.excluded.longitude,
-                "sog": stmt.excluded.sog,
-                "cog": stmt.excluded.cog,
-                "true_heading": stmt.excluded.true_heading,
-                "nav_status": stmt.excluded.nav_status,
-                "last_update": stmt.excluded.last_update,
-            },
-        )
-        await session.execute(stmt)
+        for i in range(0, len(rows), CHUNK_SIZE):
+            chunk = rows[i:i + CHUNK_SIZE]
+            stmt = pg_insert(Ship).values(chunk)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["mmsi"],
+                set_={
+                    "vessel_name": stmt.excluded.vessel_name,
+                    "latitude": stmt.excluded.latitude,
+                    "longitude": stmt.excluded.longitude,
+                    "sog": stmt.excluded.sog,
+                    "cog": stmt.excluded.cog,
+                    "true_heading": stmt.excluded.true_heading,
+                    "nav_status": stmt.excluded.nav_status,
+                    "last_update": stmt.excluded.last_update,
+                    "last_seen_at": stmt.excluded.last_seen_at,
+                    "is_active": True,
+                },
+            )
+            await session.execute(stmt)
+
+        # Deactivation sweep: mark ships not in current Redis scan as inactive.
+        # Uses MMSI presence in Redis scan (not timestamp arithmetic) per STATE.md decision.
+        # Note: NOT IN with large lists is acceptable here — Redis scan at 30s intervals
+        # typically yields thousands, not tens of thousands, of ships.
+        if seen_mmsis:
+            await session.execute(
+                sa_update(Ship)
+                .where(Ship.mmsi.not_in(seen_mmsis))
+                .values(is_active=False)
+            )
+
         await session.commit()
         count = len(rows)
 

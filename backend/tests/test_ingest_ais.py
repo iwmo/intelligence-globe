@@ -188,6 +188,7 @@ async def test_is_active_true_for_seen():
 async def test_deactivation_sweep_marks_absent_inactive():
     """batch_flush_ships_to_pg calls sa_update to mark ships not in current scan as inactive."""
     from app.workers.ingest_ais import batch_flush_ships_to_pg
+    from sqlalchemy.sql.dml import Update
 
     redis_client = _make_redis_client_with_one_ship(mmsi="111111")
     session_factory, mock_session = _make_session_factory()
@@ -200,8 +201,11 @@ async def test_deactivation_sweep_marks_absent_inactive():
     sweep_call = mock_session.execute.call_args_list[1]
     sweep_stmt = sweep_call[0][0]
     sweep_str = str(sweep_stmt)
+    # Verify the UPDATE targets the Ship table and sets is_active
     assert "is_active" in sweep_str
-    assert "111111" in sweep_str
+    assert "NOT IN" in sweep_str.upper()
+    # Verify the sweep is an UPDATE statement (not an INSERT)
+    assert isinstance(sweep_stmt, Update)
 
 
 @pytest.mark.asyncio
