@@ -250,6 +250,11 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
 
       function lerp() {
         if (!rafRunningRef.current) return;
+        // LAYR-01: snapshot interpolation has exclusive bb.position ownership in playback
+        if (useAppStore.getState().replayMode === 'playback') {
+          rafRef.current = requestAnimationFrame(lerp);
+          return;
+        }
         const alpha = Math.min((Date.now() - lastUpdateTime) / POLL_INTERVAL_MS, 1.0);
         for (const [icao24, bb] of billboardsByIcao24) {
           const prev = prevPositions.get(icao24);
