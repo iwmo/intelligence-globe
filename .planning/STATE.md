@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T12:32:57.890Z"
+last_updated: "2026-03-13T12:38:15.372Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -49,6 +49,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 19 P02 | 150 | 1 tasks | 2 files |
 | Phase 20-military-ships-jamming-ingest P01 | 12 | 2 tasks | 2 files |
 | Phase 20-military-ships-jamming-ingest P02 | 4 | 2 tasks | 2 files |
+| Phase 20-military-ships-jamming-ingest P03 | 3m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 20-01]: MIL tombstone: if seen_hexes guard prevents mass deactivation on feed-down; tombstone and all upserts share a single session.commit()
 - [Phase 20-02]: is_active=True written explicitly in set_={} on every upsert — onupdate silently ignored on on_conflict_do_update path
 - [Phase 20-02]: Deactivation sweep guarded by if seen_mmsis: inside session block as additional safety net alongside outer if not rows: return 0
+- [Phase 20-03]: JAM-01 active filter: MilitaryAircraft.is_active==True added as third WHERE condition; tombstoned aircraft excluded from GPS jamming aggregation
+- [Phase 20-03]: source_fetched_at computed via Python-level max over already-loaded aircraft_rows to avoid extra DB round-trip
 
 ### Pending Todos
 

@@ -31,7 +31,7 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 
 ### GPS Jamming
 
-- [ ] **JAM-01**: `ingest_gps_jamming.py` filters source military rows to `is_active=True` before aggregation; writes `aggregated_at`, `source_fetched_at`, `source_is_stale` to every cell in the batch
+- [x] **JAM-01**: `ingest_gps_jamming.py` filters source military rows to `is_active=True` before aggregation; writes `aggregated_at`, `source_fetched_at`, `source_is_stale` to every cell in the batch
 - [ ] **JAM-02**: `/api/gps-jamming` response envelope includes `aggregated_at`, `source_fetched_at`, `source_is_stale`
 - [ ] **JAM-03**: When military source data is stale, cells are returned with `source_is_stale=true` (not an empty set); behavior documented in a code comment and covered by a dedicated test
 
@@ -83,7 +83,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACFT-03 | Phase 19 | Complete |
 | MIL-01 | Phase 20 | Complete |
 | SHIP-01 | Phase 20 | Complete |
-| JAM-01 | Phase 20 | Pending |
+| JAM-01 | Phase 20 | Complete |
 | MIL-02 | Phase 21 | Pending |
 | SHIP-02 | Phase 21 | Pending |
 | JAM-02 | Phase 21 | Pending |
