@@ -10,7 +10,8 @@ import { MilitaryAircraftLayer } from './components/MilitaryAircraftLayer';
 import { ShipLayer } from './components/ShipLayer';
 import { GpsJammingLayer } from './components/GpsJammingLayer';
 import { StreetTrafficLayer } from './components/StreetTrafficLayer';
-import { registerViewer } from './lib/viewerRegistry';
+import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
+import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
 import { CinematicHUD } from './components/CinematicHUD';
 import { LandmarkNav } from './components/LandmarkNav';
@@ -48,7 +49,21 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
       {/* Globe fills the entire viewport */}
-      <GlobeView onViewerReady={(v) => { registerViewer(v); setCesiumViewer(v); }} />
+      <GlobeView onViewerReady={(v) => {
+        registerViewer(v);
+        setCesiumViewer(v);
+        // Apply persisted settings defaults after viewer is live
+        const s = useSettingsStore.getState();
+        const appStore = useAppStore.getState();
+        Object.entries(s.defaultLayers).forEach(([layer, visible]) => {
+          appStore.setLayerVisible(layer as keyof typeof s.defaultLayers, visible);
+        });
+        appStore.setVisualPreset(s.defaultPreset);
+        appStore.setReplayMode(s.defaultMode);
+        if (s.defaultCamera) {
+          flyToLandmark(s.defaultCamera);
+        }
+      }} />
       {/* Satellite layer — renders null to DOM, manages CesiumJS primitives */}
       <SatelliteLayer viewer={cesiumViewer} onWorkerReady={setSatWorker} />
       {/* Aircraft layer — renders null to DOM, manages aircraft CesiumJS primitives */}
