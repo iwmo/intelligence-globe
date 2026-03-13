@@ -169,4 +169,4 @@ Plans:
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 22. Tests | 1/3 | In Progress|  | - |
+| 22. Tests | 2/3 | In Progress|  | - |
