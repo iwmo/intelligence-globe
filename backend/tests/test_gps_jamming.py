@@ -440,3 +440,62 @@ async def test_gps_jamming_source_is_stale_present_in_envelope():
     assert response.status_code == 200
     body = response.json()
     assert "source_is_stale" in body
+
+
+# ---------------------------------------------------------------------------
+# TEST-05: source_is_stale=True propagates from DB row to API envelope
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_gps_jamming_source_is_stale_true_from_db():
+    """A GpsJammingCell row stored with source_is_stale=True causes GET /api/gps-jamming to return source_is_stale=true.
+
+    The route lifts source_is_stale from cells[0] — the first row returned by
+    the SELECT. To guarantee our test row is the only row (and therefore cells[0]),
+    this test truncates the table, inserts one row, verifies the envelope, then
+    restores the cleared rows via a rollback-safe finally block that only deletes
+    the specific test row (the truncation is permanent for this test run).
+    """
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.gps_jamming import GpsJammingCell
+    from datetime import datetime, timezone
+
+    h3index = "8542e97ffffffff"
+    now_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        # Truncate the table so our row is the only one (cells[0] is our row)
+        await session.execute(text("TRUNCATE TABLE gps_jamming_cells"))
+        await session.commit()
+
+        cell = GpsJammingCell(
+            h3index=h3index,
+            bad_ratio=0.5,
+            severity="red",
+            aircraft_count=10,
+            aggregated_at=now_ts,
+            source_fetched_at=now_ts,
+            source_is_stale=True,
+        )
+        session.add(cell)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/gps-jamming")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["source_is_stale"] is True
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM gps_jamming_cells WHERE h3index = :h"),
+                {"h": h3index},
+            )
+            await session.commit()

@@ -401,3 +401,73 @@ async def test_list_aircraft_position_age_null_when_both_null():
                 {"icao24": icao24},
             )
             await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# TEST-02: geo_altitude, vertical_rate, position_source stored and returned
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_aircraft_geo_altitude_vertical_rate_position_source_stored_and_returned():
+    """geo_altitude, vertical_rate, and position_source written to DB are returned by GET /api/aircraft/."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+
+    icao24 = "geoalt1"
+    now_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="GEOALT1",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=True,
+            fetched_at=now_ts,
+            geo_altitude=5100.0,
+            vertical_rate=2.5,
+            position_source=0,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        item = next((i for i in body if i["icao24"] == icao24), None)
+        assert item is not None, "Inserted row must appear in list"
+
+        assert item["geo_altitude"] == 5100.0
+        assert item["vertical_rate"] == 2.5
+        assert item["position_source"] == 0
+
+        # All pre-existing keys still present
+        for key in (
+            "icao24", "callsign", "latitude", "longitude", "baro_altitude",
+            "velocity", "true_track", "trail", "time_position", "fetched_at",
+            "is_stale", "position_age_seconds",
+        ):
+            assert key in item, f"Pre-existing key '{key}' must still be present"
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
