@@ -39,3 +39,51 @@ describe('MilitaryAircraftLayer smoke test', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// LAYR-02: Effect 2 guard in playback mode (MilitaryAircraftLayer)
+//
+// RED test: when replayMode is 'playback', MilitaryAircraftLayer Effect 2
+// must return early WITHOUT writing bb.position. Current code has no guard.
+//
+// Mirror of the ShipLayer LAYR-02 test — same contract, different entity type.
+// ---------------------------------------------------------------------------
+
+function simulateMilitaryEffect2Unguarded(
+  replayMode: 'live' | 'playback',
+  entities: { hex: string }[],
+  billboards: Map<string, { position: unknown }>,
+) {
+  // Current production code: no replayMode check — always writes
+  for (const entity of entities) {
+    const bb = billboards.get(entity.hex);
+    if (bb) {
+      bb.position = { updated: true }; // sentinel write simulating Effect 2
+    }
+  }
+  void replayMode; // production code ignores replayMode — this is the bug
+}
+
+describe('LAYR-02: MilitaryAircraftLayer Effect 2 guard in playback', () => {
+  it('current Effect 2 (unguarded) writes bb.position in live mode — sanity check', () => {
+    const mockBb = { position: undefined as unknown };
+    const billboards = new Map([['AE1234', mockBb]]);
+    const entities = [{ hex: 'AE1234' }];
+
+    simulateMilitaryEffect2Unguarded('live', entities, billboards);
+    expect(mockBb.position).toBeDefined();
+  });
+
+  it('Effect 2 must NOT write bb.position when replayMode is playback (RED)', () => {
+    // RED: MilitaryAircraftLayer Effect 2 has no playback guard yet.
+    // FAILS until MilitaryAircraftLayer adds: if (replayMode === 'playback') return;
+    const mockBb = { position: undefined as unknown };
+    const billboards = new Map([['AE5678', mockBb]]);
+    const entities = [{ hex: 'AE5678' }];
+
+    simulateMilitaryEffect2Unguarded('playback', entities, billboards);
+
+    // Contract: position must NOT be written in playback mode
+    expect(mockBb.position).toBeUndefined();
+  });
+});

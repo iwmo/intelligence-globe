@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 
 vi.mock('cesium', () => ({}));
 
@@ -91,5 +91,43 @@ describe('PlaybackBar — snapshot loading gate', () => {
     // reset
     mockState.replayWindowStart = null;
     mockState.replayWindowEnd = null;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PLAY-04: queryClient.invalidateQueries called on return to LIVE
+//
+// RED test: when handleModeToggle switches from playback → live, PlaybackBar
+// must call queryClient.invalidateQueries() exactly once to refresh all
+// React Query caches. The current implementation does NOT call invalidateQueries.
+//
+// This test FAILS until PlaybackBar imports queryClient from '../lib/queryClient'
+// and calls queryClient.invalidateQueries() inside the else branch of handleModeToggle.
+// ---------------------------------------------------------------------------
+
+const mockInvalidateQueries = vi.fn();
+
+vi.mock('../../lib/queryClient', () => ({
+  queryClient: {
+    invalidateQueries: mockInvalidateQueries,
+  },
+}));
+
+describe('PLAY-04: invalidateQueries on return to LIVE', () => {
+  it('calls queryClient.invalidateQueries exactly once when switching from playback to live (RED)', () => {
+    mockState.replayMode = 'playback';
+    mockInvalidateQueries.mockClear();
+
+    const { getByText } = render(<PlaybackBar />);
+    // Click the LIVE toggle button to switch back to live mode
+    const liveBtn = getByText('LIVE');
+    fireEvent.click(liveBtn);
+
+    // Contract: invalidateQueries must be called exactly once on mode switch to live.
+    // FAILS until PlaybackBar.handleModeToggle() adds: queryClient.invalidateQueries()
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
+
+    // reset
+    mockState.replayMode = 'live';
   });
 });
