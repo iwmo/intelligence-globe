@@ -76,7 +76,13 @@
   2. CinematicHUD displays `REPLAY [ISO timestamp]` instead of `REC` while in playback mode
   3. Play button shows "Loading snapshots..." and is non-interactive while snapshot fetch is in progress; becomes active when data is ready
   4. `isPlaying` removed from `PlaybackBar` local state — toggling play/pause in one component is reflected everywhere that reads the store
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Wave 0 test scaffolding: isPlaying slice tests, useViewerClock.test.ts, CinematicHUD.test.tsx, PlaybackBar mock updates
+- [ ] 23-02-PLAN.md — Promote isPlaying to useAppStore; migrate PlaybackBar from useState to store selector
+- [ ] 23-03-PLAN.md — Create useViewerClock hook; wire in App.tsx
+- [ ] 23-04-PLAN.md — CinematicHUD conditional REC/REPLAY render; PlaybackBar snapshot loading gate
 
 ### Phase 24: Satellite Propagation Fix
 **Goal**: Satellites render at their historical orbital positions during playback and freeze completely when paused — the most visually prominent layer no longer contradicts the replay timestamp
@@ -137,7 +143,7 @@
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 23. Store Foundation + Viewer Clock | v5.0 | 0/? | Not started | - |
+| 23. Store Foundation + Viewer Clock | v5.0 | 0/4 | In progress | - |
 | 24. Satellite Propagation Fix | v5.0 | 0/? | Not started | - |
 | 25. Layer Audit | v5.0 | 0/? | Not started | - |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |
