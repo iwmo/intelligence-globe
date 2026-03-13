@@ -6,6 +6,7 @@
 - ✅ **v2.0 WorldView Parity** — Phases 7-12 (shipped 2026-03-12) — [Archive](milestones/v2.0-ROADMAP.md)
 - ✅ **v3.0 UI Refinement** — Phases 13-16 (shipped 2026-03-13) — [Archive](milestones/v3.0-ROADMAP.md)
 - ✅ **v4.0 Data Reliability & Freshness** — Phases 17-22 (shipped 2026-03-13) — [Archive](milestones/v4.0-ROADMAP.md)
+- 🚧 **v5.0 Playback** — Phases 23-26 (in progress)
 
 ## Phases
 
@@ -55,6 +56,61 @@
 
 </details>
 
+### 🚧 v5.0 Playback (In Progress)
+
+**Milestone Goal:** Audit and fix the 4D replay engine so all layers behave correctly — satellites use `replayTs`, nothing moves when paused, and end-to-end playback is verified reliable.
+
+- [ ] **Phase 23: Store Foundation + Viewer Clock** — Promote `isPlaying` to `useAppStore`, create `useViewerClock` hook, wire HUD and play button loading state
+- [ ] **Phase 24: Satellite Propagation Fix** — Satellites propagate at `replayTs` in playback; propagation loop skips dispatch when paused
+- [ ] **Phase 25: Layer Audit** — Aircraft, ships, military, GPS jamming, and street traffic all gated on `replayMode`; return-to-live triggers cache invalidation
+- [ ] **Phase 26: End-to-End Verification + Stale Indicators** — Full scrub test across 2-hour window, FPS gate, frontend stale entity visual degradation
+
+## Phase Details
+
+### Phase 23: Store Foundation + Viewer Clock
+**Goal**: `isPlaying` is the global source of truth in `useAppStore`, the CesiumJS globe day/night shading tracks `replayTs`, and the HUD and play button correctly reflect playback state — unblocking all layer guards in subsequent phases
+**Depends on**: Phase 22 (v4.0 complete)
+**Requirements**: PLAY-01, PLAY-03, VIS-02, VIS-03
+**Success Criteria** (what must be TRUE):
+  1. Scrubbing to a nighttime historical timestamp causes the globe lighting to visibly go dark within one render frame
+  2. CinematicHUD displays `REPLAY [ISO timestamp]` instead of `REC` while in playback mode
+  3. Play button shows "Loading snapshots..." and is non-interactive while snapshot fetch is in progress; becomes active when data is ready
+  4. `isPlaying` removed from `PlaybackBar` local state — toggling play/pause in one component is reflected everywhere that reads the store
+**Plans**: TBD
+
+### Phase 24: Satellite Propagation Fix
+**Goal**: Satellites render at their historical orbital positions during playback and freeze completely when paused — the most visually prominent layer no longer contradicts the replay timestamp
+**Depends on**: Phase 23
+**Requirements**: PLAY-02
+**Success Criteria** (what must be TRUE):
+  1. Scrubbing to a timestamp 6 hours ago places satellites at positions consistent with that historical time, visibly different from their current real-world positions
+  2. Pressing pause during playback causes all satellite positions to freeze instantly with no further movement
+  3. Orbit ring overlay and click-to-fly destination for a selected satellite match the replay timestamp, not wall-clock time
+**Plans**: TBD
+
+### Phase 25: Layer Audit
+**Goal**: Every remaining layer — aircraft, ships, military, GPS jamming, and street traffic — is inert in playback mode; snapshot interpolation has exclusive position ownership; returning to LIVE delivers fresh data immediately
+**Depends on**: Phase 24
+**Requirements**: PLAY-04, LAYR-01, LAYR-02, LAYR-03, LAYR-04
+**Success Criteria** (what must be TRUE):
+  1. Aircraft billboard positions do not flicker or revert to live coordinates while the scrubber is moving; snapshot interpolation is the sole writer of `bb.position` during playback
+  2. Ships and military entities hold their snapshot positions even when the browser tab regains focus (no background React Query refetch override)
+  3. GPS jamming layer shows an amber "LIVE DATA" badge while playback is active, and its underlying data does not refresh on the daily poll interval during playback
+  4. Street traffic particles are hidden during playback and reappear immediately on return to LIVE
+  5. Switching from PLAYBACK back to LIVE shows current-time entity positions within 5 seconds (no 90-second stale data window)
+**Plans**: TBD
+
+### Phase 26: End-to-End Verification + Stale Indicators
+**Goal**: The complete replay experience is verified correct across a real 2-hour data window at all speed presets, FPS stays above 30 at high speed with all layers active, and live-mode entities with stale backend data are visually distinct
+**Depends on**: Phase 25
+**Requirements**: VIS-01, VRFY-01, VRFY-02
+**Success Criteria** (what must be TRUE):
+  1. A 2-hour replay scrub with aircraft, ships, military, GPS jamming, and satellites all active completes without any layer showing live-data contamination or freezing at wrong positions
+  2. Playback auto-stops at the window end boundary and the play button returns to its initial state
+  3. Frame rate stays at or above 30 FPS at 15m/s playback speed with aircraft and ships layers visible; if it fails, an optimisation pass is applied and the gate is re-run
+  4. In LIVE mode, entities whose backend `is_stale=true` are rendered with visible grey tint or reduced opacity, distinguishing them from fresh entities without removing them from the globe
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -81,3 +137,7 @@
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 21. API Route Filtering | v4.0 | 3/3 | Complete | 2026-03-13 |
 | 22. Tests | v4.0 | 3/3 | Complete | 2026-03-13 |
+| 23. Store Foundation + Viewer Clock | v5.0 | 0/? | Not started | - |
+| 24. Satellite Propagation Fix | v5.0 | 0/? | Not started | - |
+| 25. Layer Audit | v5.0 | 0/? | Not started | - |
+| 26. End-to-End Verification + Stale Indicators | v5.0 | 0/? | Not started | - |

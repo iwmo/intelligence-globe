@@ -70,16 +70,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PLAY-01 | Phase 23 | Pending |
-| PLAY-02 | Phase 23 | Pending |
 | PLAY-03 | Phase 23 | Pending |
-| PLAY-04 | Phase 24 | Pending |
-| LAYR-01 | Phase 24 | Pending |
-| LAYR-02 | Phase 24 | Pending |
-| LAYR-03 | Phase 24 | Pending |
-| LAYR-04 | Phase 24 | Pending |
-| VIS-01 | Phase 25 | Pending |
 | VIS-02 | Phase 23 | Pending |
 | VIS-03 | Phase 23 | Pending |
+| PLAY-02 | Phase 24 | Pending |
+| PLAY-04 | Phase 25 | Pending |
+| LAYR-01 | Phase 25 | Pending |
+| LAYR-02 | Phase 25 | Pending |
+| LAYR-03 | Phase 25 | Pending |
+| LAYR-04 | Phase 25 | Pending |
+| VIS-01 | Phase 26 | Pending |
 | VRFY-01 | Phase 26 | Pending |
 | VRFY-02 | Phase 26 | Pending |
 
@@ -90,4 +90,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 — traceability updated for v5.0 roadmap (phases 23-26)*
