@@ -4,14 +4,14 @@ milestone: v5.0
 milestone_name: Playback
 status: executing
 stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-03-13T19:28:34.145Z"
-last_activity: "2026-03-13 — Plan 24-01 complete: resolveTimestamp pure function + PLAY-02 tests"
+last_updated: "2026-03-13T19:36:43.280Z"
+last_activity: "2026-03-13 — Plan 24-02 complete: four propagation mutations wired to replayTs"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 6
   completed_plans: 6
-  percent: 68
+  percent: 100
 ---
 
 # Project State
