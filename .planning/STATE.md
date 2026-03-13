@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Playback
 status: executing
-stopped_at: Completed 25-03-PLAN.md
-last_updated: "2026-03-13T20:07:23.348Z"
-last_activity: "2026-03-13 — Plan 25-02 complete: playback guards wired into AircraftLayer lerp and ShipLayer/MilitaryAircraftLayer Effect 2, LAYR-01+LAYR-02 GREEN"
+stopped_at: Completed 25-04-PLAN.md
+last_updated: "2026-03-13T20:14:53.735Z"
+last_activity: "2026-03-13 — Plan 25-03 complete: GPS jamming poll frozen in playback (refetchInterval: false), amber GPS LIVE DATA badge rendered, LAYR-03 GREEN"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Phase 25 — Layer Audit
+**Current focus:** Phase 26 — End-to-End Verification + Stale Indicators
 
 ## Current Position
 
 Phase: 25 of 26 (Layer Audit)
-Plan: 3 of 4 complete in current phase
-Status: In Progress
-Last activity: 2026-03-13 — Plan 25-03 complete: GPS jamming poll frozen in playback (refetchInterval: false), amber GPS LIVE DATA badge rendered, LAYR-03 GREEN
+Plan: 4 of 4 complete in current phase
+Status: Phase Complete
+Last activity: 2026-03-13 — Plan 25-04 complete: street traffic particles hidden in playback, rAF loop frozen, road fetch debounced blocked, invalidateQueries wired on LIVE return — LAYR-04 and PLAY-04 GREEN; full 192-test suite green
 
 Progress: [██████████████████████████████] 100% (v5.0 phase 24 complete)
 
@@ -59,6 +59,7 @@ Progress: [███████████████████████
 | Phase 25-layer-audit P01 | 8 | 2 tasks | 9 files |
 | Phase 25-layer-audit P02 | 8 | 2 tasks | 6 files |
 | Phase 25-layer-audit P03 | 7 | 2 tasks | 3 files |
+| Phase 25-layer-audit P04 | 5 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Progress: [███████████████████████
 - ShipLayer/MilitaryAircraftLayer Effect 2 guard placed before null checks, replayMode in deps for live-resume reactivity [25-02]
 - GPS jamming badge rendered via conditional JSX return (not inside useEffect) — keeps Cesium primitive and React DOM concerns separate [25-03]
 - vi.mock paths in Vitest are relative to test file location, not source file — corrected useGpsJamming test mock path [25-03]
+- Effect 5 added alongside Effect 4 in StreetTrafficLayer — replayMode and layerVisible change handling kept separate with independent reactive deps [25-04]
+- vi.hoisted used for mockInvalidateQueries — avoids temporal dead zone when vi.mock factory is hoisted before module-level const declarations [25-04]
+- useAppStore mock requires .getState() for components that call getState() imperatively — selector mock alone insufficient for handleModeToggle [25-04]
 
 ### Preserved from v4.0
 
@@ -96,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T20:07:23.344Z
-Stopped at: Completed 25-03-PLAN.md
+Last session: 2026-03-13T20:14:53.732Z
+Stopped at: Completed 25-04-PLAN.md
 Resume file: None
