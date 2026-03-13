@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Data Reliability & Freshness
 status: executing
-last_updated: "2026-03-13T13:26:15.523Z"
+last_updated: "2026-03-13T13:27:36.468Z"
 last_activity: 2026-03-13 — 17-01 complete (MIG-01 freshness columns migrated)
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -51,6 +51,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 | Phase 20-military-ships-jamming-ingest P02 | 4 | 2 tasks | 2 files |
 | Phase 20-military-ships-jamming-ingest P03 | 3m | 2 tasks | 2 files |
 | Phase 21-api-route-filtering P03 | 8 | 1 tasks | 2 files |
+| Phase 21-api-route-filtering P01 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ v4.0: [~] [ ] [ ] [ ] [ ] [ ]
 - [Phase 20-03]: source_fetched_at computed via Python-level max over already-loaded aircraft_rows to avoid extra DB round-trip
 - [Phase 21-api-route-filtering]: Envelope metadata lifted from cells[0] — all cells in a single aggregation batch share identical aggregated_at/source_fetched_at/source_is_stale values
 - [Phase 21-api-route-filtering]: No staleness WHERE filter on GPS jamming list endpoint — JAM-03 contract requires stale cells returned with source_is_stale=true, not empty set
+- [Phase 21-api-route-filtering]: TDD RED tests appended to test files without modifying existing tests — regression guards expected to pass immediately, freshness-key tests fail RED until route implementations
 
 ### Pending Todos
 

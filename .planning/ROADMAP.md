@@ -49,7 +49,7 @@
 - [x] **Phase 18: Shared Freshness Helper** — `app/freshness.py` module and configurable stale thresholds in `Settings` (completed 2026-03-13)
 - [x] **Phase 19: Aircraft Ingest + Route** — OpenSky ingest writes all new fields, tombstones absent aircraft, route filters stale rows (completed 2026-03-13)
 - [x] **Phase 20: Military, Ships, and Jamming Ingest** — Ingest workers for all three remaining sources gain freshness lifecycle columns and tombstone passes (completed 2026-03-13)
-- [ ] **Phase 21: API Route Filtering** — Military, ships, and GPS jamming routes gain stale filtering and freshness response envelopes
+- [x] **Phase 21: API Route Filtering** — Military, ships, and GPS jamming routes gain stale filtering and freshness response envelopes (completed 2026-03-13)
 - [ ] **Phase 22: Tests** — Full test coverage for freshness behavior, stale filtering, route contracts, and ingest correctness
 
 ## Phase Details
@@ -164,5 +164,5 @@ Plans:
 | 18. Shared Freshness Helper | v4.0 | 1/1 | Complete | 2026-03-13 |
 | 19. Aircraft Ingest + Route | v4.0 | 2/2 | Complete | 2026-03-13 |
 | 20. Military, Ships, and Jamming Ingest | v4.0 | 3/3 | Complete | 2026-03-13 |
-| 21. API Route Filtering | 1/3 | In Progress|  | - |
+| 21. API Route Filtering | 3/3 | Complete   | 2026-03-13 | - |
 | 22. Tests | v4.0 | 0/TBD | Not started | - |

@@ -22,12 +22,12 @@ Requirements for v4.0 Data Reliability & Freshness milestone.
 ### Military Aircraft (airplanes.live)
 
 - [x] **MIL-01**: `military_aircraft` model gains `fetched_at`, `last_seen_at`, `is_active`; ingest marks seen rows active and writes `fetched_at`/`last_seen_at` explicitly in `set_={}`; tombstone pass marks absent rows `is_active=False` after each 300s poll
-- [ ] **MIL-02**: `/api/military` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `fetched_at`, `is_stale`; existing keys (`hex`, `flight`, `aircraft_type`, `alt_baro`, `gs`, `track`, `lat`, `lon`, `squawk`) preserved
+- [x] **MIL-02**: `/api/military` filters to `is_active=True AND fetched_at >= stale_cutoff`; response includes `fetched_at`, `is_stale`; existing keys (`hex`, `flight`, `aircraft_type`, `alt_baro`, `gs`, `track`, `lat`, `lon`, `squawk`) preserved
 
 ### Ships (aisstream.io)
 
 - [x] **SHIP-01**: `ships` model gains `last_seen_at` (typed TIMESTAMPTZ parsed from `time_utc`) and `is_active`; `batch_flush_ships_to_pg` gains deactivation sweep marking ships not seen in current flush as `is_active=False`, bridging Redis TTL expiry to PostgreSQL
-- [ ] **SHIP-02**: `/api/ships` filters to `is_active=True AND last_seen_at >= stale_cutoff`; response includes `last_seen_at`, `fetched_at`, `is_stale`; existing keys preserved
+- [x] **SHIP-02**: `/api/ships` filters to `is_active=True AND last_seen_at >= stale_cutoff`; response includes `last_seen_at`, `fetched_at`, `is_stale`; existing keys preserved
 
 ### GPS Jamming
 
@@ -84,8 +84,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIL-01 | Phase 20 | Complete |
 | SHIP-01 | Phase 20 | Complete |
 | JAM-01 | Phase 20 | Complete |
-| MIL-02 | Phase 21 | Pending |
-| SHIP-02 | Phase 21 | Pending |
+| MIL-02 | Phase 21 | Complete |
+| SHIP-02 | Phase 21 | Complete |
 | JAM-02 | Phase 21 | Complete |
 | JAM-03 | Phase 21 | Complete |
 | TEST-01 | Phase 22 | Pending |
