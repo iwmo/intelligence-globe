@@ -1,11 +1,12 @@
 """
-Aircraft endpoint tests — AIR-01 and INT-02 contract.
+Aircraft endpoint tests — AIR-01, INT-02, and ACFT-03 contract.
 
 Tests are written before routes are wired (TDD RED phase).
 Once backend/app/api/routes_aircraft.py is added, the Alembic migration runs,
 and main.py mounts the router, all tests should turn GREEN.
 """
 import pytest
+from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
@@ -101,6 +102,297 @@ async def test_aircraft_detail():
         ) as client:
             not_found = await client.get("/api/aircraft/xxxxxx")
         assert not_found.status_code == 404
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# ACFT-03: Freshness filter and new response fields
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_excludes_stale():
+    """Rows with fetched_at older than AIRCRAFT_STALE_SECONDS are excluded from GET /api/aircraft."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+
+    icao24 = "stale01"
+    stale_ts = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="STALE01",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=True,
+            fetched_at=stale_ts,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        icao24s = [item["icao24"] for item in body]
+        assert icao24 not in icao24s, "Stale row must be excluded from list"
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_excludes_inactive():
+    """Rows with is_active=False are excluded from GET /api/aircraft."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+
+    icao24 = "inact01"
+    fresh_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="INACT01",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=False,
+            fetched_at=fresh_ts,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        icao24s = [item["icao24"] for item in body]
+        assert icao24 not in icao24s, "Inactive row must be excluded from list"
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_freshness_fields():
+    """Fresh, active rows appear in the list with the four new freshness fields."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+    import time as time_module
+
+    icao24 = "fresh01"
+    now_ts = datetime.now(timezone.utc)
+    known_time_position = int(time_module.time()) - 30  # 30 seconds ago
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="FRESH01",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=True,
+            fetched_at=now_ts,
+            time_position=known_time_position,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        item = next((i for i in body if i["icao24"] == icao24), None)
+        assert item is not None, "Fresh active row must appear in list"
+
+        # Four new freshness fields must be present
+        assert "time_position" in item
+        assert "fetched_at" in item
+        assert "is_stale" in item
+        assert "position_age_seconds" in item
+
+        # Values must be correct
+        assert item["time_position"] == known_time_position
+        assert item["fetched_at"] is not None
+        assert isinstance(item["fetched_at"], str)
+        assert item["is_stale"] is False
+        assert isinstance(item["position_age_seconds"], float)
+        # 30 seconds ago ± some tolerance
+        assert 0 <= item["position_age_seconds"] < 60
+
+        # All pre-existing keys still present
+        for key in ("icao24", "callsign", "latitude", "longitude", "baro_altitude", "velocity", "true_track", "trail"):
+            assert key in item, f"Pre-existing key '{key}' must still be present"
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_position_age_fallback():
+    """When time_position is null, position_age_seconds falls back to last_contact."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+    import time as time_module
+
+    icao24 = "fallbk1"
+    now_ts = datetime.now(timezone.utc)
+    known_last_contact = int(time_module.time()) - 45  # 45 seconds ago
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="FALLBK1",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=True,
+            fetched_at=now_ts,
+            time_position=None,
+            last_contact=known_last_contact,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        item = next((i for i in body if i["icao24"] == icao24), None)
+        assert item is not None, "Row must appear in list"
+
+        # time_position null → position_age_seconds uses last_contact
+        assert item["time_position"] is None
+        assert isinstance(item["position_age_seconds"], float), "position_age_seconds must fall back to last_contact"
+        assert 0 <= item["position_age_seconds"] < 120
+
+    finally:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+                {"icao24": icao24},
+            )
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_position_age_null_when_both_null():
+    """When both time_position and last_contact are null, position_age_seconds is null."""
+    from sqlalchemy import text
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+
+    icao24 = "nullag1"
+    now_ts = datetime.now(timezone.utc)
+
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text("DELETE FROM aircraft WHERE icao24 = :icao24"),
+            {"icao24": icao24},
+        )
+        await session.commit()
+
+        aircraft = Aircraft(
+            icao24=icao24,
+            callsign="NULLAG1",
+            origin_country="Test",
+            longitude=10.0,
+            latitude=50.0,
+            baro_altitude=5000.0,
+            is_active=True,
+            fetched_at=now_ts,
+            time_position=None,
+            last_contact=None,
+        )
+        session.add(aircraft)
+        await session.commit()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/aircraft/")
+
+        assert response.status_code == 200
+        body = response.json()
+        item = next((i for i in body if i["icao24"] == icao24), None)
+        assert item is not None, "Row must appear in list"
+
+        assert item["time_position"] is None
+        assert item["position_age_seconds"] is None, "Both timestamps null → position_age_seconds must be null"
 
     finally:
         async with AsyncSessionLocal() as session:
