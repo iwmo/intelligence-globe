@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
 import { useOsintEvents } from '../hooks/useOsintEvents';
@@ -33,6 +33,8 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const toggleCategory     = useAppStore(s => s.toggleCategory);
   const setAreaOfInterest  = useAppStore(s => s.setAreaOfInterest);
   const tleLastUpdated     = useAppStore(s => s.tleLastUpdated);
+  const isPlaying          = useAppStore(s => s.isPlaying);
+  const setIsPlaying       = useAppStore(s => s.setIsPlaying);
 
   // TLE staleness for overpass warning (matches SatelliteLayer.tsx logic)
   const TLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -41,8 +43,6 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
 
   // Dynamic OSINT events from database
   const { events: osintEvents } = useOsintEvents(replayMode === 'playback');
-
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // Fetch available replay window on mount and when mode changes
   useEffect(() => {
@@ -93,7 +93,7 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
       if (windowEnd && next >= windowEnd) {
         setTs(windowEnd);
         rafRunningRef.current = false;
-        setIsPlaying(false);
+        useAppStore.getState().setIsPlaying(false);
         return;
       }
       setTs(next);
@@ -124,7 +124,7 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
     if (replayMode === 'live') {
       setReplayMode('playback');
     } else {
-      setIsPlaying(false);
+      useAppStore.getState().setIsPlaying(false);
       setReplayMode('live');
       // Reset replayTs to now on return to live
       useAppStore.getState().setReplayTs(Date.now());
