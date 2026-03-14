@@ -96,7 +96,12 @@
   - [x] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup (Wave 2)
   - [x] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering (Wave 2)
   - [x] 34-04-PLAN.md — Worker registration, full test suite, human verification (Wave 3)
-- [ ] **Phase 35: Frontend Layer** - Globe markers, layer toggle, filter chips, inspect panel, OSINT bridge
+- [ ] **Phase 35: Frontend Layer** - 5 plans
+  - [ ] 35-01-PLAN.md — Store extension (GDELT slices) + Wave 0 test stubs (Wave 1)
+  - [ ] 35-02-PLAN.md — useGdeltEvents hook with VPC-08 + 15-min refetch (Wave 2)
+  - [ ] 35-03-PLAN.md — GdeltLayer CustomDataSource + EntityCluster + LeftSidebar toggle (Wave 2)
+  - [ ] 35-04-PLAN.md — GdeltDetailPanel + QuadClass filter chips + App.tsx mount (Wave 3)
+  - [ ] 35-05-PLAN.md — OSINT bridge: prefill store slice, OsintEventPanel wiring, human verify (Wave 4)
 - [ ] **Phase 36: Replay and Freshness** - Replay load-once, PlaybackBar dots, stale indicator
 
 </details>
@@ -130,7 +135,14 @@ Plans:
   3. Four QuadClass filter chips (Verbal Cooperation / Material Cooperation / Verbal Conflict / Material Conflict) filter visible markers in real time without a page reload; chip state persists across layer toggle
   4. Clicking a GDELT marker opens a `GdeltDetailPanel` (DraggablePanel) showing source URL, actor names, GoldsteinScale score, avg tone, and an automated-extraction disclaimer; panel is draggable and collapsible
   5. The `GdeltDetailPanel` "Log as OSINT Event" button pre-populates `OsintEventPanel` with the event's lat/lon, `occurred_at` timestamp, and source URL; no manual re-entry required
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 35-01-PLAN.md — Store extension (GDELT slices) + Wave 0 test stubs
+- [ ] 35-02-PLAN.md — useGdeltEvents hook with VPC-08 + 15-min refetch
+- [ ] 35-03-PLAN.md — GdeltLayer CustomDataSource + EntityCluster + LeftSidebar toggle
+- [ ] 35-04-PLAN.md — GdeltDetailPanel + QuadClass filter chips + App.tsx mount
+- [ ] 35-05-PLAN.md — OSINT bridge wiring + human verification checkpoint
 
 ### Phase 36: Replay and Freshness
 **Goal**: GDELT events are correctly integrated into the 4D replay timeline — accumulating at their SQLDATE position as the scrubber advances — and the layer card honestly reports data freshness
@@ -180,6 +192,6 @@ Plans:
 | 31. Documentation | v6.0 | 1/1 | Complete | 2026-03-14 |
 | 32. API Key Wiring | v6.0 | 2/2 | Complete | 2026-03-14 |
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
-| 34. Backend Foundation | v8.0 | 4/4 | Complete | 2026-03-14 |
-| 35. Frontend Layer | v8.0 | 0/TBD | Not started | - |
+| 34. Backend Foundation | v8.0 | Complete    | 2026-03-14 | 2026-03-14 |
+| 35. Frontend Layer | v8.0 | 0/5 | Not started | - |
 | 36. Replay and Freshness | v8.0 | 0/TBD | Not started | - |
