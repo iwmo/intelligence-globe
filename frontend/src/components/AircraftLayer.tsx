@@ -148,7 +148,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
               : null;
           if (typeof resolvedId === 'string') {
             if (resolvedId.startsWith('gdelt:')) {
-              const eventId = parseInt(resolvedId.slice(6), 10);
+              const eventId = resolvedId.slice(6); // string — matches DB String(20) type
               useAppStore.getState().setSelectedGdeltEventId(eventId);
               useAppStore.getState().setSelectedAircraftId(null);
               useAppStore.getState().setSelectedMilitaryId(null);

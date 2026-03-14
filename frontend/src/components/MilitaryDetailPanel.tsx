@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
-import { MilitaryAircraftRecord } from '../hooks/useMilitaryAircraft';
+import type { MilitaryAircraftRecord } from '../hooks/useMilitaryAircraft';
 
 export function MilitaryDetailPanel() {
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);

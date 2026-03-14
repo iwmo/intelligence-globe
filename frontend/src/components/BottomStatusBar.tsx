@@ -67,7 +67,7 @@ export function BottomStatusBar() {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <span style={{ color: '#00D4FF', fontSize: '12px', fontWeight: 600, letterSpacing: '0.1em' }}>
-          OPENSIGNAL GLOBE
+          Intelligence Globe
         </span>
         <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>|</span>
         <span style={{ color: apiStatusColor, fontSize: '11px' }}>
