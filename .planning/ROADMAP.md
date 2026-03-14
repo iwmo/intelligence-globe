@@ -102,7 +102,7 @@
   - [ ] 35-03-PLAN.md — GdeltLayer CustomDataSource + EntityCluster + LeftSidebar toggle (Wave 2)
   - [ ] 35-04-PLAN.md — GdeltDetailPanel + QuadClass filter chips + App.tsx mount (Wave 3)
   - [ ] 35-05-PLAN.md — OSINT bridge: prefill store slice, OsintEventPanel wiring, human verify (Wave 4)
-- [ ] **Phase 36: Replay and Freshness** - 2 plans (0/2 complete)
+- [x] **Phase 36: Replay and Freshness** - 2 plans (0/2 complete) (completed 2026-03-14)
   - [ ] 36-01-PLAN.md — useGdeltEvents since/until replay window + GdeltLayer Effect 3 temporal visibility + stale indicator (Wave 1)
   - [ ] 36-02-PLAN.md — PlaybackBar GDELT timeline dots + human verification (Wave 2)
 
@@ -200,4 +200,4 @@ Plans:
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
 | 34. Backend Foundation | v8.0 | Complete    | 2026-03-14 | 2026-03-14 |
 | 35. Frontend Layer | 5/5 | Complete    | 2026-03-14 | - |
-| 36. Replay and Freshness | 1/2 | In Progress|  | - |
+| 36. Replay and Freshness | 2/2 | Complete   | 2026-03-14 | - |

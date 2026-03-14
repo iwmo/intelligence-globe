@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 36-01-PLAN.md — GDELT replay window, Effect 3 temporal visibility, GEO STALE indicator
-last_updated: "2026-03-14T17:38:27.905Z"
-last_activity: "2026-03-14 — 35-05 complete: OSINT bridge complete, Phase 35 fully done"
+status: executing
+stopped_at: Completed 36-02-PLAN.md — GDELT-11 timeline dots, awaiting human-verify Task 3
+last_updated: "2026-03-14T17:43:40.479Z"
+last_activity: "2026-03-14 — 36-01 complete: replay window, temporal visibility, stale indicator"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 ## Current Position
 
 Phase: 36 — Replay and Freshness
-Plan: 01 complete — GDELT replay window wired, Effect 3 temporal visibility, GEO STALE indicator
-Status: Phase 36 In Progress — 1/2 plans done
-Last activity: 2026-03-14 — 36-01 complete: replay window, temporal visibility, stale indicator
+Plan: 02 complete — GDELT-11 timeline dots on PlaybackBar scrubber; awaiting human-verify Task 3
+Status: Phase 36 In Progress — 2/2 plans done (pending human verification)
+Last activity: 2026-03-14 — 36-02 complete: GDELT-11 scrubber dots, 263/263 tests green
 
 ```
-v8.0 Progress: [████████████████] 80% (Phase 34 done, Phase 35 in progress 4/5)
-Phase 34 ████  Phase 35 ████_  Phase 36 _
+v8.0 Progress: [██████████] 100% (all phases complete, human-verify pending)
+Phase 34 ████  Phase 35 █████  Phase 36 ██
 ```
 
 ## Performance Metrics
@@ -51,6 +51,7 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 | Phase 35 P04 | 112 | 2 tasks | 4 files |
 | Phase 35 P05 | 60min | 2 tasks | 4 files |
 | Phase 36-replay-and-freshness P01 | 7min | 3 tasks | 5 files |
+| Phase 36-replay-and-freshness P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 - queryKey excludes replayTs — only window bounds [since, until] in queryKey; per-tick temporal filtering is client-side Effect 3 only; single fetch per playback session
 - ConstantProperty(bool) used in Effect 3 for entity.point.show — CesiumJS tracks property changes correctly after initial plain boolean construction when wrapped in ConstantProperty
 - String(global_event_id) key in tsMapRef/quadMapRef — guards against numeric vs string id type mismatch in Map lookups; test fixtures use numbers, production API returns strings
+- GDELT scrubber dots use cursor:default not pointer — informational markers only; clicking does not seek (only OSINT dots seek)
+- JSDOM normalises hex to rgb() in style.background assertions — PlaybackBar GDELT-11 tests use toMatch regex accepting both #hex and rgb() forms
+- Any test file rendering PlaybackBar must vi.mock useGdeltEvents alongside useOsintEvents — PlaybackBar now calls useGdeltEvents which requires QueryClientProvider without mock
 
 ### Phase Dependency Map
 
@@ -131,7 +135,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:38:27.901Z
-Stopped at: Completed 36-01-PLAN.md — GDELT replay window, Effect 3 temporal visibility, GEO STALE indicator
+Last session: 2026-03-14T17:43:40.476Z
+Stopped at: Completed 36-02-PLAN.md — GDELT-11 timeline dots, awaiting human-verify Task 3
 Resume file: None
 Next action: Execute 35-05-PLAN.md — OSINT bridge (GdeltDetailPanel Log button + OsintEventPanel prefill)
