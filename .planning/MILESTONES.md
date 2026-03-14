@@ -1,5 +1,21 @@
 # Milestones
 
+## v8.0 GDELT Integration (Shipped: 2026-03-14)
+
+**Phases completed:** 3 phases (34–36), 11 plans
+**Files modified:** 65 files, +9,630 / -110 lines
+**Timeline:** 2026-03-14 (single-day sprint)
+
+**Key accomplishments:**
+- `gdelt_events` PostgreSQL table with UNIQUE `global_event_id`, Alembic migration, SQLAlchemy ORM model; RQ worker polls every 15 min with 3-layer dedup (Redis file-level skip, ON CONFLICT DO NOTHING, null-coordinate filter) and 7-day rolling cleanup
+- Conflict-filtered ingest pipeline reduces GDELT volume ~75%; `GET /api/gdelt-events` with bbox/QuadClass/time-range params and `source_is_stale` freshness metadata
+- `GdeltLayer` using CesiumJS `CustomDataSource` + `PointGraphics` with blue/green/yellow/red QuadClass colour coding, viewport-bbox filtering (VPC-08 pattern), and sidebar toggle
+- `GdeltDetailPanel` (DraggablePanel) showing source URL, actor names, GoldsteinScale, avg tone, and automated-extraction disclaimer; 4-chip QuadClass filter in LeftSidebar
+- "Log as OSINT Event" bridge — `GdeltDetailPanel` LOG button pre-populates `OsintEventPanel` via store-slice pattern; reactive `App.tsx` open gate prevents re-trigger loop
+- 4D replay integration — `useGdeltEvents` single-load per session with `since`/`until` window; Effect 3 temporal visibility accumulates events at `occurred_at` without entity churn; PlaybackBar coloured GDELT timeline dots + `GEO STALE` freshness overlay
+
+---
+
 ## v7.0 Viewport Culling (Shipped: 2026-03-14)
 
 **Phases completed:** 1 phase (33), 4 plans, 9 tasks

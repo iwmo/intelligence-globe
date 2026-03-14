@@ -358,6 +358,54 @@
 
 ---
 
+## Milestone: v8.0 — GDELT Integration
+
+**Shipped:** 2026-03-14
+**Phases:** 3 (34–36) | **Plans:** 11 | **Files:** 65 changed, +9,630/-110 lines
+
+### What Was Built
+
+- PostgreSQL `gdelt_events` table with UNIQUE `global_event_id`; Alembic migration; RQ worker polling every 15 min with 3-layer dedup (Redis file-level skip, ON CONFLICT DO NOTHING, null-coordinate filter) and 7-day rolling cleanup
+- Conflict-only QuadClass filter at ingest time reduces volume ~75%; `GET /api/gdelt-events` with bbox/QuadClass/time-range params and `source_is_stale` freshness metadata
+- `GdeltLayer` using CesiumJS `CustomDataSource` + `PointGraphics` — blue/green/yellow/red QuadClass colour coding, sidebar toggle, VPC-08 bbox suppression in replay mode; EntityCluster disabled (breaks picking — documented deviation)
+- `GdeltDetailPanel` (DraggablePanel) with source URL, actor names, GoldsteinScale, avg tone, automated-extraction disclaimer; 4-chip QuadClass filter in LeftSidebar
+- Store-slice bridge pattern: "Log as OSINT Event" button sets `gdeltOsintPrefill` slice; `OsintEventPanel` reads on mount; reactive `App.tsx` `useEffect([prefill])` open gate prevents re-trigger loop
+- 4D replay integration: `useGdeltEvents` single-load per session with `since`/`until` window; Effect 3 temporal visibility accumulates events at `occurred_at` without entity churn; PlaybackBar GDELT timeline dots via TanStack Query cache deduplication; `GEO STALE` overlay
+
+### What Worked
+
+- **Effect 2 / Effect 3 split** — separating entity rebuild (data change) from per-tick show update prevented entity churn on every scrubber advance; the pattern is reusable for any future temporal layer
+- **TanStack Query cache deduplication** — PlaybackBar calling `useGdeltEvents()` directly with the same queryKey as GdeltLayer meant zero extra network requests for the timeline dots; no custom caching required
+- **Store-slice bridge for cross-panel communication** — `gdeltOsintPrefill` avoided deep prop drilling through App.tsx; reactive open gate resolved the clear-without-close problem cleanly
+- **Conflict-only filter at ingest (not query)** — applying the QuadClass filter before storage rather than at query time kept the row ceiling manageable; documented in Out of Scope for future contributors
+- **GDELT column index fix (Plan 34-02)** — GDELT 2.0 ADM2Code column shifts ActionGeo_Lat/Long to cols 56/57; caught in human verification before data went to production
+
+### What Was Inefficient
+
+- **VALIDATION.md nyquist gap** — seventh consecutive milestone with `nyquist_compliant: false`; audit confirmed this is a documentation gap, not a code gap; documenting as accepted tech debt
+- **`source_is_stale` dead column** — the column was designed to be written by the ingest worker, but the API correctly ignores it and computes staleness from `max(discovered_at)`; a cleaner design would have omitted the column; leaving as tech debt since it doesn't affect runtime correctness
+- **EntityCluster disabled** — EntityCluster was planned in the requirements but broke entity picking (`picked.id.id` inaccessible through cluster aggregation); discovered during human verification and disabled. Future implementation will require a custom pick handler
+
+### Patterns Established
+
+- **Effect 2/Effect 3 split** — `useEffect([data])` rebuilds entities; `useEffect([currentTs])` toggles `entity.point.show` per tick — reusable for any future temporal CesiumJS layer
+- **Store-slice bridge pattern** — child component sets a store slice; sibling reads via `useEffect`; parent has a reactive open gate (`useEffect([slice])`) — avoids prop drilling for cross-panel communication
+- **GDELT column index constants** — document column offsets in code comments; GDELT 2.0 extended schema adds 2 columns that shift all ActionGeo fields
+
+### Key Lessons
+
+1. **GDELT 2.0 vs 1.0 column layout** — GDELT 2.0 adds `Actor1Geo_ADM2Code` and `Actor2Geo_ADM2Code` which shift `ActionGeo_Lat`/`Long` from cols 54/55 to 56/57; always verify against the current GDELT codebook before writing ingest code
+2. **EntityCluster breaks picking** — Cesium EntityCluster aggregates entities into a Billboard; `picked.id.id` is inaccessible in cluster mode; if per-entity click handling is required, EntityCluster must be disabled or a custom cluster click handler used
+3. **Reactive open gate pattern** — when sibling A sets a store value that should open sibling B, the parent needs a `useEffect([value])` that sets `panelOpen=true`; this lets sibling B safely clear the value without self-closing
+
+### Cost Observations
+
+- Sessions: 1 continuous session (2026-03-14)
+- Model: balanced profile (sonnet-4.6)
+- Notable: 3-phase, 11-plan milestone executed in one day; store-slice bridge pattern resolved the OSINT pre-fill problem without any rework; column index bug found and fixed in human verification before going to production
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | LOC | Key Pattern |
@@ -369,3 +417,4 @@
 | v5.0 Playback | 4 | 14 | ~12,261 | getState() in rAF + resolveTimestamp pure fn + layer guards |
 | v6.0 Production Ready | 6 | 7 | ~15,883 | Fail-loud credential pattern + VITE build ARG + 4-job parallel CI |
 | v7.0 Viewport Culling | 1 | 4 | +185 net | effectiveBbox + queryKey bbox + BETWEEN on indexed columns |
+| v8.0 GDELT Integration | 3 | 11 | +9,630 net | Effect 2/3 split + store-slice bridge + TanStack cache dedup |

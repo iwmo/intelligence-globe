@@ -20,7 +20,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db import get_db
+from app.freshness import is_stale
 from app.models.gdelt_event import GdeltEvent
 
 logger = logging.getLogger(__name__)
@@ -68,6 +70,14 @@ async def list_gdelt_events(
     result = await db.execute(stmt)
     rows = result.scalars().all()
 
+    # Compute staleness from the most recent discovered_at in the result set.
+    # If the latest GDELT publish timestamp is older than GDELT_STALE_SECONDS,
+    # all rows are stale — the ingest worker has fallen behind or is failing.
+    max_discovered_at = max(
+        (r.discovered_at for r in rows if r.discovered_at), default=None
+    )
+    source_is_stale = is_stale(max_discovered_at, settings.GDELT_STALE_SECONDS)
+
     return [
         {
             "global_event_id": r.global_event_id,
@@ -83,7 +93,7 @@ async def list_gdelt_events(
             "source_url": r.source_url,
             "avg_tone": r.avg_tone,
             "num_mentions": r.num_mentions,
-            "source_is_stale": r.source_is_stale,
+            "source_is_stale": source_is_stale,
         }
         for r in rows
     ]

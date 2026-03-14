@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     MILITARY_STALE_SECONDS: int = 600
     SHIP_STALE_SECONDS: int = 900
     GPS_JAMMING_STALE_SECONDS: int = 600
+    GDELT_STALE_SECONDS: int = 1800  # 2× the 15-min poll interval
 
 
 settings = Settings()

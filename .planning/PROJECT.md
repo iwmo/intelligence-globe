@@ -1,18 +1,5 @@
 # OpenSignal Globe
 
-## Current Milestone: v8.0 GDELT Integration
-
-**Goal:** Add a live GDELT geopolitical event layer — 15-minute polling of global conflict/cooperation events rendered as clustered markers on the globe, queryable by viewport bbox, filterable by QuadClass, and integrated with the 4D replay timeline.
-
-**Target features:**
-- GDELT 2.0 bulk CSV ingestion (RQ worker, 15-min cadence, conflict-only filter, 3-layer dedup)
-- `/api/gdelt-events` endpoint with bbox + QuadClass + time-range params
-- Globe layer with `CustomDataSource` + `EntityCluster`, QuadClass colour coding, layer toggle
-- Click-to-inspect `GdeltDetailPanel` with source URL, actors, GoldsteinScale, tone, disclaimer
-- "Log as OSINT Event" bridge to pre-populate `OsintEventPanel`
-- Replay integration: events accumulate at `occurred_at` (SQLDATE) as scrubber advances
-- PlaybackBar GDELT timeline dots + `source_is_stale` freshness indicator
-
 ## What This Is
 
 A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, fully polished draggable panels and custom SVG entity icons, and data reliability guarantees — stale positions filtered from all live endpoints, freshness metadata exposed in every API response.
@@ -74,6 +61,12 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Root README.md with numbered quick-start, API keys table, architecture diagram, credential rotation warning; MIT LICENSE added — v6.0
 - ✓ `VITE_API_KEY` build arg wired into Dockerfile and CI; `OsintEventPanel` sends `X-API-Key` on every POST — v6.0 (Phase 32 gap closure)
 - ✓ Camera-derived bounding box (useViewportBbox) filters API requests to visible globe region; backend BETWEEN filtering on aircraft, ships, and military routes; playback mode suppressed (VPC-01 through VPC-08) — v7.0
+- ✓ `gdelt_events` PostgreSQL table with UNIQUE `global_event_id`; RQ worker polls every 15 min with 3-layer dedup and 7-day rolling cleanup; conflict-filtered ingest reduces GDELT volume ~75% — v8.0
+- ✓ `GET /api/gdelt-events` with bbox/QuadClass/time-range filtering and `source_is_stale` freshness metadata — v8.0
+- ✓ `GdeltLayer` with `CustomDataSource` + `PointGraphics`, QuadClass colour coding, sidebar toggle, VPC-08 bbox suppression in replay mode — v8.0
+- ✓ `GdeltDetailPanel` (DraggablePanel) with source URL, actors, GoldsteinScale, tone, disclaimer; 4-chip QuadClass filter — v8.0
+- ✓ "Log as OSINT Event" bridge — pre-populates `OsintEventPanel` via store-slice pattern with reactive App.tsx open gate — v8.0
+- ✓ 4D replay integration: `useGdeltEvents` single-load per session with `since`/`until` window; Effect 3 temporal visibility; PlaybackBar GDELT timeline dots; `GEO STALE` freshness overlay — v8.0
 
 **Deferred to future milestones:**
 - [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness (FRESH-03, deferred from v4.0)
@@ -105,8 +98,9 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 **Shipped v5.0:** 2026-03-14 — Playback (replay engine correctness, layer guards, stale indicators, 213 tests)
 **Shipped v6.0:** 2026-03-14 — Production Ready (secrets hardened, API key auth, nginx stack, CI pipeline, README+LICENSE)
 **Shipped v7.0:** 2026-03-14 — Viewport Culling (camera-derived bbox filters all 3 live-data APIs to visible globe region; 217+102 tests passing)
+**Shipped v8.0:** 2026-03-14 — GDELT Integration (geopolitical event layer: 15-min ingest pipeline, globe markers, detail panel, OSINT bridge, 4D replay; 263 tests passing)
 **Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose, nginx
-**Codebase:** ~15,883+ LOC (frontend TS/TSX + backend Python); 96 plans across 33 phases
+**Codebase:** ~25,500+ LOC (frontend TS/TSX + backend Python); 107 plans across 36 phases
 
 **Key learnings from v3.0:**
 - CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
@@ -212,6 +206,15 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | IDL crossing handled client-side; backend BETWEEN not reached for west > east | Backend BETWEEN would be no-op for crossed antimeridian; null fallback in useViewportBbox.ts prevents the call | ✓ Good — correct separation of concerns |
 | `effectiveBbox = replayMode === 'live' ? viewportBbox : null` in all 3 data hooks | VPC-08: replay engine must load historical data across arbitrary space/time — bbox suppression in playback is correct | ✓ Good — consistent pattern across all live-data hooks |
 | queryKey includes effectiveBbox object (not serialised string) | React Query deep-compares objects; bbox change triggers automatic refetch without manual invalidation | ✓ Good — clean reactive pattern |
+| Conflict-only QuadClass filter at GDELT ingest time (not at query time) | Reduces stored volume ~75%; full unfiltered GDELT global feed is GPU/DB budget violation at 500k rows/day | ✓ Good — prevents unbounded growth |
+| GDELT `event_code` as VARCHAR(4) not INT | CAMEO codes are 2-3 digit strings with optional leading zero; numeric casting loses precision | ✓ Good — schema correct from day one |
+| `source_is_stale` dead column — API computes staleness from `max(discovered_at)` | Ingest worker always writes False; API correctly ignores it and computes dynamically; column exists for future use | ⚠️ Revisit — dead column is tech debt |
+| `CustomDataSource` + `PointGraphics` (not `PointPrimitiveCollection`) for GDELT layer | Entities required for per-entity `show` filtering by QuadClass and for pick-to-open detail panel | ✓ Good — correct for interactive layer |
+| EntityCluster disabled (documented deviation) | Cluster breaks entity picking — `picked.id.id` is inaccessible through cluster aggregation | ✓ Good — user-approved; noted in audit |
+| Effect 2 (entity rebuild on data) separate from Effect 3 (per-tick show update) | Separating prevents entity churn on every scrubber tick; only data changes trigger rebuilds | ✓ Good — performance-critical pattern |
+| `gdeltOsintPrefill` store-slice bridge (not prop drilling through App.tsx) | Avoids deep prop chain for cross-sibling panel communication | ✓ Good — clean cross-panel pattern |
+| Reactive App.tsx open gate for OsintEventPanel (`useEffect([prefill])`) | Prevents re-trigger loop: OsintEventPanel can safely clear prefill without closing itself | ✓ Good — correct event sequencing |
+| PlaybackBar calls `useGdeltEvents()` directly (TanStack Query deduplicates) | Same queryKey as GdeltLayer hook — zero extra network requests for timeline dots | ✓ Good — efficient shared cache |
 
 ---
-*Last updated: 2026-03-14 after v7.0 milestone*
+*Last updated: 2026-03-14 after v8.0 milestone*
