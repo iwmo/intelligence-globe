@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
+import { useGdeltEvents } from '../../hooks/useGdeltEvents';
 
 const mockInvalidateQueries = vi.hoisted(() => vi.fn());
 
@@ -42,6 +43,9 @@ vi.mock('../../hooks/useReplaySnapshots', () => ({
 }));
 vi.mock('../../hooks/useOsintEvents', () => ({
   useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
+}));
+vi.mock('../../hooks/useGdeltEvents', () => ({
+  useGdeltEvents: vi.fn(() => ({ data: [] })),
 }));
 
 vi.mock('../../lib/queryClient', () => ({
@@ -221,5 +225,196 @@ describe('VRFY-01: PlaybackBar tick boundary contracts', () => {
     const result = simulateTickAdvance(WINDOW_END - 1, WINDOW_END, 3600, 1 / 60);
     expect(result.next).toBe(WINDOW_END);  // pinned, not overshot
     expect(result.shouldStop).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GDELT-11: PlaybackBar GDELT event timeline dots
+//
+// Tests A-F verify dot rendering, colour mapping, live-mode suppression,
+// and out-of-window filtering for the GDELT scrubber dots.
+// ---------------------------------------------------------------------------
+
+describe('PlaybackBar — GDELT-11 timeline dots', () => {
+  // Fixed window: 0ms to 1000ms (epoch) for easy fraction math
+  const WINDOW_START = 0;
+  const WINDOW_END_GDELT = 1000;
+
+  beforeEach(() => {
+    mockState.replayMode = 'playback';
+    mockState.replayWindowStart = WINDOW_START;
+    mockState.replayWindowEnd = WINDOW_END_GDELT;
+    mockState.isPlaying = false;
+    mockSnapshotsResult.isLoading = false;
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [] } as ReturnType<typeof useGdeltEvents>);
+  });
+
+  afterEach(() => {
+    mockState.replayMode = 'live';
+    mockState.replayWindowStart = null;
+    mockState.replayWindowEnd = null;
+  });
+
+  it('Test A: GDELT event at occurred_at=500ms renders dot at left="50%"', () => {
+    const event = {
+      global_event_id: 'evt-a',
+      occurred_at: new Date(500).toISOString(),
+      quad_class: 1,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '010',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dot = container.querySelector('[data-testid="gdelt-dot-evt-a"]') as HTMLElement | null
+      ?? Array.from(container.querySelectorAll('div')).find(
+        el => el.getAttribute('title')?.startsWith('GDELT') && el.style.left === '50%'
+      ) as HTMLElement | undefined;
+    expect(dot).toBeTruthy();
+    expect(dot!.style.left).toBe('50%');
+  });
+
+  it('Test B: GDELT event with quad_class=1 has background="#3B82F6" (blue)', () => {
+    const event = {
+      global_event_id: 'evt-b',
+      occurred_at: new Date(500).toISOString(),
+      quad_class: 1,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '010',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dot = Array.from(container.querySelectorAll('div')).find(
+      el => el.getAttribute('title')?.startsWith('GDELT')
+    ) as HTMLElement | undefined;
+    expect(dot).toBeTruthy();
+    // JSDOM normalises hex to rgb(); accept either form
+    expect(dot!.style.background.toLowerCase()).toMatch(/#3b82f6|rgb\(59,\s*130,\s*246\)/);
+  });
+
+  it('Test C: GDELT event with quad_class=4 has background="#EF4444" (red)', () => {
+    const event = {
+      global_event_id: 'evt-c',
+      occurred_at: new Date(500).toISOString(),
+      quad_class: 4,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '190',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dot = Array.from(container.querySelectorAll('div')).find(
+      el => el.getAttribute('title')?.startsWith('GDELT')
+    ) as HTMLElement | undefined;
+    expect(dot).toBeTruthy();
+    // JSDOM normalises hex to rgb(); accept either form
+    expect(dot!.style.background.toLowerCase()).toMatch(/#ef4444|rgb\(239,\s*68,\s*68\)/);
+  });
+
+  it('Test D: in live mode (replayMode="live"), no GDELT dots are rendered', () => {
+    mockState.replayMode = 'live';
+    const event = {
+      global_event_id: 'evt-d',
+      occurred_at: new Date(500).toISOString(),
+      quad_class: 2,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '020',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dots = Array.from(container.querySelectorAll('div')).filter(
+      el => el.getAttribute('title')?.startsWith('GDELT')
+    );
+    expect(dots.length).toBe(0);
+  });
+
+  it('Test E: GDELT event with frac < 0 (occurred_at before window) does not render a dot', () => {
+    const event = {
+      global_event_id: 'evt-e',
+      occurred_at: new Date(-100).toISOString(), // before window start (0ms)
+      quad_class: 3,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '030',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dots = Array.from(container.querySelectorAll('div')).filter(
+      el => el.getAttribute('title')?.startsWith('GDELT')
+    );
+    expect(dots.length).toBe(0);
+  });
+
+  it('Test F: GDELT event with frac > 1 (occurred_at after window) does not render a dot', () => {
+    const event = {
+      global_event_id: 'evt-f',
+      occurred_at: new Date(1500).toISOString(), // after window end (1000ms)
+      quad_class: 3,
+      discovered_at: null,
+      latitude: 0,
+      longitude: 0,
+      goldstein_scale: null,
+      event_code: '030',
+      actor1_name: null,
+      actor2_name: null,
+      source_url: null,
+      avg_tone: null,
+      num_mentions: null,
+      source_is_stale: false,
+    };
+    vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
+
+    const { container } = render(<PlaybackBar />);
+    const dots = Array.from(container.querySelectorAll('div')).filter(
+      el => el.getAttribute('title')?.startsWith('GDELT')
+    );
+    expect(dots.length).toBe(0);
   });
 });
