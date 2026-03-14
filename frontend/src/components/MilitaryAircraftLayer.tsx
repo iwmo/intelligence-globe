@@ -171,7 +171,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const bb = militaryBillboardsByHex.get(hex);
       lbl.show = showEntityLabels && (bb?.show ?? false);
     }
-  }, [showEntityLabels, layerVisible]);
+  }, [showEntityLabels, layerVisible, militaryAircraft.data]);
 
   // Effect: Playback snapshot interpolation
   // Runs only when replayMode === 'playback'. Does NOT modify live update logic.
