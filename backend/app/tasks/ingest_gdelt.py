@@ -319,9 +319,18 @@ async def ingest_gdelt_file(export_url: str) -> None:
     2. Download and parse the export ZIP.
     3. Run 7-day cleanup.
     4. Insert parsed rows into gdelt_events.
+
+    Note: get_redis_client() may return either a synchronous redis.Redis or an
+    async-compatible mock (in tests).  We call sadd() and await the result only
+    if it is a coroutine, so the same code path works under both conditions.
     """
     redis_conn = get_redis_client()
-    added = redis_conn.sadd("gdelt:processed_files", export_url)
+    sadd_result = redis_conn.sadd("gdelt:processed_files", export_url)
+    # Support both sync Redis (returns int) and async mocks (returns coroutine)
+    if asyncio.iscoroutine(sadd_result):
+        added = await sadd_result
+    else:
+        added = sadd_result
     if added == 0:
         logger.info("GDELT file already processed, skipping: %s", export_url)
         return
