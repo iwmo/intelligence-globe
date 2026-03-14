@@ -10,7 +10,8 @@ import logging
 import time as time_module
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,17 +35,34 @@ def _position_age_seconds(r: Aircraft) -> "float | None":
 
 @router.get("")
 @router.get("/")
-async def list_aircraft(db: AsyncSession = Depends(get_db)):
-    """Return fresh, active aircraft with valid positions and freshness metadata."""
+async def list_aircraft(
+    db: AsyncSession = Depends(get_db),
+    min_lat: Optional[float] = Query(default=None),
+    max_lat: Optional[float] = Query(default=None),
+    min_lon: Optional[float] = Query(default=None),
+    max_lon: Optional[float] = Query(default=None),
+):
+    """Return fresh, active aircraft with valid positions and freshness metadata.
+
+    Optional bbox params (all four required for filtering to activate):
+      min_lat, max_lat, min_lon, max_lon (degrees, float).
+    When absent or incomplete, the full global dataset is returned.
+    IDL crossing (min_lon > max_lon) is detected by the frontend before calling;
+    if somehow received here, the BETWEEN clause would be a no-op — handled client-side.
+    """
     cutoff = stale_cutoff(settings.AIRCRAFT_STALE_SECONDS)
-    result = await db.execute(
-        select(Aircraft).where(
-            Aircraft.is_active == True,
-            Aircraft.latitude.is_not(None),
-            Aircraft.longitude.is_not(None),
-            Aircraft.fetched_at >= cutoff,
-        )
+    stmt = select(Aircraft).where(
+        Aircraft.is_active == True,
+        Aircraft.latitude.is_not(None),
+        Aircraft.longitude.is_not(None),
+        Aircraft.fetched_at >= cutoff,
     )
+    if all(v is not None for v in (min_lat, max_lat, min_lon, max_lon)):
+        stmt = stmt.where(
+            Aircraft.latitude.between(min_lat, max_lat),
+            Aircraft.longitude.between(min_lon, max_lon),
+        )
+    result = await db.execute(stmt)
     rows = result.scalars().all()
     return [
         {
