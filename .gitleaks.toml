@@ -1,0 +1,15 @@
+# .gitleaks.toml
+# Allowlist for credentials that existed in docker-compose.yml before Phase 27 (SEC-01) cleanup.
+# These commits have been remediated — credentials must be rotated by the operator before going public.
+# See STATE.md: "CRITICAL: Credential Rotation Required Before Public Release"
+[allowlist]
+  description = "Historical credential fallbacks in docker-compose.yml — removed in commit 0b2755f (Phase 27 SEC-01)"
+  commits = [
+    "da33b9c",
+    "24494f5",
+    "a75c7f8",
+    "3a27f35",
+    "60c65a9",
+    "c7abba0",
+    "cc4715f",
+  ]
