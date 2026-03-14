@@ -55,9 +55,36 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ End-to-end 2-hour replay verified; PlaybackBar tick() auto-stop at window boundary; FPS gate ≥30 at 15m/s with all layers active — v5.0
 - ✓ Stale entity grey-tint (`Color.GRAY.withAlpha(0.4)`) in LIVE mode: `is_stale` field from backend routes serialised through React Query to Cesium billboards in aircraft, ships, and military layers — v5.0
 
+## Current Milestone: v6.0 Production Ready
+
+**Goal:** Harden the project for public release — scrub secrets, build a production-grade Docker stack with nginx reverse proxy, add a full GitHub Actions CI pipeline, and ship a README + LICENSE.
+
+**Target features:**
+- Secrets scrubbed from docker-compose.yml + .dockerignore added
+- Static API key auth on write endpoints
+- Full production Docker stack (nginx reverse proxy, single port 80)
+- GitHub Actions CI (pytest, vitest, secret scanning, docker build)
+- Root README.md and LICENSE
+
 ### Active
 
-- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness parallel to /api/aircraft/freshness (FRESH-03, deferred from v4.0)
+- [ ] **SEC-01**: docker-compose.yml contains no hardcoded credential fallback values
+- [ ] **SEC-02**: backend/.dockerignore and frontend/.dockerignore exclude .env files from COPY . .
+- [ ] **SEC-03**: .env.example updated with all required variables and placeholders
+- [ ] **SEC-04**: Static API key middleware protects POST /api/osint (API_KEY env var, 401 on failure)
+- [ ] **PROD-01**: docker-compose.yml frontend uses production build target (nginx)
+- [ ] **PROD-02**: nginx routes /api/* to backend container
+- [ ] **PROD-03**: Single public entry point port 80 via nginx
+- [ ] **PROD-04**: Docker Compose healthchecks for backend, worker, ais-worker
+- [ ] **CI-01**: GitHub Actions runs pytest on push/PR
+- [ ] **CI-02**: GitHub Actions runs vitest + tsc --noEmit on push/PR
+- [ ] **CI-03**: GitHub Actions runs gitleaks secret scanning
+- [ ] **CI-04**: GitHub Actions verifies Docker images build successfully
+- [ ] **DOC-01**: Root README.md with setup, config, and deployment guide
+- [ ] **DOC-02**: LICENSE file added
+
+**Deferred to future milestones:**
+- [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness (FRESH-03, deferred from v4.0)
 - [ ] Earthquake layer — USGS 24h GeoJSON feed, magnitude-scaled markers (LAY-05, deferred)
 - [ ] Weather radar overlay — NOAA NEXRAD WMS tiles on globe (LAY-06, deferred)
 - [ ] Keyboard shortcuts: Space for play/pause, L for LIVE/PLAYBACK toggle (KYBD-01, deferred from v5.0)
@@ -178,4 +205,4 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | `useSatellites` refetchInterval not frozen in playback | TLE data changes on 2h cadence; `resolveTimestamp` provides historically-accurate timestamps regardless; no requirement targets this | — Accepted tech debt (low impact) |
 
 ---
-*Last updated: 2026-03-14 after v5.0 milestone*
+*Last updated: 2026-03-14 after v6.0 milestone start*
