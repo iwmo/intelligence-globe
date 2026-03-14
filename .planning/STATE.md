@@ -5,7 +5,7 @@ milestone_name: Entity Labels
 status: completed
 stopped_at: Completed 37-04-PLAN.md
 last_updated: "2026-03-14T21:44:49.888Z"
-last_activity: 2026-03-15 — Plan 37-03 complete (military aircraft + ship labels)
+last_activity: 2026-03-15 — Plan 37-04 complete (satellite initial load + aircraft globe-altitude label fixes)
 progress:
   total_phases: 1
   completed_phases: 1
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-03-15 for v9.0 milestone)
 ## Current Position
 
 Phase: 37 (Entity Labels) — complete
-Plan: 03 complete (3/3 plans done)
-Status: All plans complete — v9.0 milestone achieved
-Last activity: 2026-03-15 — Plan 37-03 complete (military aircraft + ship labels)
+Plan: 04 complete (gap closure plans executed)
+Status: All plans complete — v9.0 milestone achieved + gap closure complete
+Last activity: 2026-03-15 — Plan 37-04 complete (satellite initial load + aircraft globe-altitude label fixes)
 
 ```
 v9.0 Progress: [##########] 100% (Phase 37: 3/3 plans complete)
@@ -51,6 +51,11 @@ Phase 37 ██████████
 ### Roadmap Evolution
 
 - Phase 37 added: v9.0 Entity Labels (all 10 LBL requirements in single phase)
+
+### Key Decisions (v9.0 — Plan 37-04)
+
+- Apply showEntityLabels in LOADED handler after label creation + remove early-return length guard from label visibility effect — fixes satellite labels silently absent on initial load when toggle persisted true in localStorage
+- Aircraft label scaleByDistance: far bound 5e6→2e6, minimum scale 0.0→0.3 — prevents Cesium culling at ~2893km globe-view altitude
 
 ### Key Decisions (v9.0 — Plan 37-02)
 
@@ -118,4 +123,4 @@ None. Phase 37 is fully self-contained frontend work with no backend dependencie
 Last session: 2026-03-14T21:44:49.884Z
 Stopped at: Completed 37-04-PLAN.md
 Resume file: None
-Next action: Execute 37-03-PLAN.md
+Next action: None — all plans complete including gap closure
