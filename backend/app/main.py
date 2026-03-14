@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="OpenSignal Globe API", version=settings.version, lifespan=lifespan)
+app = FastAPI(title="Intelligence Globe API", version=settings.version, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,4 @@
-# OpenSignal Globe
+# Intelligence Globe
 
 A unified real-time intelligence picture — live satellites, aircraft, maritime vessels, GPS jamming events, and OSINT correlations rendered on an interactive 3D globe. Built as a homelab/personal tool for situational awareness.
 
