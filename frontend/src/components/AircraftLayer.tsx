@@ -137,7 +137,14 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           const picked = viewer.scene.pick(click.position);
           if (!picked) return;
           if (typeof picked.id === 'string') {
-            if (picked.id.startsWith('mmsi:')) {
+            if (picked.id.startsWith('gdelt:')) {
+              const eventId = parseInt(picked.id.slice(6), 10);
+              useAppStore.getState().setSelectedGdeltEventId(eventId);
+              useAppStore.getState().setSelectedAircraftId(null);
+              useAppStore.getState().setSelectedMilitaryId(null);
+              useAppStore.getState().setSelectedShipId(null);
+              useAppStore.getState().setSelectedSatelliteId(null);
+            } else if (picked.id.startsWith('mmsi:')) {
               const mmsi = picked.id.slice(5);
               useAppStore.getState().setSelectedShipId(mmsi);
               useAppStore.getState().setSelectedMilitaryId(null);
@@ -168,6 +175,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
             useAppStore.getState().setSelectedAircraftId(null);
             useAppStore.getState().setSelectedMilitaryId(null);
             useAppStore.getState().setSelectedShipId(null);
+            useAppStore.getState().setSelectedGdeltEventId(null);
           }
         }, 200);
       }, ScreenSpaceEventType.LEFT_CLICK);
