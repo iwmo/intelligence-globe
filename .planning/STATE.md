@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 35-02-PLAN.md — useGdeltEvents hook with VPC-08 bbox-suppression and 4 green contract tests
-last_updated: "2026-03-14T15:54:45.240Z"
-last_activity: "2026-03-14 — 35-01 complete: useAppStore GDELT slices + Wave 0 test stubs for GdeltLayer/useGdeltEvents/GdeltDetailPanel"
+stopped_at: Completed 35-03-PLAN.md — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler extension, and GEO layer toggle
+last_updated: "2026-03-14T15:59:41.806Z"
+last_activity: "2026-03-14 — 35-02 complete: useGdeltEvents hook + GdeltEvent interface + 4 contract tests"
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 ## Current Position
 
 Phase: 35 — Frontend Layer
-Plan: 02 complete — useGdeltEvents hook with VPC-08 bbox-suppression and 4 green contract tests
-Status: Phase 35 In Progress — 2/5 plans done
-Last activity: 2026-03-14 — 35-02 complete: useGdeltEvents hook + GdeltEvent interface + 4 contract tests
+Plan: 03 complete — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler, GEO toggle
+Status: Phase 35 In Progress — 3/5 plans done
+Last activity: 2026-03-14 — 35-03 complete: GdeltLayer.tsx + AircraftLayer click handler extension + LeftSidebar GEO toggle
 
 ```
-v8.0 Progress: [███████████████] 60% (Phase 34 done, Phase 35 in progress 2/5)
-Phase 34 ████  Phase 35 ██___  Phase 36 _
+v8.0 Progress: [████████████████] 65% (Phase 34 done, Phase 35 in progress 3/5)
+Phase 34 ████  Phase 35 ███__  Phase 36 _
 ```
 
 ## Performance Metrics
@@ -47,6 +47,7 @@ Phase 34 ████  Phase 35 ██___  Phase 36 _
 | Phase 34 P04 | 2min | 1 tasks | 1 files |
 | Phase 35 P01 | 8min | 2 tasks | 5 files |
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
+| Phase 35 P03 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,10 @@ Phase 34 ████  Phase 35 ██___  Phase 36 _
 - Wave 0 stub pattern: use `describe.skip` for components not yet created, `it.todo()` for contract declaration — test files compile and run before implementations exist
 - useGdeltEvents tests call hook directly (not renderHook) — useQuery and useAppStore both mocked, React context not required
 - staleTime matches refetchInterval at 900_000 (15 min) for GDELT hooks — both aligned to GDELT 15-minute update cadence
+- Entity.point.show (not entity.show) controls QuadClass visibility — PointGraphics show field is the correct control point inside a CustomDataSource entity
+- vi.mock factory must be self-contained — no references to module-scope class variables (Vitest hoisting constraint); all Cesium mock classes defined inline inside factory
+- dataSource.show set in Effect 2 (sync entities) not Effect 1 (init) — layerVisible changes must survive viewer remounts independently
+- gdelt: click prefix handled first in unified AircraftLayer handler — before mmsi:, mil: — ensures GDELT selection clears all other panels atomically
 
 ### Phase Dependency Map
 
@@ -116,7 +121,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:54:45.236Z
-Stopped at: Completed 35-02-PLAN.md — useGdeltEvents hook with VPC-08 bbox-suppression and 4 green contract tests
+Last session: 2026-03-14T15:59:41.802Z
+Stopped at: Completed 35-03-PLAN.md — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler extension, and GEO layer toggle
 Resume file: None
-Next action: Execute 35-03-PLAN.md — GdeltLayer Cesium rendering component
+Next action: Execute 35-04-PLAN.md — GdeltDetailPanel

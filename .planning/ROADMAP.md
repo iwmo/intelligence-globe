@@ -193,5 +193,5 @@ Plans:
 | 32. API Key Wiring | v6.0 | 2/2 | Complete | 2026-03-14 |
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
 | 34. Backend Foundation | v8.0 | Complete    | 2026-03-14 | 2026-03-14 |
-| 35. Frontend Layer | 2/5 | In Progress|  | - |
+| 35. Frontend Layer | 3/5 | In Progress|  | - |
 | 36. Replay and Freshness | v8.0 | 0/TBD | Not started | - |
