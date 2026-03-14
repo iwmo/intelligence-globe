@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 35-03-PLAN.md — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler extension, and GEO layer toggle
-last_updated: "2026-03-14T15:59:41.806Z"
-last_activity: "2026-03-14 — 35-02 complete: useGdeltEvents hook + GdeltEvent interface + 4 contract tests"
+stopped_at: Completed 35-04-PLAN.md — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
+last_updated: "2026-03-14T16:03:51.145Z"
+last_activity: "2026-03-14 — 35-03 complete: GdeltLayer.tsx + AircraftLayer click handler extension + LeftSidebar GEO toggle"
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 ## Current Position
 
 Phase: 35 — Frontend Layer
-Plan: 03 complete — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler, GEO toggle
-Status: Phase 35 In Progress — 3/5 plans done
-Last activity: 2026-03-14 — 35-03 complete: GdeltLayer.tsx + AircraftLayer click handler extension + LeftSidebar GEO toggle
+Plan: 04 complete — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
+Status: Phase 35 In Progress — 4/5 plans done
+Last activity: 2026-03-14 — 35-04 complete: GdeltDetailPanel.tsx + App.tsx wiring + LeftSidebar QuadClass chips
 
 ```
-v8.0 Progress: [████████████████] 65% (Phase 34 done, Phase 35 in progress 3/5)
-Phase 34 ████  Phase 35 ███__  Phase 36 _
+v8.0 Progress: [████████████████] 80% (Phase 34 done, Phase 35 in progress 4/5)
+Phase 34 ████  Phase 35 ████_  Phase 36 _
 ```
 
 ## Performance Metrics
@@ -48,6 +48,7 @@ Phase 34 ████  Phase 35 ███__  Phase 36 _
 | Phase 35 P01 | 8min | 2 tasks | 5 files |
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
 | Phase 35 P03 | 3min | 2 tasks | 4 files |
+| Phase 35 P04 | 112 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Phase 34 ████  Phase 35 ███__  Phase 36 _
 - vi.mock factory must be self-contained — no references to module-scope class variables (Vitest hoisting constraint); all Cesium mock classes defined inline inside factory
 - dataSource.show set in Effect 2 (sync entities) not Effect 1 (init) — layerVisible changes must survive viewer remounts independently
 - gdelt: click prefix handled first in unified AircraftLayer handler — before mmsi:, mil: — ensures GDELT selection clears all other panels atomically
+- Close button placed inside panel content not DraggablePanel header — avoids UX ambiguity with collapse toggle; DraggablePanel already provides collapse via +/−
+- gdeltEvents.data ?? [] passed from App.tsx to GdeltDetailPanel — avoids undefined prop; panel renders null internally when no event selected
 
 ### Phase Dependency Map
 
@@ -121,7 +124,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:59:41.802Z
-Stopped at: Completed 35-03-PLAN.md — GdeltLayer Cesium rendering component with EntityCluster, QuadClass filter, unified click handler extension, and GEO layer toggle
+Last session: 2026-03-14T16:03:51.142Z
+Stopped at: Completed 35-04-PLAN.md — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
 Resume file: None
-Next action: Execute 35-04-PLAN.md — GdeltDetailPanel
+Next action: Execute 35-05-PLAN.md — OSINT bridge (GdeltDetailPanel Log button + OsintEventPanel prefill)
