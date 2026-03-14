@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Satellite, Plane, ShieldAlert, Anchor, Radio, Car } from 'lucide-react';
+import { Satellite, Plane, ShieldAlert, Anchor, Radio, Car, Zap } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
@@ -52,6 +52,12 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
             active={layers.streetTraffic}
             icon={<Car size={12} />}
             onToggle={() => setLayerVisible('streetTraffic', !layers.streetTraffic)}
+          />
+          <LayerToggleButton
+            label="GEO"
+            active={layers.gdelt}
+            icon={<Zap size={12} />}
+            onToggle={() => setLayerVisible('gdelt', !layers.gdelt)}
           />
         </div>
       </DraggablePanel>
