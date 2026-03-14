@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v9.0
 milestone_name: Entity Labels
 status: completed
-stopped_at: Completed 37-03-PLAN.md
-last_updated: "2026-03-14T21:18:55.235Z"
-last_activity: 2026-03-14 — Plan 37-01 complete (showEntityLabels toggle infrastructure)
+stopped_at: Completed 37-02-PLAN.md
+last_updated: "2026-03-14T21:22:04.355Z"
+last_activity: 2026-03-15 — Plan 37-03 complete (military aircraft + ship labels)
 progress:
   total_phases: 1
   completed_phases: 1
