@@ -34,6 +34,9 @@ vi.mock('../../hooks/useReplaySnapshots', () => ({
 vi.mock('../../hooks/useOsintEvents', () => ({
   useOsintEvents: vi.fn(() => ({ events: [], isLoading: false })),
 }));
+vi.mock('../../hooks/useGdeltEvents', () => ({
+  useGdeltEvents: vi.fn(() => ({ data: [] })),
+}));
 
 // Static import after vi.mock
 import { PlaybackBar } from '../PlaybackBar';
