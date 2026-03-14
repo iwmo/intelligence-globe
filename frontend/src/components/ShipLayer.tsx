@@ -2,6 +2,11 @@ import { useEffect, useRef } from 'react';
 import {
   Viewer,
   BillboardCollection,
+  LabelCollection,
+  LabelStyle,
+  VerticalOrigin,
+  HorizontalOrigin,
+  Cartesian2,
   Cartesian3,
   BlendOption,
   NearFarScalar,
@@ -10,6 +15,7 @@ import {
 } from 'cesium';
 import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 // ---------------------------------------------------------------------------
@@ -42,12 +48,16 @@ export const SHIP_ICON = drawShipIcon();
 // Module-scope map — ships are slow, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const shipBillboardsByMmsi = new Map<string, any>(); // Billboard reference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const shipLabelsByMmsi = new Map<string, any>(); // Label reference
 
 export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
   const ships = useShips();
   const collectionRef = useRef<BillboardCollection | null>(null);
+  const labelCollectionRef = useRef<LabelCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.ships);
+  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
 
   // Replay state — read by playback interpolation effect
   const replayMode  = useAppStore(s => s.replayMode);
@@ -63,7 +73,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
     replayMode === 'playback',
   );
 
-  // Effect 1: Initialize BillboardCollection
+  // Effect 1: Initialize BillboardCollection and LabelCollection
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
@@ -71,6 +81,10 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       collectionRef.current = viewer.scene.primitives.add(
         new BillboardCollection({ blendOption: BlendOption.OPAQUE })
       );
+    }
+
+    if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) {
+      labelCollectionRef.current = viewer.scene.primitives.add(new LabelCollection());
     }
 
     return () => {
@@ -81,6 +95,10 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       collectionRef.current = null;
       // Clear module-scope map on unmount
       shipBillboardsByMmsi.clear();
+      const lc = labelCollectionRef.current;
+      if (lc && !lc.isDestroyed()) { viewer.scene.primitives.remove(lc); }
+      labelCollectionRef.current = null;
+      shipLabelsByMmsi.clear();
     };
   }, [viewer]);
 
@@ -111,6 +129,9 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         const bb = shipBillboardsByMmsi.get(ship.mmsi);
         bb.position = pos;
         bb.rotation = CesiumMath.toRadians(-rot);
+        // Update label position on data refresh
+        const lbl = shipLabelsByMmsi.get(ship.mmsi);
+        if (lbl) lbl.position = pos;
       } else {
         const bb = collection.add({
           position: pos,
@@ -124,6 +145,23 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
           show: layerVisible,
         });
         shipBillboardsByMmsi.set(ship.mmsi, bb);
+        if (!shipLabelsByMmsi.has(ship.mmsi) && labelCollectionRef.current && !labelCollectionRef.current.isDestroyed()) {
+          const lbl = labelCollectionRef.current.add({
+            position: pos,
+            text: (ship.vessel_name?.trim() || ship.mmsi).toUpperCase(),
+            font: '11px monospace',
+            fillColor: Color.fromCssColorString('#22C55E'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, -22),
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            horizontalOrigin: HorizontalOrigin.CENTER,
+            scaleByDistance: new NearFarScalar(1e4, 1.4, 5e6, 0.0),
+            show: false,
+          });
+          shipLabelsByMmsi.set(ship.mmsi, lbl);
+        }
       }
     }
   }, [viewer, ships.data, layerVisible, replayMode]);
@@ -134,6 +172,14 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       bb.show = layerVisible;
     }
   }, [layerVisible]);
+
+  // Effect 4: Label visibility toggle
+  useEffect(() => {
+    for (const [mmsi, lbl] of shipLabelsByMmsi) {
+      const bb = shipBillboardsByMmsi.get(mmsi);
+      lbl.show = showEntityLabels && (bb?.show ?? false);
+    }
+  }, [showEntityLabels, layerVisible]);
 
   // Effect: Playback snapshot interpolation
   // Runs only when replayMode === 'playback'. Ships have no live lerp — this is purely additive.
