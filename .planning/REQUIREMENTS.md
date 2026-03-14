@@ -14,13 +14,13 @@ Requirements for v9.0 Entity Labels milestone.
 
 ### Satellite Labels
 
-- [ ] **LBL-03**: When labels enabled, each satellite shows its `object_name` as floating text above its PointPrimitive
-- [ ] **LBL-04**: Satellite labels are cyan (#00D4FF) monospace, sized to remain readable at all zoom levels
+- [x] **LBL-03**: When labels enabled, each satellite shows its `object_name` as floating text above its PointPrimitive
+- [x] **LBL-04**: Satellite labels are cyan (#00D4FF) monospace, sized to remain readable at all zoom levels
 
 ### Aircraft Labels
 
-- [ ] **LBL-05**: When labels enabled, each commercial aircraft shows its callsign (or ICAO24 if no callsign) above its billboard
-- [ ] **LBL-06**: Aircraft labels are orange (#FF8C00) to match the entity icon color
+- [x] **LBL-05**: When labels enabled, each commercial aircraft shows its callsign (or ICAO24 if no callsign) above its billboard
+- [x] **LBL-06**: Aircraft labels are orange (#FF8C00) to match the entity icon color
 
 ### Military Aircraft Labels
 
@@ -60,10 +60,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | LBL-01 | Phase 37 | Complete |
 | LBL-02 | Phase 37 | Complete |
-| LBL-03 | Phase 37 | Pending |
-| LBL-04 | Phase 37 | Pending |
-| LBL-05 | Phase 37 | Pending |
-| LBL-06 | Phase 37 | Pending |
+| LBL-03 | Phase 37 | Complete |
+| LBL-04 | Phase 37 | Complete |
+| LBL-05 | Phase 37 | Complete |
+| LBL-06 | Phase 37 | Complete |
 | LBL-07 | Phase 37 | Complete |
 | LBL-08 | Phase 37 | Complete |
 | LBL-09 | Phase 37 | Complete |

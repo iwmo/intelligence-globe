@@ -50,6 +50,14 @@ Phase 37 ██████████
 
 - Phase 37 added: v9.0 Entity Labels (all 10 LBL requirements in single phase)
 
+### Key Decisions (v9.0 — Plan 37-02)
+
+- Labels are a separate LabelCollection primitive, not embedded in PointPrimitiveCollection/BillboardCollection — Cesium GPU architecture requires this
+- labelsByIcao24 at module scope mirrors billboardsByIcao24 pattern — same lifecycle, cleared on unmount
+- Label show state cross-references entity show state: hidden satellites/aircraft never get visible labels even when toggle is on
+- scaleByDistance satellites: NearFarScalar(5e5, 1.2, 5e7, 0.0) — vanish at global altitude, matching point scale range
+- scaleByDistance aircraft: NearFarScalar(1e4, 1.4, 5e6, 0.0) — vanish at global altitude, matching billboard scale range
+
 ### Key Decisions (v9.0 — Plan 37-01)
 
 - showEntityLabels defaults to false — labels are opt-in, not forced on first load
@@ -105,7 +113,7 @@ None. Phase 37 is fully self-contained frontend work with no backend dependencie
 
 ## Session Continuity
 
-Last session: 2026-03-14T21:18:41.418Z
-Stopped at: Completed 37-03-PLAN.md
+Last session: 2026-03-14T21:18:13Z
+Stopped at: Completed 37-02-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 37`
+Next action: Execute 37-03-PLAN.md
