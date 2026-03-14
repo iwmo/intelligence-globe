@@ -15,10 +15,13 @@ export interface SettingsState {
   defaultCamera: { lon: number; lat: number; altMeters: number; pitch: number } | null;
   defaultMode: 'live' | 'playback';
 
+  showEntityLabels: boolean;
+
   setDefaultLayers: (layers: SettingsState['defaultLayers']) => void;
   setDefaultPreset: (preset: VisualPreset) => void;
   setDefaultCamera: (camera: SettingsState['defaultCamera']) => void;
   setDefaultMode: (mode: 'live' | 'playback') => void;
+  setShowEntityLabels: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -36,11 +39,13 @@ export const useSettingsStore = create<SettingsState>()(
       defaultPreset: 'normal',
       defaultCamera: null,
       defaultMode: 'live',
+      showEntityLabels: false,
 
       setDefaultLayers: (layers) => set({ defaultLayers: layers }),
       setDefaultPreset: (preset) => set({ defaultPreset: preset }),
       setDefaultCamera: (camera) => set({ defaultCamera: camera }),
       setDefaultMode: (mode) => set({ defaultMode: mode }),
+      setShowEntityLabels: (v) => set({ showEntityLabels: v }),
     }),
     { name: 'globe-settings' }
   )
