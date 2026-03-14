@@ -25,6 +25,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useViewerClock } from './hooks/useViewerClock';
 import { useViewportBbox } from './hooks/useViewportBbox';
 import { useAppStore } from './store/useAppStore';
+import { useGdeltPrefsStore } from './store/useGdeltPrefsStore';
 import { CameraControlWidget } from './components/CameraControlWidget';
 import { Settings } from 'lucide-react';
 
@@ -59,6 +60,21 @@ export default function App() {
   useEffect(() => {
     if (gdeltOsintPrefill !== null) setOsintPanelOpen(true);
   }, [gdeltOsintPrefill]);
+
+  // Restore persisted GEO layer prefs on mount and sync changes back
+  useEffect(() => {
+    const { gdeltVisible, gdeltQuadClassFilter } = useGdeltPrefsStore.getState();
+    useAppStore.getState().setLayerVisible('gdelt', gdeltVisible);
+    useAppStore.getState().setGdeltQuadClassFilter(gdeltQuadClassFilter);
+
+    return useAppStore.subscribe((state, prev) => {
+      if (state.layers.gdelt !== prev.layers.gdelt ||
+          state.gdeltQuadClassFilter !== prev.gdeltQuadClassFilter) {
+        useGdeltPrefsStore.getState().setGdeltVisible(state.layers.gdelt);
+        useGdeltPrefsStore.getState().setGdeltQuadClassFilter(state.gdeltQuadClassFilter);
+      }
+    });
+  }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
