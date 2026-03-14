@@ -10,7 +10,8 @@ and keep payloads compact for the frontend.
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,17 +27,30 @@ router = APIRouter()
 
 @router.get("")
 @router.get("/")
-async def list_military_aircraft(db: AsyncSession = Depends(get_db)):
-    """Return fresh, active military aircraft with freshness metadata."""
+async def list_military_aircraft(
+    db: AsyncSession = Depends(get_db),
+    min_lat: Optional[float] = Query(default=None),
+    max_lat: Optional[float] = Query(default=None),
+    min_lon: Optional[float] = Query(default=None),
+    max_lon: Optional[float] = Query(default=None),
+):
+    """Return fresh, active military aircraft with freshness metadata.
+
+    Optional bbox params — all four required for filtering to activate.
+    """
     cutoff = stale_cutoff(settings.MILITARY_STALE_SECONDS)
-    result = await db.execute(
-        select(MilitaryAircraft).where(
-            MilitaryAircraft.is_active == True,
-            MilitaryAircraft.latitude.is_not(None),
-            MilitaryAircraft.longitude.is_not(None),
-            MilitaryAircraft.fetched_at >= cutoff,
-        )
+    stmt = select(MilitaryAircraft).where(
+        MilitaryAircraft.is_active == True,
+        MilitaryAircraft.latitude.is_not(None),
+        MilitaryAircraft.longitude.is_not(None),
+        MilitaryAircraft.fetched_at >= cutoff,
     )
+    if all(v is not None for v in (min_lat, max_lat, min_lon, max_lon)):
+        stmt = stmt.where(
+            MilitaryAircraft.latitude.between(min_lat, max_lat),
+            MilitaryAircraft.longitude.between(min_lon, max_lon),
+        )
+    result = await db.execute(stmt)
     rows = result.scalars().all()
     return [
         {

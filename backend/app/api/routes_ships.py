@@ -6,7 +6,8 @@ Provides vessel positions ingested from aisstream.io via the AIS worker.
 
 Endpoint order matters: /{mmsi} must be last so literal paths are matched first.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,17 +21,30 @@ router = APIRouter()
 
 @router.get("")
 @router.get("/")
-async def list_ships(db: AsyncSession = Depends(get_db)):
-    """Return fresh, active ships with freshness metadata."""
+async def list_ships(
+    db: AsyncSession = Depends(get_db),
+    min_lat: Optional[float] = Query(default=None),
+    max_lat: Optional[float] = Query(default=None),
+    min_lon: Optional[float] = Query(default=None),
+    max_lon: Optional[float] = Query(default=None),
+):
+    """Return fresh, active ships with freshness metadata.
+
+    Optional bbox params — all four required for filtering to activate.
+    """
     cutoff = stale_cutoff(settings.SHIP_STALE_SECONDS)
-    result = await db.execute(
-        select(Ship).where(
-            Ship.is_active == True,
-            Ship.latitude.is_not(None),
-            Ship.longitude.is_not(None),
-            Ship.last_seen_at >= cutoff,
-        )
+    stmt = select(Ship).where(
+        Ship.is_active == True,
+        Ship.latitude.is_not(None),
+        Ship.longitude.is_not(None),
+        Ship.last_seen_at >= cutoff,
     )
+    if all(v is not None for v in (min_lat, max_lat, min_lon, max_lon)):
+        stmt = stmt.where(
+            Ship.latitude.between(min_lat, max_lat),
+            Ship.longitude.between(min_lon, max_lon),
+        )
+    result = await db.execute(stmt)
     rows = result.scalars().all()
     return [
         {
