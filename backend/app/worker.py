@@ -40,6 +40,10 @@ def main() -> None:
     queue.enqueue("app.tasks.snapshot_positions.sync_snapshot_positions")
     logger.info("Enqueued snapshot positions task; first run starting now")
 
+    # Enqueue GDELT ingest; task will self-re-enqueue every 900 seconds (15 minutes)
+    queue.enqueue("app.tasks.ingest_gdelt.sync_ingest_gdelt")
+    logger.info("Enqueued GDELT ingest job; first run starting now")
+
     worker = Worker([queue], connection=conn)
     worker.work(with_scheduler=True)
 
