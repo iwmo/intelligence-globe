@@ -41,6 +41,7 @@ services:
       VERSION: ${VERSION:-0.1.0}
       OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:?Set OPENSKY_CLIENT_ID in .env}
       OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:?Set OPENSKY_CLIENT_SECRET in .env}
+      API_KEY: ${API_KEY:?Set API_KEY in .env}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
       interval: 30s
@@ -97,6 +98,7 @@ services:
       target: production
       args:
         VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:?Set VITE_CESIUM_ION_TOKEN in .env}
+        VITE_API_KEY: ${VITE_API_KEY:?Set VITE_API_KEY in .env}
     depends_on:
       backend:
         condition: service_healthy
