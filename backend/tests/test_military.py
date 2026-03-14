@@ -205,3 +205,46 @@ async def test_military_list_excludes_inactive_rows():
                 text("DELETE FROM military_aircraft WHERE hex = :hex"), {"hex": hex_id}
             )
             await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# VPC-06: bbox query-param filtering for military aircraft
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_list_military_bbox():
+    """VPC-06: GET /api/military/ with bbox returns only in-range military aircraft."""
+    from datetime import datetime, timezone
+    from app.db import AsyncSessionLocal
+    from app.models.military_aircraft import MilitaryAircraft
+
+    now = datetime.now(timezone.utc)
+    mil_in = MilitaryAircraft(
+        hex="aabbcc", latitude=40.0, longitude=10.0,
+        is_active=True, fetched_at=now,
+    )
+    mil_out = MilitaryAircraft(
+        hex="ddeeff", latitude=60.0, longitude=10.0,
+        is_active=True, fetched_at=now,
+    )
+    async with AsyncSessionLocal() as session:
+        session.add_all([mil_in, mil_out])
+        await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/api/military/",
+            params={"min_lat": 10, "max_lat": 50, "min_lon": -10, "max_lon": 30},
+        )
+    assert response.status_code == 200
+    hexes = [r["hex"] for r in response.json()]
+    assert "aabbcc" in hexes
+    assert "ddeeff" not in hexes
+
+    async with AsyncSessionLocal() as session:
+        for hex_ in ("aabbcc", "ddeeff"):
+            row = await session.get(MilitaryAircraft, hex_)
+            if row:
+                await session.delete(row)
+        await session.commit()

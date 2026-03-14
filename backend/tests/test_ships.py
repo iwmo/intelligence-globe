@@ -208,3 +208,46 @@ async def test_ships_list_excludes_inactive_rows():
                 text("DELETE FROM ships WHERE mmsi = :mmsi"), {"mmsi": mmsi}
             )
             await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# VPC-05: bbox query-param filtering for ships
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_list_ships_bbox():
+    """VPC-05: GET /api/ships/ with bbox returns only in-range ships."""
+    from datetime import datetime, timezone
+    from app.db import AsyncSessionLocal
+    from app.models.ship import Ship
+
+    now = datetime.now(timezone.utc)
+    ship_in = Ship(
+        mmsi="123456789", latitude=40.0, longitude=10.0,
+        is_active=True, last_seen_at=now,
+    )
+    ship_out = Ship(
+        mmsi="987654321", latitude=60.0, longitude=10.0,
+        is_active=True, last_seen_at=now,
+    )
+    async with AsyncSessionLocal() as session:
+        session.add_all([ship_in, ship_out])
+        await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/api/ships/",
+            params={"min_lat": 10, "max_lat": 50, "min_lon": -10, "max_lon": 30},
+        )
+    assert response.status_code == 200
+    mmsis = [r["mmsi"] for r in response.json()]
+    assert "123456789" in mmsis
+    assert "987654321" not in mmsis
+
+    async with AsyncSessionLocal() as session:
+        for mmsi in ("123456789", "987654321"):
+            row = await session.get(Ship, mmsi)
+            if row:
+                await session.delete(row)
+        await session.commit()
