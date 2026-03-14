@@ -2,6 +2,13 @@ import { create } from 'zustand';
 
 export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
 
+export interface ViewportBbox {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+}
+
 export interface PostProcessUniforms {
   bloomIntensity: number;
   sharpenAmount: number;
@@ -81,6 +88,10 @@ interface AppState {
     visualEngine: boolean;
   };
   toggleSidebarSection: (section: keyof AppState['sidebarSections']) => void;
+
+  // Phase 33: viewport bbox for culled data loading
+  viewportBbox: ViewportBbox | null;
+  setViewportBbox: (bbox: ViewportBbox | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -164,4 +175,8 @@ export const useAppStore = create<AppState>((set) => ({
         [section]: !s.sidebarSections[section],
       },
     })),
+
+  // Phase 33: viewport bbox
+  viewportBbox: null,
+  setViewportBbox: (bbox) => set({ viewportBbox: bbox }),
 }));
