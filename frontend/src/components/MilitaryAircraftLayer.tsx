@@ -2,6 +2,11 @@ import { useEffect, useRef } from 'react';
 import {
   Viewer,
   BillboardCollection,
+  LabelCollection,
+  LabelStyle,
+  VerticalOrigin,
+  HorizontalOrigin,
+  Cartesian2,
   Cartesian3,
   BlendOption,
   NearFarScalar,
@@ -10,6 +15,7 @@ import {
 } from 'cesium';
 import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 // ---------------------------------------------------------------------------
@@ -41,12 +47,16 @@ export const MILITARY_ICON = drawMilitaryIcon();
 // Module-scope map — military updates every 300s, no lerp needed
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const militaryBillboardsByHex = new Map<string, any>(); // Billboard reference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const militaryLabelsByHex = new Map<string, any>(); // Label reference
 
 export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const militaryAircraft = useMilitaryAircraft();
   const collectionRef = useRef<BillboardCollection | null>(null);
+  const labelCollectionRef = useRef<LabelCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.militaryAircraft);
+  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
 
   // Replay state — read by playback interpolation effect
   const replayMode  = useAppStore(s => s.replayMode);
@@ -62,7 +72,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
     replayMode === 'playback',
   );
 
-  // Effect 1: Initialize BillboardCollection
+  // Effect 1: Initialize BillboardCollection and LabelCollection
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
@@ -72,6 +82,10 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       );
     }
 
+    if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) {
+      labelCollectionRef.current = viewer.scene.primitives.add(new LabelCollection());
+    }
+
     return () => {
       const col = collectionRef.current;
       if (col && !col.isDestroyed()) {
@@ -79,6 +93,10 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       }
       collectionRef.current = null;
       militaryBillboardsByHex.clear();
+      const lc = labelCollectionRef.current;
+      if (lc && !lc.isDestroyed()) { viewer.scene.primitives.remove(lc); }
+      labelCollectionRef.current = null;
+      militaryLabelsByHex.clear();
     };
   }, [viewer]);
 
@@ -103,6 +121,9 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       if (existing) {
         existing.position = pos;
         existing.rotation = CesiumMath.toRadians(-rot);
+        // Update label position on data refresh
+        const lbl = militaryLabelsByHex.get(ac.hex);
+        if (lbl) lbl.position = pos;
       } else {
         const bb = collection.add({
           position: pos,
@@ -116,6 +137,23 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
           show: layerVisible,
         });
         militaryBillboardsByHex.set(ac.hex, bb);
+        if (!militaryLabelsByHex.has(ac.hex) && labelCollectionRef.current && !labelCollectionRef.current.isDestroyed()) {
+          const lbl = labelCollectionRef.current.add({
+            position: pos,
+            text: (ac.flight?.trim() || ac.hex).toUpperCase(),
+            font: '11px monospace',
+            fillColor: Color.fromCssColorString('#EF4444'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, -22),
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            horizontalOrigin: HorizontalOrigin.CENTER,
+            scaleByDistance: new NearFarScalar(1e4, 1.4, 5e6, 0.0),
+            show: false,
+          });
+          militaryLabelsByHex.set(ac.hex, lbl);
+        }
       }
     }
   }, [viewer, militaryAircraft.data, layerVisible, replayMode]);
@@ -126,6 +164,14 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       bb.show = layerVisible;
     }
   }, [layerVisible]);
+
+  // Effect 4: Label visibility toggle
+  useEffect(() => {
+    for (const [hex, lbl] of militaryLabelsByHex) {
+      const bb = militaryBillboardsByHex.get(hex);
+      lbl.show = showEntityLabels && (bb?.show ?? false);
+    }
+  }, [showEntityLabels, layerVisible]);
 
   // Effect: Playback snapshot interpolation
   // Runs only when replayMode === 'playback'. Does NOT modify live update logic.
