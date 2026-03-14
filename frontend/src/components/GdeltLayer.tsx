@@ -109,11 +109,10 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
           outlineWidth: 1,
           // Initial show based on QuadClass filter only; temporal state is set by Effect 3
           show: gdeltQuadClassFilter.includes(event.quad_class),
-          // CLAMP_TO_GROUND pins the point to the terrain surface so it is
-          // always below the camera regardless of zoom level. POSITIVE_INFINITY
-          // disables depth testing so terrain doesn't occlude it.
+          // CLAMP_TO_GROUND pins the point to the terrain surface.
+          // No disableDepthTestDistance — depth testing hides dots on the
+          // far side of the globe and CLAMP_TO_GROUND handles terrain occlusion.
           heightReference: HeightReference.CLAMP_TO_GROUND,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
         }),
       });
       dataSource.entities.add(entity);

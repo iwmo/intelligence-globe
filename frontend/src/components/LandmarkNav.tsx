@@ -60,11 +60,26 @@ function LandmarkButton({ landmark }: { landmark: (typeof landmarksData.landmark
  * The viewer prop is accepted for future use (e.g. displaying current landmark) but unused for navigation —
  * all navigation goes through viewerRegistry which already holds the viewer reference.
  */
+function loadCollapsed(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem('landmark-nav-collapsed') ?? 'false');
+  } catch { return false; }
+}
+
 export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
+  const [collapsed, setCollapsed] = useState<boolean>(() => loadCollapsed());
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'no-results' | 'error'>('idle');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  function toggleCollapsed() {
+    setCollapsed(c => {
+      const next = !c;
+      try { localStorage.setItem('landmark-nav-collapsed', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +173,45 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
         maxWidth: '90vw',
       }}
     >
+      {/* Header row with collapse toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{
+          fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
+          letterSpacing: '0.15em', color: 'rgba(0,212,255,0.6)',
+        }}>
+          JUMP TO CITY
+        </span>
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(0,212,255,0.3)',
+            borderRadius: '2px',
+            color: 'rgba(0,212,255,0.7)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            lineHeight: 1,
+            width: '18px',
+            height: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+          }}
+        >
+          {collapsed ? '+' : '−'}
+        </button>
+      </div>
+
+      {/* Collapsible content */}
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: collapsed ? '0fr' : '1fr',
+        transition: 'grid-template-rows 0.18s ease',
+      }}>
+        <div style={{ overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+
       {/* City quick-jump search */}
       <div style={{ position: 'relative' }}>
         <input
@@ -246,6 +300,9 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
           <LandmarkButton key={lm.id} landmark={lm} />
         ))}
       </div>
+
+        </div>{/* end overflow wrapper */}
+      </div>{/* end grid collapse */}
     </div>
   );
 }
