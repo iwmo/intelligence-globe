@@ -11,7 +11,7 @@ interface LeftSidebarProps {
 }
 
 export function LeftSidebar({ workerRef }: LeftSidebarProps) {
-  const { layers, setLayerVisible } = useAppStore();
+  const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass } = useAppStore();
 
   return (
     <>
@@ -59,6 +59,37 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
             icon={<Zap size={12} />}
             onToggle={() => setLayerVisible('gdelt', !layers.gdelt)}
           />
+          {layers.gdelt && (
+            <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '5px' }}>
+              <div style={{ color: '#666', fontSize: '9px', marginBottom: '4px', letterSpacing: '0.05em' }}>QUAD CLASS</div>
+              {([1, 2, 3, 4] as const).map(qc => {
+                const labels: Record<number, string> = { 1: 'V.COOP', 2: 'M.COOP', 3: 'V.CONF', 4: 'M.CONF' };
+                const colors: Record<number, string> = { 1: '#3B82F6', 2: '#22C55E', 3: '#EAB308', 4: '#EF4444' };
+                const active = gdeltQuadClassFilter.includes(qc);
+                return (
+                  <button
+                    key={qc}
+                    onClick={() => toggleGdeltQuadClass(qc)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '2px 6px',
+                      marginBottom: '2px',
+                      background: active ? `${colors[qc]}22` : 'transparent',
+                      border: `1px solid ${active ? colors[qc] : 'rgba(255,255,255,0.15)'}`,
+                      color: active ? colors[qc] : '#666',
+                      fontFamily: 'monospace',
+                      fontSize: '9px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {labels[qc]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </DraggablePanel>
 
