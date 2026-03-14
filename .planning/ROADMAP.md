@@ -163,4 +163,4 @@ Plans:
 | 34. Backend Foundation | v8.0 | 4/4 | Complete | 2026-03-14 |
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
-| 37. Entity Labels | v9.0 | 0/3 | In progress | - |
+| 37. Entity Labels | 1/3 | In Progress|  | - |
