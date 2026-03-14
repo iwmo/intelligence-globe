@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAppStore } from '../store/useAppStore';
 
 interface Props {
   open?: boolean;
@@ -32,6 +33,17 @@ export function OsintEventPanel({ open = true, onClose }: Props) {
   const [sourceUrl, setSourceUrl] = useState('');
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
+
+  const prefill = useAppStore(s => s.gdeltOsintPrefill);
+  useEffect(() => {
+    if (prefill) {
+      setLat(String(prefill.lat));
+      setLon(String(prefill.lon));
+      setTs(prefill.ts.slice(0, 16));
+      setSourceUrl(prefill.sourceUrl ?? '');
+      useAppStore.getState().setGdeltOsintPrefill(null);
+    }
+  }, [prefill]);
 
   if (!open) return null;
 

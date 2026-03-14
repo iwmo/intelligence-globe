@@ -35,6 +35,7 @@ export default function App() {
   const [osintPanelOpen, setOsintPanelOpen] = useState(false);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const { cleanUI } = useAppStore();
+  const gdeltOsintPrefill = useAppStore(s => s.gdeltOsintPrefill);
   const gdeltEvents = useGdeltEvents();
 
   useKeyboardShortcuts();
@@ -53,6 +54,11 @@ export default function App() {
   useEffect(() => {
     satWorkerRef.current = satWorker;
   }, [satWorker]);
+
+  // Phase 35: open OsintEventPanel reactively when GDELT bridge prefill is set
+  useEffect(() => {
+    if (gdeltOsintPrefill !== null) setOsintPanelOpen(true);
+  }, [gdeltOsintPrefill]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
@@ -102,7 +108,10 @@ export default function App() {
       <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />
 
       {/* Phase 12: OsintEventPanel — ALWAYS mounted, controlled by osintPanelOpen state */}
-      <OsintEventPanel open={osintPanelOpen} onClose={() => setOsintPanelOpen(false)} />
+      <OsintEventPanel open={osintPanelOpen} onClose={() => {
+        setOsintPanelOpen(false);
+        useAppStore.getState().setGdeltOsintPrefill(null);
+      }} />
 
       {/* Phase 15: Camera control widget — zoom +/− and tilt presets — unconditional like LandmarkNav */}
       <CameraControlWidget />

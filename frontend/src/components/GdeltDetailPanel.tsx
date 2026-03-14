@@ -135,6 +135,29 @@ export function GdeltDetailPanel({ events }: GdeltDetailPanelProps) {
         </div>
 
         {/* OSINT bridge button — Plan 05 */}
+        <button
+          onClick={() => {
+            useAppStore.getState().setGdeltOsintPrefill({
+              lat: event.latitude,
+              lon: event.longitude,
+              ts: event.occurred_at,
+              sourceUrl: event.source_url,
+            });
+          }}
+          style={{
+            width: '100%',
+            marginTop: '8px',
+            background: 'rgba(0,212,255,0.1)',
+            border: '1px solid rgba(0,212,255,0.4)',
+            color: '#00D4FF',
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            padding: '5px',
+            cursor: 'pointer',
+          }}
+        >
+          LOG AS OSINT EVENT
+        </button>
       </div>
     </DraggablePanel>
   );
