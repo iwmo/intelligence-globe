@@ -100,7 +100,7 @@
 
 ### v9.0 Entity Labels
 
-- [ ] **Phase 37: Entity Labels** - Toggle infrastructure + all four layer label implementations
+- [x] **Phase 37: Entity Labels** - Toggle infrastructure + all four layer label implementations (completed 2026-03-14)
 
 **Plans:** 3 plans
 
@@ -163,4 +163,4 @@ Plans:
 | 34. Backend Foundation | v8.0 | 4/4 | Complete | 2026-03-14 |
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
-| 37. Entity Labels | 1/3 | In Progress|  | - |
+| 37. Entity Labels | 3/3 | Complete   | 2026-03-14 | - |
