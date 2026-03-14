@@ -18,13 +18,28 @@ export interface MilitaryAircraftRecord {
 
 export function useMilitaryAircraft() {
   const replayMode = useAppStore(s => s.replayMode);
+  const viewportBbox = useAppStore(s => s.viewportBbox);
+
+  // VPC-08: suppress bbox during playback — replay covers arbitrary space/time
+  const effectiveBbox = replayMode === 'live' ? viewportBbox : null;
+
   return useQuery<MilitaryAircraftRecord[]>({
-    queryKey: ['military-aircraft'],
+    queryKey: ['military-aircraft', effectiveBbox],  // bbox in key triggers refetch on camera pan
     queryFn: async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000);
       try {
-        const res = await fetch('/api/military/', { signal: controller.signal });
+        let url = '/api/military/';
+        if (effectiveBbox) {
+          const params = new URLSearchParams({
+            min_lat: String(effectiveBbox.minLat),
+            max_lat: String(effectiveBbox.maxLat),
+            min_lon: String(effectiveBbox.minLon),
+            max_lon: String(effectiveBbox.maxLon),
+          });
+          url = `/api/military/?${params}`;
+        }
+        const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`Military aircraft fetch failed: ${res.status}`);
         return res.json() as Promise<MilitaryAircraftRecord[]>;
       } finally {
