@@ -1,5 +1,18 @@
 # OpenSignal Globe
 
+## Current Milestone: v8.0 GDELT Integration
+
+**Goal:** Add a live GDELT geopolitical event layer — 15-minute polling of global conflict/cooperation events rendered as clustered markers on the globe, queryable by viewport bbox, filterable by QuadClass, and integrated with the 4D replay timeline.
+
+**Target features:**
+- GDELT 2.0 bulk CSV ingestion (RQ worker, 15-min cadence, conflict-only filter, 3-layer dedup)
+- `/api/gdelt-events` endpoint with bbox + QuadClass + time-range params
+- Globe layer with `CustomDataSource` + `EntityCluster`, QuadClass colour coding, layer toggle
+- Click-to-inspect `GdeltDetailPanel` with source URL, actors, GoldsteinScale, tone, disclaimer
+- "Log as OSINT Event" bridge to pre-populate `OsintEventPanel`
+- Replay integration: events accumulate at `occurred_at` (SQLDATE) as scrubber advances
+- PlaybackBar GDELT timeline dots + `source_is_stale` freshness indicator
+
 ## What This Is
 
 A browser-based 3D geospatial intelligence platform that visualizes satellites, aircraft, military flights, ships, GPS jamming, and OSINT events on an interactive globe using only open-source tools and public data sources. Built for homelab/VPS deployment with Docker, featuring a cinematic dark-themed UI with switchable visual style presets (NVG, CRT, FLIR), a 4D timeline replay engine, OSINT event correlation with satellite overpass lines, fully polished draggable panels and custom SVG entity icons, and data reliability guarantees — stale positions filtered from all live endpoints, freshness metadata exposed in every API response.

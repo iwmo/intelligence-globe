@@ -1,31 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v7.0
-milestone_name: Viewport Culling
-status: milestone_complete
-stopped_at: "v7.0 Viewport Culling archived — Phase 33 complete, all 8 VPC requirements satisfied"
+milestone: v8.0
+milestone_name: GDELT Integration
+status: planning
+stopped_at: "Milestone v8.0 started — requirements defined, roadmap pending"
 last_updated: "2026-03-14T00:00:00.000Z"
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-14 after v7.0 milestone)
+See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Planning next milestone — v7.0 Viewport Culling is SHIPPED
+**Current focus:** v8.0 GDELT Integration — defining roadmap
 
 ## Current Position
 
-Phase: 32 — API Key Wiring (complete)
-Plan: 01 of 01 — complete (all 3 tasks done, including human-verify approval)
-Status: v6.0 gap closure complete — SEC-04 satisfied, OSINT event submission authenticated end-to-end
+Phase: Not started (defining roadmap)
+Plan: —
+Status: Defining requirements — v8.0 GDELT Integration
+Last activity: 2026-03-14 — Milestone v8.0 started, requirements defined
 
 ```
 v6.0 Progress: [████████████████████] 100% (6/6 phases complete)
