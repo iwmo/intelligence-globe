@@ -7,6 +7,7 @@ import {
   Cartesian3,
   Color,
   EntityCluster,
+  NearFarScalar,
 } from 'cesium';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
 import { useAppStore } from '../store/useAppStore';
@@ -88,6 +89,9 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
           outlineColor: Color.BLACK.withAlpha(0.4),
           outlineWidth: 1,
           show: gdeltQuadClassFilter.includes(event.quad_class),
+          // Prevent depth-culling when zoomed in close to the globe surface
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          scaleByDistance: new NearFarScalar(1e3, 1.5, 1e7, 0.8),
         }),
       });
       dataSource.entities.add(entity);
