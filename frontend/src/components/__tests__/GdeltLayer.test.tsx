@@ -73,6 +73,7 @@ vi.mock('cesium', () => {
       BLACK: { withAlpha: vi.fn((a: number) => ({ black: true, alpha: a })) },
       WHITE: { withAlpha: vi.fn((a: number) => ({ white: true, alpha: a })) },
     },
+    HeightReference: { CLAMP_TO_GROUND: 1 },
   };
 });
 
