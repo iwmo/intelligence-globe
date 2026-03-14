@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-opensignal}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -35,12 +35,12 @@ services:
         condition: service_healthy
     command: ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-opensignal}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-opensignal}
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
       VERSION: ${VERSION:-0.1.0}
-      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-REDACTED_OPENSKY_CLIENT_ID}
-      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-REDACTED_OPENSKY_SECRET}
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:?Set OPENSKY_CLIENT_ID in .env}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:?Set OPENSKY_CLIENT_SECRET in .env}
     ports:
       - "8000:8000"
 
@@ -55,10 +55,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-opensignal}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-opensignal}
       REDIS_URL: redis://redis:6379/0
-      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-REDACTED_OPENSKY_CLIENT_ID}
-      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-REDACTED_OPENSKY_SECRET}
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:?Set OPENSKY_CLIENT_ID in .env}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:?Set OPENSKY_CLIENT_SECRET in .env}
 
   ais-worker:
     build:
@@ -71,9 +71,9 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-opensignal}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-opensignal}
       REDIS_URL: redis://redis:6379/0
-      AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
+      AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:?Set AISSTREAM_API_KEY in .env}
 
   frontend:
     build:
@@ -82,7 +82,7 @@ services:
     depends_on:
       - backend
     environment:
-      VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+      VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:?Set VITE_CESIUM_ION_TOKEN in .env}
       VITE_API_BASE_URL: http://backend:8000
     ports:
       - "3000:3000"
