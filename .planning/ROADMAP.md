@@ -92,20 +92,20 @@
   4. Running `docker compose config` with no `.env` file produces a visible unset-variable error rather than silently substituting a credential
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
+- [x] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ### Phase 28: API Key Auth
 **Goal**: Write endpoints are protected — unauthenticated callers receive 401, not data
 **Depends on**: Phase 27
 **Requirements**: SEC-04
 **Success Criteria** (what must be TRUE):
-  1. `POST /api/osint` returns HTTP 401 when the `X-API-Key` header is absent
-  2. `POST /api/osint` returns HTTP 401 when the header value does not match `API_KEY` env var
-  3. `POST /api/osint` returns HTTP 201 when the correct `API_KEY` value is supplied
+  1. `POST /api/osint-events` returns HTTP 401 when the `X-API-Key` header is absent
+  2. `POST /api/osint-events` returns HTTP 401 when the header value does not match `API_KEY` env var
+  3. `POST /api/osint-events` returns HTTP 201 when the correct `API_KEY` value is supplied
   4. All read endpoints (`GET /api/*`) are unaffected and return data without any key
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
+- [ ] 28-01-PLAN.md — Add api_key to Settings, create deps.py, protect POST route, add auth tests
 
 ### Phase 29: Production Docker Stack
 **Goal**: The project runs on a single port 80 via nginx with no dev-server ports exposed and all services health-checked
@@ -118,7 +118,7 @@ Plans:
   4. `docker compose ps` shows `healthy` for `backend`, `worker`, and `ais-worker` after startup
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
+- [ ] 29-01-PLAN.md — nginx reverse proxy, production build targets, Docker healthchecks
 
 ### Phase 30: CI Pipeline
 **Goal**: Every push and PR is automatically verified for test correctness, type safety, secret hygiene, and image buildability
@@ -131,7 +131,7 @@ Plans:
   4. A GitHub Actions run builds both backend and frontend Docker images with `--target production`; a broken Dockerfile fails the check
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
+- [ ] 30-01-PLAN.md — GitHub Actions workflows for pytest, vitest+tsc, gitleaks, docker build
 
 ### Phase 31: Documentation
 **Goal**: Any developer can clone the repo, read the README, and have the stack running within minutes
@@ -143,7 +143,7 @@ Plans:
   3. A developer following only the README can start the stack without consulting any other file
 **Plans**: 1 plan
 Plans:
-- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
+- [ ] 31-01-PLAN.md — Root README.md and LICENSE file
 
 ## Progress
 
@@ -175,8 +175,8 @@ Plans:
 | 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
 | 25. Layer Audit | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 4/4 | Complete | 2026-03-13 |
-| 27. Secrets Cleanup | 1/1 | Complete    | 2026-03-14 | - |
-| 28. API Key Auth | v6.0 | 0/? | Not started | - |
-| 29. Production Docker Stack | v6.0 | 0/? | Not started | - |
-| 30. CI Pipeline | v6.0 | 0/? | Not started | - |
-| 31. Documentation | v6.0 | 0/? | Not started | - |
+| 27. Secrets Cleanup | v6.0 | 1/1 | Complete | 2026-03-14 |
+| 28. API Key Auth | v6.0 | 0/1 | Not started | - |
+| 29. Production Docker Stack | v6.0 | 0/1 | Not started | - |
+| 30. CI Pipeline | v6.0 | 0/1 | Not started | - |
+| 31. Documentation | v6.0 | 0/1 | Not started | - |
