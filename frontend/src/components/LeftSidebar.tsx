@@ -15,7 +15,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
 
   return (
     <>
-      <DraggablePanel id="layers" title="LAYERS" defaultPos={{ x: 12, y: 40 }}>
+      <DraggablePanel id="layers" title="LAYERS" defaultPos={{ x: 12, y: 40 }} minWidth={90}>
         <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <LayerToggleButton
             label="SAT"
