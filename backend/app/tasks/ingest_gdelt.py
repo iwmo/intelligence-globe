@@ -109,8 +109,9 @@ def _parse_gdelt_row_list(row: list[str]) -> dict[str, Any] | None:
 
     # QuadClass filter — only keep 2 (Verbal Conflict), 3 (Material Conflict),
     # 4 (Material Cooperation); skip 1 (Verbal Cooperation)
+    # GDELT publishes QuadClass as a float string (e.g. "4.0"), so parse via float first.
     try:
-        quad_class = int(row[_COL_QUADCLASS])
+        quad_class = int(float(row[_COL_QUADCLASS]))
     except (ValueError, IndexError):
         return None
     if quad_class not in {2, 3, 4}:
