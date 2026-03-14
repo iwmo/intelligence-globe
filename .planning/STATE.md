@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 35-04-PLAN.md — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
-last_updated: "2026-03-14T16:03:51.145Z"
-last_activity: "2026-03-14 — 35-03 complete: GdeltLayer.tsx + AircraftLayer click handler extension + LeftSidebar GEO toggle"
+stopped_at: Completed 35-05-PLAN.md — OSINT bridge complete, Phase 35 fully done
+last_updated: "2026-03-14T17:09:39.867Z"
+last_activity: "2026-03-14 — 35-04 complete: GdeltDetailPanel.tsx + App.tsx wiring + LeftSidebar QuadClass chips"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 ## Current Position
 
 Phase: 35 — Frontend Layer
-Plan: 04 complete — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
-Status: Phase 35 In Progress — 4/5 plans done
-Last activity: 2026-03-14 — 35-04 complete: GdeltDetailPanel.tsx + App.tsx wiring + LeftSidebar QuadClass chips
+Plan: 05 complete — OSINT bridge wired: GdeltDetailPanel LOG button, OsintEventPanel prefill, App.tsx reactive open
+Status: Phase 35 Complete — 5/5 plans done
+Last activity: 2026-03-14 — 35-05 complete: OSINT bridge complete, Phase 35 fully done
 
 ```
 v8.0 Progress: [████████████████] 80% (Phase 34 done, Phase 35 in progress 4/5)
@@ -49,6 +49,7 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 | Phase 35 P02 | 5min | 1 tasks | 2 files |
 | Phase 35 P03 | 3min | 2 tasks | 4 files |
 | Phase 35 P04 | 112 | 2 tasks | 4 files |
+| Phase 35 P05 | 60min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 - gdelt: click prefix handled first in unified AircraftLayer handler — before mmsi:, mil: — ensures GDELT selection clears all other panels atomically
 - Close button placed inside panel content not DraggablePanel header — avoids UX ambiguity with collapse toggle; DraggablePanel already provides collapse via +/−
 - gdeltEvents.data ?? [] passed from App.tsx to GdeltDetailPanel — avoids undefined prop; panel renders null internally when no event selected
+- App.tsx useEffect sets osintPanelOpen=true when gdeltOsintPrefill !== null — OsintEventPanel clears prefill safely without collapsing panel (osintPanelOpen is the durable gate)
+- Prefill cleared inside OsintEventPanel useEffect immediately after reading — single-shot trigger, no re-render loop; open state maintained via osintPanelOpen not gdeltOsintPrefill
 
 ### Phase Dependency Map
 
@@ -124,7 +127,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T16:03:51.142Z
-Stopped at: Completed 35-04-PLAN.md — GdeltDetailPanel with DraggablePanel wrapper, QuadClass chips in LeftSidebar, GdeltLayer + GdeltDetailPanel mounted in App.tsx
+Last session: 2026-03-14T17:09:39.864Z
+Stopped at: Completed 35-05-PLAN.md — OSINT bridge complete, Phase 35 fully done
 Resume file: None
 Next action: Execute 35-05-PLAN.md — OSINT bridge (GdeltDetailPanel Log button + OsintEventPanel prefill)

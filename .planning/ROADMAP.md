@@ -96,7 +96,7 @@
   - [x] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup (Wave 2)
   - [x] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering (Wave 2)
   - [x] 34-04-PLAN.md — Worker registration, full test suite, human verification (Wave 3)
-- [ ] **Phase 35: Frontend Layer** - 5 plans
+- [x] **Phase 35: Frontend Layer** - 5 plans (completed 2026-03-14)
   - [ ] 35-01-PLAN.md — Store extension (GDELT slices) + Wave 0 test stubs (Wave 1)
   - [ ] 35-02-PLAN.md — useGdeltEvents hook with VPC-08 + 15-min refetch (Wave 2)
   - [ ] 35-03-PLAN.md — GdeltLayer CustomDataSource + EntityCluster + LeftSidebar toggle (Wave 2)
@@ -193,5 +193,5 @@ Plans:
 | 32. API Key Wiring | v6.0 | 2/2 | Complete | 2026-03-14 |
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
 | 34. Backend Foundation | v8.0 | Complete    | 2026-03-14 | 2026-03-14 |
-| 35. Frontend Layer | 4/5 | In Progress|  | - |
+| 35. Frontend Layer | 5/5 | Complete   | 2026-03-14 | - |
 | 36. Replay and Freshness | v8.0 | 0/TBD | Not started | - |
