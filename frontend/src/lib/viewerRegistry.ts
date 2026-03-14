@@ -107,5 +107,19 @@ export function setPitchPreset(pitchDeg: number): void {
   });
 }
 
+/** Set camera heading in degrees (0 = north, 90 = east).
+ *  Preserves current pitch. Cancels any in-progress flight first. */
+export function setHeading(headingDeg: number): void {
+  if (!_viewer || _viewer.isDestroyed()) return;
+  _viewer.camera.cancelFlight();
+  _viewer.camera.setView({
+    orientation: {
+      heading: CesiumMath.toRadians(headingDeg),
+      pitch: _viewer.camera.pitch,
+      roll: 0,
+    },
+  });
+}
+
 // Re-export Cartographic for consumers that need it without importing cesium directly
 export { Cartographic };
