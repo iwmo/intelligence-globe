@@ -11,6 +11,7 @@ from app.api.routes_military import router as military_router
 from app.api.routes_gps_jamming import router as gps_jamming_router
 from app.api.routes_replay import router as replay_router
 from app.api.routes_osint import router as osint_router
+from app.api.routes_gdelt import router as gdelt_router
 
 
 @asynccontextmanager
@@ -36,3 +37,4 @@ app.include_router(military_router, prefix="/api/military")
 app.include_router(gps_jamming_router, prefix="/api/gps-jamming")
 app.include_router(replay_router, prefix="/api/replay")
 app.include_router(osint_router, prefix="/api/osint-events")
+app.include_router(gdelt_router, prefix="/api/gdelt-events")
