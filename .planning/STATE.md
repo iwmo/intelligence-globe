@@ -4,7 +4,7 @@ milestone: v6.0
 milestone_name: Production Ready
 status: completed
 stopped_at: Completed 32-02-PLAN.md — SEC-04 Dockerfile gap closed, VITE_API_KEY wiring chain complete
-last_updated: "2026-03-14T09:48:29.099Z"
+last_updated: "2026-03-14T10:08:17.042Z"
 progress:
   total_phases: 6
   completed_phases: 6
@@ -16,10 +16,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-14)
+See: .planning/PROJECT.md (updated 2026-03-14 after v6.0 milestone)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v6.0 Production Ready — COMPLETE
+**Current focus:** Planning next milestone — v6.0 Production Ready is SHIPPED
 
 ## Current Position
 

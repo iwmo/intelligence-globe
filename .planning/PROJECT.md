@@ -54,34 +54,12 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ All 5 live-data layers (aircraft, ships, military, GPS jamming, street traffic) guarded against playback contamination; `queryClient.invalidateQueries()` on LIVE return eliminates 90s stale-data window — v5.0
 - ✓ End-to-end 2-hour replay verified; PlaybackBar tick() auto-stop at window boundary; FPS gate ≥30 at 15m/s with all layers active — v5.0
 - ✓ Stale entity grey-tint (`Color.GRAY.withAlpha(0.4)`) in LIVE mode: `is_stale` field from backend routes serialised through React Query to Cesium billboards in aircraft, ships, and military layers — v5.0
-
-## Current Milestone: v6.0 Production Ready
-
-**Goal:** Harden the project for public release — scrub secrets, build a production-grade Docker stack with nginx reverse proxy, add a full GitHub Actions CI pipeline, and ship a README + LICENSE.
-
-**Target features:**
-- Secrets scrubbed from docker-compose.yml + .dockerignore added
-- Static API key auth on write endpoints
-- Full production Docker stack (nginx reverse proxy, single port 80)
-- GitHub Actions CI (pytest, vitest, secret scanning, docker build)
-- Root README.md and LICENSE
-
-### Active
-
-- [ ] **SEC-01**: docker-compose.yml contains no hardcoded credential fallback values
-- [ ] **SEC-02**: backend/.dockerignore and frontend/.dockerignore exclude .env files from COPY . .
-- [ ] **SEC-03**: .env.example updated with all required variables and placeholders
-- [ ] **SEC-04**: Static API key middleware protects POST /api/osint (API_KEY env var, 401 on failure)
-- [ ] **PROD-01**: docker-compose.yml frontend uses production build target (nginx)
-- [ ] **PROD-02**: nginx routes /api/* to backend container
-- [ ] **PROD-03**: Single public entry point port 80 via nginx
-- [ ] **PROD-04**: Docker Compose healthchecks for backend, worker, ais-worker
-- [ ] **CI-01**: GitHub Actions runs pytest on push/PR
-- [ ] **CI-02**: GitHub Actions runs vitest + tsc --noEmit on push/PR
-- [ ] **CI-03**: GitHub Actions runs gitleaks secret scanning
-- [ ] **CI-04**: GitHub Actions verifies Docker images build successfully
-- [ ] **DOC-01**: Root README.md with setup, config, and deployment guide
-- [ ] **DOC-02**: LICENSE file added
+- ✓ docker-compose.yml uses `:?error` mandatory syntax for all credentials; `.dockerignore` files prevent `.env` from build contexts; `.env.example` documents all required variables — v6.0
+- ✓ Static API key auth on `POST /api/osint-events` via `X-API-Key` header; `verify_api_key` FastAPI dependency; 6-test auth suite — v6.0
+- ✓ nginx reverse-proxy on port 80 serves compiled Vite bundle and proxies `/api/`; healthchecks on all services; dev override restores port 8000 — v6.0
+- ✓ GitHub Actions CI: 4 parallel jobs (pytest, vitest+tsc, gitleaks, docker build) gating every push/PR — v6.0
+- ✓ Root README.md with numbered quick-start, API keys table, architecture diagram, credential rotation warning; MIT LICENSE added — v6.0
+- ✓ `VITE_API_KEY` build arg wired into Dockerfile and CI; `OsintEventPanel` sends `X-API-Key` on every POST — v6.0 (Phase 32 gap closure)
 
 **Deferred to future milestones:**
 - [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness (FRESH-03, deferred from v4.0)
@@ -111,8 +89,9 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 **Shipped v3.0:** 2026-03-13 — UI Refinement (draggable panels, SVG icons, camera controls, settings)
 **Shipped v4.0:** 2026-03-13 — Data Reliability & Freshness (stale filtering, freshness metadata, full test suite)
 **Shipped v5.0:** 2026-03-14 — Playback (replay engine correctness, layer guards, stale indicators, 213 tests)
-**Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose
-**Codebase:** ~12,261 LOC (frontend TS/TSX + backend Python); full stack across 85 plans, 213 frontend tests
+**Shipped v6.0:** 2026-03-14 — Production Ready (secrets hardened, API key auth, nginx stack, CI pipeline, README+LICENSE)
+**Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose, nginx
+**Codebase:** ~15,883 LOC (frontend TS/TSX + backend Python); 92 plans across 32 phases
 
 **Key learnings from v3.0:**
 - CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
@@ -203,6 +182,14 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | `queryClient` as shared singleton in `lib/queryClient.ts` (not recreated in components) | `PlaybackBar` needs to call `invalidateQueries()` imperatively; only possible if it imports the same instance as `QueryClientProvider` | ✓ Good — single source of truth for cache invalidation |
 | Stale-tint effect reads `aircraft.data` for `is_stale`, does not add a separate query | Avoids extra API round-trip; `is_stale` is already in the list response payload | ✓ Good — zero network cost for VIS-01 |
 | `useSatellites` refetchInterval not frozen in playback | TLE data changes on 2h cadence; `resolveTimestamp` provides historically-accurate timestamps regardless; no requirement targets this | — Accepted tech debt (low impact) |
+| Static API key (not JWT/session auth) | Homelab tool, single-user; shared secret is sufficient; JWT adds complexity with no benefit at this scale | ✓ Good — simple, correct for use case |
+| nginx in main `docker-compose.yml` (not a separate file) | Single source of truth; build targets (`development`/`production`) differentiate dev vs prod without a second compose file | ✓ Good — clean, less operator confusion |
+| `:?message` syntax for all credential vars in compose | Fail loud with useful error when `.env` absent; `:- fallback` would silently pass empty credentials | ✓ Good — prevents silent auth failures |
+| `.dockerignore` co-located with Dockerfile in service directories | Docker build context is `./frontend` and `./backend`; project-root `.dockerignore` is not read by service-level `COPY . .` | ✓ Good — correctness-critical placement |
+| `VITE_*` secrets as build ARGs (not runtime env on nginx) | Vite inlines `VITE_*` env vars at bundle compile time; runtime env on nginx container has no effect on the JS bundle | ✓ Good — prevents silent undefined in production |
+| Commit-SHA allowlisting in `.gitleaks.toml` (not path/regex) | Narrowest possible scope to unblock CI; does not silence future detections on new commits | ✓ Good — maintains gitleaks effectiveness |
+| fetch-depth: 0 on gitleaks job | gitleaks must scan full history; shallow clone would miss historical credential commits that are the exact target of the scan | ✓ Good — correctness-critical for secret scanning |
+| `<Author Name>` placeholder in LICENSE | Real name must not be auto-invented; user fills in before public release | — Pending user action |
 
 ---
-*Last updated: 2026-03-14 after v6.0 milestone start*
+*Last updated: 2026-03-14 after v6.0 milestone*

@@ -260,6 +260,58 @@
 
 ---
 
+## Milestone: v6.0 — Production Ready
+
+**Shipped:** 2026-03-14
+**Phases:** 6 (27–32) | **Plans:** 7 | **Files:** 57 changed, +6,463/-178 lines
+
+### What Was Built
+
+- Credential hygiene: `:?error` mandatory syntax in docker-compose.yml; `.dockerignore` in both service dirs; `.env.example` with all 5 credential vars
+- API key auth middleware: `verify_api_key` FastAPI dependency; `POST /api/osint-events` returns 401 without correct `X-API-Key`; 6-test auth suite
+- Production nginx stack: port 80 reverse proxy; compiled Vite bundle; healthchecks on backend/worker/ais-worker; dev override preserves port 8000
+- GitHub Actions CI: 4 parallel jobs (pytest, vitest+tsc, gitleaks, docker build) gating every push/PR
+- README + LICENSE: numbered quick-start, API keys table, architecture diagram, credential rotation warning, MIT LICENSE with placeholder
+- Phase 32 gap closure: `VITE_API_KEY` build arg wired end-to-end into Dockerfile + CI + OsintEventPanel fetch headers
+
+### What Worked
+
+- **Audit-then-gap-close pattern** — running `/gsd:audit-milestone` before completion found the VITE_API_KEY wiring gap (CI bundling empty string); Phase 32 closed it cleanly before archiving
+- **`:?message` fail-loud pattern** — mandatory error syntax forced immediately visible failures when `.env` absent; `:- fallback` would have silently passed empty credentials through all CI runs
+- **Build ARG pattern from Phase 29** — VITE_CESIUM_ION_TOKEN pattern established in Phase 29 made VITE_API_KEY in Phase 32 a direct template copy; no research needed
+- **Commit-SHA gitleaks allowlist** — narrowest-scope allowlist for historical commits; does not suppress future detections; correct balance between unblocking CI and maintaining hygiene
+- **4-job parallel CI** — splitting pytest, vitest+tsc, gitleaks, and docker-build into parallel jobs kept total CI time minimal despite covering all four gates
+
+### What Was Inefficient
+
+- **Phase 32 required at all** — the VITE_API_KEY gap existed because Phase 28 (API key auth) and Phase 29 (docker stack) were planned independently without tracing the full env var chain; a single integration checklist at Phase 28 planning would have caught it
+- **VALIDATION.md files still draft** — fifth consecutive milestone with `nyquist_compliant: false` across all phases; the pattern has been identified four times and still not addressed in the execute-phase flow
+- **Credential rotation is a user action** — real credentials (OpenSky client secret, AISStream key) in git history pre-Phase-27 require user action (`git filter-repo`) before public release; this was not surfaced as a blocking gate in the milestone workflow
+- **ROADMAP.md plan checkbox inconsistency** — Phases 28–30, 32 had `[ ]` unchecked plan boxes in ROADMAP despite plans being complete (execution happened without updating ROADMAP); required cleanup at milestone close
+
+### Patterns Established
+
+- **`.dockerignore` co-located with Dockerfile** — always place `.dockerignore` in the same directory as `Dockerfile`; Docker build context for `./frontend` does not read a project-root `.dockerignore`
+- **`VITE_*` vars must be build ARGs** — never try to inject `VITE_*` vars as runtime env on the nginx container; Vite inlines them at bundle compile time; the nginx container has no access to the bundle's build-time vars
+- **gitleaks with full history** — `fetch-depth: 0` is mandatory on the secret-scan job; shallow clone misses the historical commits that are the primary threat
+- **4-parallel CI job pattern** — pytest / vitest+tsc / gitleaks / docker-build as independent parallel jobs is the correct structure for this codebase's CI gates
+
+### Key Lessons
+
+1. **Env var chain tracing at planning time** — when adding auth to a route (Phase 28), immediately trace the full chain: backend env → compose env → frontend build ARG → fetch header; gaps in the chain are integration bugs, not implementation gaps
+2. **VALIDATION.md must be updated during execution** — five milestones of `nyquist_compliant: false` is a process failure, not a content failure; add VALIDATION frontmatter update as a required step in execute-phase checklist
+3. **Rotate credentials before making the repo public** — git history purge is a user action that cannot be automated; surface it as an explicit gate in the milestone audit rather than a note
+4. **`:?message` over `:-default` for all secrets** — fail-loud mandatory syntax is the only correct pattern for credential variables; soft defaults are security liabilities masquerading as convenience
+5. **Audit-before-archive caught a real production bug** — without the audit, the production Docker image would have bundled an empty `VITE_API_KEY` string, silently breaking OSINT event submission on every POST; the audit workflow paid for itself here
+
+### Cost Observations
+
+- Sessions: 1 continuous session (2026-03-14, ~4 hours)
+- Model: balanced profile (sonnet-4.6)
+- Notable: 6 phases, 7 plans; infra-heavy milestone with no frontend UI work; Phase 32 was a post-audit gap closure inserted after phases 27–31 were complete
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | LOC | Key Pattern |
@@ -269,3 +321,4 @@
 | v3.0 UI Refinement | 4 | 13 | ~12,415 | DraggablePanel + SVG icons + camera controls + settings |
 | v4.0 Data Reliability | 6 | 13 | ~9,704 | Freshness lifecycle columns + stale filtering + DB-level tests |
 | v5.0 Playback | 4 | 14 | ~12,261 | getState() in rAF + resolveTimestamp pure fn + layer guards |
+| v6.0 Production Ready | 6 | 7 | ~15,883 | Fail-loud credential pattern + VITE build ARG + 4-job parallel CI |

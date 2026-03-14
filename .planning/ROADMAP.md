@@ -7,7 +7,7 @@
 - ✅ **v3.0 UI Refinement** — Phases 13-16 (shipped 2026-03-13) — [Archive](milestones/v3.0-ROADMAP.md)
 - ✅ **v4.0 Data Reliability & Freshness** — Phases 17-22 (shipped 2026-03-13) — [Archive](milestones/v4.0-ROADMAP.md)
 - ✅ **v5.0 Playback** — Phases 23-26 (shipped 2026-03-14) — [Archive](milestones/v5.0-ROADMAP.md)
-- 🚧 **v6.0 Production Ready** — Phases 27-31 (in progress)
+- ✅ **v6.0 Production Ready** — Phases 27-32 (shipped 2026-03-14) — [Archive](milestones/v6.0-ROADMAP.md)
 
 ## Phases
 
@@ -67,98 +67,17 @@
 
 </details>
 
-### 🚧 v6.0 Production Ready (In Progress)
+<details>
+<summary>✅ v6.0 Production Ready (Phases 27-32) — SHIPPED 2026-03-14</summary>
 
-**Milestone Goal:** Harden the project for public release — scrub secrets, build a production-grade Docker stack with nginx reverse proxy, add a full GitHub Actions CI pipeline, and ship a README + LICENSE.
+- [x] Phase 27: Secrets Cleanup (1/1 plan) — completed 2026-03-14
+- [x] Phase 28: API Key Auth (1/1 plan) — completed 2026-03-14
+- [x] Phase 29: Production Docker Stack (1/1 plan) — completed 2026-03-14
+- [x] Phase 30: CI Pipeline (1/1 plan) — completed 2026-03-14
+- [x] Phase 31: Documentation (1/1 plan) — completed 2026-03-14
+- [x] Phase 32: API Key Wiring (2/2 plans) — completed 2026-03-14
 
-#### Phases
-
-- [x] **Phase 27: Secrets Cleanup** — Scrub hardcoded credentials from docker-compose.yml, add .dockerignore files, publish .env.example (completed 2026-03-14)
-- [x] **Phase 28: API Key Auth** — Backend middleware protecting write endpoints with static API_KEY (completed 2026-03-14)
-- [x] **Phase 29: Production Docker Stack** — nginx reverse proxy, single port 80 entry point, Docker healthchecks (completed 2026-03-14)
-- [x] **Phase 30: CI Pipeline** — GitHub Actions: pytest, vitest+tsc, gitleaks, docker build (completed 2026-03-14)
-- [x] **Phase 31: Documentation** — Root README.md and LICENSE file (completed 2026-03-14)
-- [x] **Phase 32: API Key Wiring** — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY (completed 2026-03-14)
-
-## Phase Details
-
-### Phase 27: Secrets Cleanup
-**Goal**: The repository contains no hardcoded secrets and any operator can onboard by copying .env.example
-**Depends on**: Nothing (first phase of v6.0)
-**Requirements**: SEC-01, SEC-02, SEC-03
-**Success Criteria** (what must be TRUE):
-  1. `docker-compose.yml` uses bare `${VAR}` references with no `:-default` fallbacks for any credential variable
-  2. `backend/.dockerignore` and `frontend/.dockerignore` exist and exclude `.env` and `*.env` files
-  3. `.env.example` lists every required variable (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`, `AISSTREAM_API_KEY`, `VITE_CESIUM_ION_TOKEN`, `API_KEY`, and any others) with placeholder values
-  4. Running `docker compose config` with no `.env` file produces a visible unset-variable error rather than silently substituting a credential
-**Plans**: 1 plan
-Plans:
-- [x] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
-
-### Phase 28: API Key Auth
-**Goal**: Write endpoints are protected — unauthenticated callers receive 401, not data
-**Depends on**: Phase 27
-**Requirements**: SEC-04
-**Success Criteria** (what must be TRUE):
-  1. `POST /api/osint-events` returns HTTP 401 when the `X-API-Key` header is absent
-  2. `POST /api/osint-events` returns HTTP 401 when the header value does not match `API_KEY` env var
-  3. `POST /api/osint-events` returns HTTP 201 when the correct `API_KEY` value is supplied
-  4. All read endpoints (`GET /api/*`) are unaffected and return data without any key
-**Plans**: 1 plan
-Plans:
-- [ ] 28-01-PLAN.md — Add api_key to Settings, create deps.py, protect POST route, add auth tests
-
-### Phase 29: Production Docker Stack
-**Goal**: The project runs on a single port 80 via nginx with no dev-server ports exposed and all services health-checked
-**Depends on**: Phase 27
-**Requirements**: PROD-01, PROD-02, PROD-03, PROD-04
-**Success Criteria** (what must be TRUE):
-  1. `docker compose up` with no profile flags starts nginx on port 80; Vite dev-server port is not published
-  2. Browser requests to `http://localhost/api/aircraft` are proxied to the backend container and return JSON
-  3. The frontend is served as a production nginx static build (no Vite HMR socket, no dev overlays)
-  4. `docker compose ps` shows `healthy` for `backend`, `worker`, and `ais-worker` after startup
-**Plans**: 1 plan
-Plans:
-- [ ] 29-01-PLAN.md — nginx reverse proxy, production build targets, Docker healthchecks
-
-### Phase 30: CI Pipeline
-**Goal**: Every push and PR is automatically verified for test correctness, type safety, secret hygiene, and image buildability
-**Depends on**: Phase 27
-**Requirements**: CI-01, CI-02, CI-03, CI-04
-**Success Criteria** (what must be TRUE):
-  1. A GitHub Actions run triggered on push to any branch executes `pytest` and reports pass/fail in the PR checks panel
-  2. A GitHub Actions run executes `vitest run` and `tsc --noEmit`; a TypeScript error in any `.tsx` file fails the check
-  3. A GitHub Actions run executes gitleaks; committing a real credential causes the workflow to fail and block merge
-  4. A GitHub Actions run builds both backend and frontend Docker images with `--target production`; a broken Dockerfile fails the check
-**Plans**: 1 plan
-Plans:
-- [ ] 30-01-PLAN.md — GitHub Actions workflows for pytest, vitest+tsc, gitleaks, docker build
-
-### Phase 31: Documentation
-**Goal**: Any developer can clone the repo, read the README, and have the stack running within minutes
-**Depends on**: Phase 29, Phase 30
-**Requirements**: DOC-01, DOC-02
-**Success Criteria** (what must be TRUE):
-  1. Root `README.md` exists and includes: project overview, prerequisites (Docker, .env setup), `cp .env.example .env` onboarding step, `docker compose up` command, and API key configuration instructions
-  2. `LICENSE` file exists in the repository root
-  3. A developer following only the README can start the stack without consulting any other file
-**Plans**: 1 plan
-Plans:
-- [x] 31-01-PLAN.md — Root README.md and LICENSE file
-
-### Phase 32: API Key Wiring
-**Goal**: The API_KEY env var is delivered to the backend container and the OsintEventPanel UI sends the key on every POST — OSINT event submission works end-to-end in production
-**Depends on**: Phase 28 (auth middleware), Phase 29 (docker-compose), Phase 31 (README)
-**Requirements**: SEC-04
-**Gap Closure**: Closes gaps from v6.0 audit (MISSING-01, MISSING-02, BROKEN-01, BROKEN-02)
-**Success Criteria** (what must be TRUE):
-  1. `docker-compose.yml` backend `environment` block contains `API_KEY: ${API_KEY:?Set API_KEY in .env}`
-  2. `OsintEventPanel.tsx` fetch headers include `'X-API-Key': import.meta.env.VITE_API_KEY`
-  3. `.env.example` includes `VITE_API_KEY=your-secret-api-key` with a descriptive comment
-  4. `README.md` API Keys table documents `VITE_API_KEY` with purpose and source
-**Plans**: 1 plan
-Plans:
-- [ ] 32-01-PLAN.md — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY
+</details>
 
 ## Progress
 
@@ -191,8 +110,8 @@ Plans:
 | 25. Layer Audit | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 27. Secrets Cleanup | v6.0 | 1/1 | Complete | 2026-03-14 |
-| 28. API Key Auth | 1/1 | Complete    | 2026-03-14 | - |
-| 29. Production Docker Stack | 1/1 | Complete    | 2026-03-14 | - |
-| 30. CI Pipeline | 1/1 | Complete    | 2026-03-14 | - |
-| 31. Documentation | v6.0 | Complete    | 2026-03-14 | 2026-03-14 |
-| 32. API Key Wiring | 2/2 | Complete    | 2026-03-14 | - |
+| 28. API Key Auth | v6.0 | 1/1 | Complete | 2026-03-14 |
+| 29. Production Docker Stack | v6.0 | 1/1 | Complete | 2026-03-14 |
+| 30. CI Pipeline | v6.0 | 1/1 | Complete | 2026-03-14 |
+| 31. Documentation | v6.0 | 1/1 | Complete | 2026-03-14 |
+| 32. API Key Wiring | v6.0 | 2/2 | Complete | 2026-03-14 |

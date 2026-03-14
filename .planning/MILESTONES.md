@@ -1,5 +1,22 @@
 # Milestones
 
+## v6.0 Production Ready (Shipped: 2026-03-14)
+
+**Phases completed:** 6 phases (27–32), 7 plans
+**Files modified:** 57 files, +6,463 / -178 lines
+**Codebase:** ~15,883 LOC (TypeScript + Python)
+**Timeline:** 2026-03-14 (single-day sprint)
+
+**Key accomplishments:**
+- Secrets hardened — docker-compose.yml uses `:?error` mandatory syntax for all credentials; `.dockerignore` files prevent `.env` from entering build contexts; `.env.example` documents all 5 required variables
+- Static API key auth on write endpoints — FastAPI `verify_api_key` dependency protects `POST /api/osint-events` with `X-API-Key` header; 6-test suite covers all auth paths; fail-secure empty-default pattern
+- Production Docker stack — nginx reverse-proxy on port 80 serves compiled Vite bundle and proxies `/api/` to backend; healthchecks on all services; `docker-compose.override.yml` preserves dev workflow
+- GitHub Actions CI — 4 parallel jobs gate every push/PR: `pytest`, `vitest + tsc`, gitleaks secret scanning, and Docker image build verification
+- Operator documentation — README with numbered quick-start, API keys table, architecture diagram, and credential rotation warning; MIT LICENSE added
+- CI gap closed (Phase 32) — `VITE_API_KEY` build arg wired into Dockerfile and CI workflow so production images bundle a working API key header; `OsintEventPanel` sends `X-API-Key` on every POST
+
+---
+
 ## v5.0 Playback (Shipped: 2026-03-13)
 
 **Phases completed:** 4 phases, 14 plans, 4 tasks
