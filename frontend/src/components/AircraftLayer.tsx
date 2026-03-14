@@ -283,7 +283,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
             pixelOffset: new Cartesian2(0, -22),
             verticalOrigin: VerticalOrigin.BOTTOM,
             horizontalOrigin: HorizontalOrigin.CENTER,
-            scaleByDistance: new NearFarScalar(1e4, 1.4, 5e6, 0.0),
+            scaleByDistance: new NearFarScalar(1e4, 1.4, 2e6, 0.3),
             show: false,
           });
           labelsByIcao24.set(ac.icao24, lbl);
