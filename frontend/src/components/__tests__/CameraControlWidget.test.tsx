@@ -75,20 +75,26 @@ describe('CameraControlWidget', () => {
     expect(setPitchPreset).toHaveBeenCalledWith(-60);
   });
 
-  // Pitch slider
-  it('renders a pitch angle slider', () => {
+  // Pitch arrows
+  it('renders pitch up and pitch down arrow buttons', () => {
     const { getByLabelText } = render(<CameraControlWidget />);
-    const slider = getByLabelText('pitch angle') as HTMLInputElement;
-    expect(slider.type).toBe('range');
-    expect(slider.min).toBe('0');
-    expect(slider.max).toBe('90');
+    expect(getByLabelText('pitch up')).toBeTruthy();
+    expect(getByLabelText('pitch down')).toBeTruthy();
   });
 
-  it('pitch slider change calls setPitchPreset with negated value', () => {
+  it('mousedown on pitch up calls setPitchPreset with a less steep angle', () => {
     const { getByLabelText } = render(<CameraControlWidget />);
-    const slider = getByLabelText('pitch angle');
-    fireEvent.change(slider, { target: { value: '30' } });
-    expect(setPitchPreset).toHaveBeenCalledWith(-30);
+    fireEvent.mouseDown(getByLabelText('pitch up'));
+    expect(setPitchPreset).toHaveBeenCalledWith(expect.any(Number));
+    const arg = (setPitchPreset as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(arg).toBeGreaterThanOrEqual(-90);
+    expect(arg).toBeLessThan(0);
+  });
+
+  it('mousedown on pitch down calls setPitchPreset with a steeper angle', () => {
+    const { getByLabelText } = render(<CameraControlWidget />);
+    fireEvent.mouseDown(getByLabelText('pitch down'));
+    expect(setPitchPreset).toHaveBeenCalledWith(expect.any(Number));
   });
 
   // Heading presets
@@ -117,19 +123,22 @@ describe('CameraControlWidget', () => {
     expect(setHeading).toHaveBeenCalledWith(180);
   });
 
-  // Heading slider
-  it('renders a heading angle slider', () => {
+  // Heading arrows
+  it('renders heading left and heading right arrow buttons', () => {
     const { getByLabelText } = render(<CameraControlWidget />);
-    const slider = getByLabelText('heading angle') as HTMLInputElement;
-    expect(slider.type).toBe('range');
-    expect(slider.min).toBe('0');
-    expect(slider.max).toBe('359');
+    expect(getByLabelText('heading left')).toBeTruthy();
+    expect(getByLabelText('heading right')).toBeTruthy();
   });
 
-  it('heading slider change calls setHeading with the value', () => {
+  it('mousedown on heading right calls setHeading', () => {
     const { getByLabelText } = render(<CameraControlWidget />);
-    const slider = getByLabelText('heading angle');
-    fireEvent.change(slider, { target: { value: '270' } });
-    expect(setHeading).toHaveBeenCalledWith(270);
+    fireEvent.mouseDown(getByLabelText('heading right'));
+    expect(setHeading).toHaveBeenCalledWith(expect.any(Number));
+  });
+
+  it('mousedown on heading left calls setHeading', () => {
+    const { getByLabelText } = render(<CameraControlWidget />);
+    fireEvent.mouseDown(getByLabelText('heading left'));
+    expect(setHeading).toHaveBeenCalledWith(expect.any(Number));
   });
 });
