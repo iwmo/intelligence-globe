@@ -7,7 +7,6 @@ import {
   Cartesian3,
   Color,
   EntityCluster,
-  NearFarScalar,
 } from 'cesium';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
 import { useAppStore } from '../store/useAppStore';
@@ -82,16 +81,16 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
     for (const event of events ?? []) {
       const entity = new Entity({
         id: `gdelt:${event.global_event_id}`,
-        position: Cartesian3.fromDegrees(event.longitude, event.latitude, 0),
+        // 10 000 m altitude keeps the point above any terrain so it never
+        // clips through the ellipsoid surface at close zoom levels.
+        position: Cartesian3.fromDegrees(event.longitude, event.latitude, 10_000),
         point: new PointGraphics({
           color: QUAD_CLASS_COLORS[event.quad_class] ?? Color.WHITE,
           pixelSize: 12,
           outlineColor: Color.BLACK.withAlpha(0.4),
           outlineWidth: 1,
           show: gdeltQuadClassFilter.includes(event.quad_class),
-          // Prevent depth-culling when zoomed in close to the globe surface
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          scaleByDistance: new NearFarScalar(1e3, 1.5, 1e7, 0.8),
         }),
       });
       dataSource.entities.add(entity);
