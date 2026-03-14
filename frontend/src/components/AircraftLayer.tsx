@@ -136,36 +136,46 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           clickTimer = null;
           const picked = viewer.scene.pick(click.position);
           if (!picked) return;
-          if (typeof picked.id === 'string') {
-            if (picked.id.startsWith('gdelt:')) {
-              const eventId = parseInt(picked.id.slice(6), 10);
+          // Normalise the picked ID: BillboardCollection/Primitive puts the raw
+          // value on picked.id directly; CustomDataSource Entity puts the string
+          // id on picked.id.id (picked.id is the Entity object).
+          const rawId = picked.id;
+          const resolvedId: string | number | null =
+            typeof rawId === 'string' || typeof rawId === 'number'
+              ? rawId
+              : rawId && typeof rawId === 'object' && typeof rawId.id === 'string'
+              ? rawId.id
+              : null;
+          if (typeof resolvedId === 'string') {
+            if (resolvedId.startsWith('gdelt:')) {
+              const eventId = parseInt(resolvedId.slice(6), 10);
               useAppStore.getState().setSelectedGdeltEventId(eventId);
               useAppStore.getState().setSelectedAircraftId(null);
               useAppStore.getState().setSelectedMilitaryId(null);
               useAppStore.getState().setSelectedShipId(null);
               useAppStore.getState().setSelectedSatelliteId(null);
-            } else if (picked.id.startsWith('mmsi:')) {
-              const mmsi = picked.id.slice(5);
+            } else if (resolvedId.startsWith('mmsi:')) {
+              const mmsi = resolvedId.slice(5);
               useAppStore.getState().setSelectedShipId(mmsi);
               useAppStore.getState().setSelectedMilitaryId(null);
               useAppStore.getState().setSelectedAircraftId(null);
               useAppStore.getState().setSelectedSatelliteId(null);
-            } else if (picked.id.startsWith('mil:')) {
-              const hex = picked.id.slice(4);
+            } else if (resolvedId.startsWith('mil:')) {
+              const hex = resolvedId.slice(4);
               useAppStore.getState().setSelectedMilitaryId(hex);
               useAppStore.getState().setSelectedShipId(null);
               useAppStore.getState().setSelectedAircraftId(null);
               useAppStore.getState().setSelectedSatelliteId(null);
             } else {
               // Commercial aircraft: bare ICAO24 string (no prefix)
-              useAppStore.getState().setSelectedAircraftId(picked.id);
+              useAppStore.getState().setSelectedAircraftId(resolvedId);
               useAppStore.getState().setSelectedMilitaryId(null);
               useAppStore.getState().setSelectedShipId(null);
               useAppStore.getState().setSelectedSatelliteId(null);
             }
-          } else if (typeof picked.id === 'number' && picked.id > 1000) {
+          } else if (typeof resolvedId === 'number' && resolvedId > 1000) {
             // Satellite: NORAD catalog ID is a number > 1000
-            useAppStore.getState().setSelectedSatelliteId(picked.id);
+            useAppStore.getState().setSelectedSatelliteId(resolvedId);
             useAppStore.getState().setSelectedAircraftId(null);
             useAppStore.getState().setSelectedMilitaryId(null);
             useAppStore.getState().setSelectedShipId(null);
