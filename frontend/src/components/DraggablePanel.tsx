@@ -15,6 +15,7 @@ interface DraggablePanelProps {
   title: string;
   defaultPos: { x: number; y: number };
   defaultWidth?: number;
+  minWidth?: number;
   children: React.ReactNode;
 }
 
