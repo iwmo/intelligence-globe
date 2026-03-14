@@ -63,7 +63,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
             <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '5px' }}>
               <div style={{ color: '#666', fontSize: '9px', marginBottom: '4px', letterSpacing: '0.05em' }}>QUAD CLASS</div>
               {([1, 2, 3, 4] as const).map(qc => {
-                const labels: Record<number, string> = { 1: 'V.COOP', 2: 'M.COOP', 3: 'V.CONF', 4: 'M.CONF' };
+                const labels: Record<number, string> = { 1: 'VERBAL COOP', 2: 'MAT COOP', 3: 'VERBAL CONF', 4: 'MAT CONF' };
                 const colors: Record<number, string> = { 1: '#3B82F6', 2: '#22C55E', 3: '#EAB308', 4: '#EF4444' };
                 const active = gdeltQuadClassFilter.includes(qc);
                 return (
