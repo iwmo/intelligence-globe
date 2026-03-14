@@ -47,7 +47,10 @@ export function OsintEventPanel({ open = true, onClose }: Props) {
     };
     const r = await fetch('/api/osint-events', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': import.meta.env.VITE_API_KEY,
+      },
       body: JSON.stringify(body),
     });
     if (r.ok) {

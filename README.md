@@ -34,7 +34,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
    cp .env.example .env
    ```
 
-3. **Edit `.env` — fill in the five required values** (see [API Keys](#api-keys) below).
+3. **Edit `.env` — fill in the required values** (see [API Keys](#api-keys) below).
 
    `POSTGRES_PASSWORD` is pre-set to `changeme` in `.env.example` and works for local use — do not delete it.
 
@@ -54,7 +54,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
 
 ## API Keys
 
-All four key types are required. The stack will not start if `VITE_CESIUM_ION_TOKEN` or `POSTGRES_PASSWORD` is missing.
+All key types listed below are required. The stack will not start if `VITE_CESIUM_ION_TOKEN` or `POSTGRES_PASSWORD` is missing.
 
 | Variable(s) | Service | Free Tier | Where to Register |
 |-------------|---------|-----------|-------------------|
@@ -62,6 +62,7 @@ All four key types are required. The stack will not start if `VITE_CESIUM_ION_TO
 | `AISSTREAM_API_KEY` | AISStream.io (maritime AIS data) | Yes | https://aisstream.io/ |
 | `VITE_CESIUM_ION_TOKEN` | Cesium Ion (3D globe rendering) | Yes | https://ion.cesium.com/tokens |
 | `API_KEY` | Internal write-endpoint authentication | N/A — set any secret string | — |
+| `VITE_API_KEY` | Frontend header for OSINT event submission — must match `API_KEY` | N/A — set any secret string | — |
 
 ## Architecture
 
