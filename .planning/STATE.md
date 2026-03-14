@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
-status: roadmap_ready
-stopped_at: Roadmap created, ready for Phase 27 planning
-last_updated: "2026-03-14T00:00:00.000Z"
-last_activity: "2026-03-14 — Roadmap created for v6.0 (5 phases, 14 requirements, phases 27-31)"
+status: planning
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-03-14T07:07:05.965Z"
+last_activity: 2026-03-14 — Roadmap created
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -21,18 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v6.0 Production Ready — Phase 27 next
+**Current focus:** v6.0 Production Ready — Phase 28 next
 
 ## Current Position
 
-Phase: 27 — Secrets Cleanup (not started)
-Plan: —
-Status: Roadmap ready, awaiting Phase 27 planning
-Last activity: 2026-03-14 — Roadmap created
+Phase: 27 — Secrets Cleanup (complete)
+Plan: 01 of 01 complete
+Status: Phase 27 complete, ready for Phase 28
+Last activity: 2026-03-14 — Phase 27 Plan 01 executed (secrets cleanup)
 
 ```
-v6.0 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/5 phases)
-Phase 27 ░  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
+v6.0 Progress: [██░░░░░░░░░░░░░░░░░░] 20% (1/5 phases)
+Phase 27 █  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
 ```
 
 ## Performance Metrics
@@ -42,6 +41,7 @@ Phase 27 ░  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
 | Requirements covered | 14/14 | 14/14 (roadmap) |
 | Phases planned | 5 | 5 |
 | Plans complete | TBD | 0 |
+| Phase 27-secrets-cleanup P01 | 2 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -53,6 +53,8 @@ Phase 27 ░  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
 - Observability deferred — current /health endpoint sufficient for homelab use
 - Phase 27 runs before Phase 28 so API_KEY is guaranteed present in .env.example before middleware uses it
 - Phase 31 depends on 29+30 so README can accurately describe the CI and Docker stack
+- (27-01) Credential variables use :?message syntax in docker-compose.yml — fail loud when .env absent, expose variable name not value
+- (27-01) .dockerignore co-located with Dockerfile in service directories (not project root) for correct Docker build context filtering
 
 ### Phase Dependency Map
 
@@ -90,7 +92,7 @@ None blocking roadmap. Credential rotation (see above) is a user action item, no
 
 ## Session Continuity
 
-Last session: 2026-03-14
-Stopped at: Roadmap created (phases 27-31), Phase 27 ready for planning
+Last session: 2026-03-14T07:07:05.963Z
+Stopped at: Completed 27-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 27`
+Next action: `/gsd:plan-phase 28` or `/gsd:execute-phase 28`

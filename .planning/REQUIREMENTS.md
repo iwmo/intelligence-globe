@@ -9,9 +9,9 @@ Requirements for the Production Ready milestone. Each maps to roadmap phases sta
 
 ### Secrets & Hardening
 
-- [ ] **SEC-01**: `docker-compose.yml` contains no hardcoded credential fallback values — only bare `${VAR}` references, no `:-default` for secrets
-- [ ] **SEC-02**: `backend/.dockerignore` and `frontend/.dockerignore` exist and exclude `.env`, `*.env`, and any credential files from `COPY . .`
-- [ ] **SEC-03**: Root `.env.example` includes all required variables with placeholder values (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`, `AISSTREAM_API_KEY`, `VITE_CESIUM_ION_TOKEN`)
+- [x] **SEC-01**: `docker-compose.yml` contains no hardcoded credential fallback values — only bare `${VAR}` references, no `:-default` for secrets
+- [x] **SEC-02**: `backend/.dockerignore` and `frontend/.dockerignore` exist and exclude `.env`, `*.env`, and any credential files from `COPY . .`
+- [x] **SEC-03**: Root `.env.example` includes all required variables with placeholder values (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`, `AISSTREAM_API_KEY`, `VITE_CESIUM_ION_TOKEN`)
 - [ ] **SEC-04**: Static API key middleware protects `POST /api/osint` (and any future write endpoints) — key configured via `API_KEY` env var, returns 401 if missing/invalid
 
 ### Production Stack
@@ -72,9 +72,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 27 | Pending |
-| SEC-02 | Phase 27 | Pending |
-| SEC-03 | Phase 27 | Pending |
+| SEC-01 | Phase 27 | Complete |
+| SEC-02 | Phase 27 | Complete |
+| SEC-03 | Phase 27 | Complete |
 | SEC-04 | Phase 28 | Pending |
 | PROD-01 | Phase 29 | Pending |
 | PROD-02 | Phase 29 | Pending |
