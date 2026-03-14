@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
-status: in-progress
-stopped_at: 31-01 Task 3 checkpoint:human-verify (README.md + LICENSE review)
-last_updated: "2026-03-14T08:49:33Z"
-last_activity: 2026-03-14 — Phase 31 Plan 01 Tasks 1-2 executed (README.md + LICENSE created); paused at human-verify checkpoint
+status: complete
+stopped_at: 31-01 complete — v6.0 milestone complete
+last_updated: "2026-03-14T09:00:00Z"
+last_activity: 2026-03-14 — Phase 31 Plan 01 complete (README.md + LICENSE created, human-verified); v6.0 Production Ready milestone complete
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -20,18 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v6.0 Production Ready — Phase 30 next
+**Current focus:** v6.0 Production Ready — COMPLETE
 
 ## Current Position
 
-Phase: 31 — Documentation (in progress)
-Plan: 01 of 01 — paused at Task 3 (checkpoint:human-verify)
-Status: Tasks 1 (README.md) and 2 (LICENSE) complete; awaiting human review before continuing
-Last activity: 2026-03-14 — Phase 31 Plan 01 Tasks 1-2 executed (README.md + LICENSE created)
+Phase: 31 — Documentation (complete)
+Plan: 01 of 01 — complete (all 3 tasks done, including human-verify approval)
+Status: v6.0 milestone fully complete — README.md and LICENSE created and human-approved
 
 ```
-v6.0 Progress: [████████░░░░░░░░░░░░] 80% (4/5 phases — Phase 31 in progress)
-Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 ▒
+v6.0 Progress: [████████████████████] 100% (5/5 phases complete)
+Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 █
 ```
 
 ## Performance Metrics
@@ -40,11 +39,12 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 ▒
 |--------|-------------|---------|
 | Requirements covered | 14/14 | 14/14 (roadmap) |
 | Phases planned | 5 | 5 |
-| Plans complete | TBD | 0 |
+| Plans complete | TBD | 5 |
 | Phase 27-secrets-cleanup P01 | 2 | 3 tasks | 4 files |
 | Phase 28-api-key-auth P01 | 3min | 2 tasks | 4 files |
 | Phase 29-production-docker-stack P01 | 15 | 3 tasks | 4 files |
 | Phase 30-ci-pipeline P01 | 1 | 2 tasks | 2 files |
+| Phase 31-documentation P01 | ~5min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -69,6 +69,8 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 ▒
 - (30-01) Postgres service hostname is localhost (not 'postgres') — pytest job runs on runner, not in a container
 - (30-01) fetch-depth:0 mandatory on secret-scan job — gitleaks must scan full history, not just HEAD
 - (30-01) alembic upgrade head runs before pytest — tests query real tables, schema must exist first
+- (31-01) <Author Name> placeholder left in LICENSE for user to fill — real name must not be auto-invented
+- (31-01) README sole user-facing URL is http://localhost; POSTGRES_PASSWORD changeme described as functional not a warning
 
 ### Phase Dependency Map
 
@@ -88,6 +90,8 @@ User must revoke and rotate the following before making the repo public — real
 
 Phase 27 (SEC-01) removes the fallbacks from the compose file but does NOT purge git history. User action required: `git filter-repo` or GitHub repo reset.
 
+Also: replace `<Author Name>` in LICENSE with real name before public release.
+
 ### Preserved from v5.0
 
 - `useAppStore.getState()` inside rAF/postUpdate callbacks required — selectors captured at render time go stale
@@ -102,11 +106,11 @@ None.
 
 ### Blockers/Concerns
 
-None blocking roadmap. Credential rotation (see above) is a user action item, not a code task.
+None blocking roadmap. Credential rotation (see above) is a user action item, not a code task. Author name in LICENSE must be filled before public release.
 
 ## Session Continuity
 
-Last session: 2026-03-14T08:49:33Z
-Stopped at: 31-01 Task 3 checkpoint:human-verify
+Last session: 2026-03-14T09:00:00Z
+Stopped at: 31-01 complete — v6.0 milestone complete
 Resume file: None
-Next action: After approving README.md and LICENSE (and replacing `<Author Name>` in LICENSE), type "approved" to continue plan execution
+Next action: v6.0 is complete. Before public release: rotate credentials (git filter-repo), replace <Author Name> in LICENSE.
