@@ -1,17 +1,21 @@
 """
-OSINT events API tests — Phase 12 RED stubs.
+OSINT events API tests — Phase 12 RED stubs + Phase 28 auth tests.
 
 Tests assert the contract for GET /api/osint-events and POST /api/osint-events.
-All tests currently fail with 404 (route not yet registered in main.py).
-Once routes_osint.py is added and mounted, these should turn GREEN.
-
-Deferred import pattern: if app.api.routes_osint does not exist, the collection
-of this file still succeeds (the import is inside the test function body).
+Phase 28 adds API key auth to POST — three new auth tests cover no-key, wrong-key,
+correct-key scenarios.
 """
 import pytest
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
+
+TEST_PAYLOAD = {
+    "ts": 1_700_000_000_000,
+    "category": "KINETIC",
+    "label": "Strike near capital",
+    "source_url": "https://example.com/source",
+}
 
 
 @pytest.mark.asyncio
@@ -28,19 +32,16 @@ async def test_list_events():
 
 
 @pytest.mark.asyncio
-async def test_create_event():
-    """POST /api/osint-events with valid body must return 200/201 with an 'id' key."""
-    payload = {
-        "ts": 1_700_000_000_000,
-        "category": "KINETIC",
-        "label": "Strike near capital",
-        "source_url": "https://example.com/source",
-    }
+async def test_create_event(monkeypatch):
+    """POST /api/osint-events with correct X-API-Key must return 201 with an 'id' key."""
+    monkeypatch.setattr("app.config.settings.api_key", "correct-key")
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.post("/api/osint-events", json=payload)
-    assert response.status_code in (200, 201)
+        response = await client.post(
+            "/api/osint-events", json=TEST_PAYLOAD, headers={"X-API-Key": "correct-key"}
+        )
+    assert response.status_code == 201
     body = response.json()
     assert "id" in body
 
@@ -59,3 +60,40 @@ async def test_invalid_category():
     ) as client:
         response = await client.post("/api/osint-events", json=payload)
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_event_no_key():
+    """POST with no X-API-Key header must return 401."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/osint-events", json=TEST_PAYLOAD)
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_create_event_wrong_key(monkeypatch):
+    """POST with wrong X-API-Key value must return 401."""
+    monkeypatch.setattr("app.config.settings.api_key", "correct-key")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/osint-events", json=TEST_PAYLOAD, headers={"X-API-Key": "wrong-key"}
+        )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_create_event_correct_key(monkeypatch):
+    """POST with correct X-API-Key value must return 201."""
+    monkeypatch.setattr("app.config.settings.api_key", "correct-key")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/osint-events", json=TEST_PAYLOAD, headers={"X-API-Key": "correct-key"}
+        )
+    assert response.status_code == 201
+    assert "id" in response.json()

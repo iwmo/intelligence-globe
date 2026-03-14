@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     frontend_origin: str = "http://localhost:3000"
     version: str = "0.1.0"
+    api_key: str = ""  # loaded from API_KEY env var; empty = fail-secure (all POSTs rejected)
 
     # Freshness thresholds (FRESH-02) — overridable via environment variables
     AIRCRAFT_STALE_SECONDS: int = 120
