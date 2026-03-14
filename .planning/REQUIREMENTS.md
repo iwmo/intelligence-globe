@@ -9,9 +9,9 @@
 ### Backend Ingestion & Storage
 
 - [x] **GDELT-01**: System stores GDELT events in `gdelt_events` PostgreSQL table with UNIQUE `global_event_id`, `occurred_at`/`discovered_at` columns, lat/lon floats, `quad_class`, `goldstein_scale`, `num_mentions`, actor codes, `source_url`, and `source_is_stale` freshness field
-- [ ] **GDELT-02**: RQ worker polls `lastupdate.txt` every 15 minutes; downloads bulk CSV ZIP in-memory; applies 3-layer deduplication (Redis file-level skip, ON CONFLICT DO NOTHING on global_event_id, null-coordinate filter); filters to conflict-relevant events at ingest time; self-re-enqueues
+- [x] **GDELT-02**: RQ worker polls `lastupdate.txt` every 15 minutes; downloads bulk CSV ZIP in-memory; applies 3-layer deduplication (Redis file-level skip, ON CONFLICT DO NOTHING on global_event_id, null-coordinate filter); filters to conflict-relevant events at ingest time; self-re-enqueues
 - [ ] **GDELT-03**: `GET /api/gdelt-events` returns bbox-filtered, QuadClass-filtered events with `since`/`until` time-range params and `source_is_stale` freshness metadata
-- [ ] **GDELT-04**: RQ worker runs 7-day rolling cleanup on `gdelt_events`; table stays within ~150k row ceiling
+- [x] **GDELT-04**: RQ worker runs 7-day rolling cleanup on `gdelt_events`; table stays within ~150k row ceiling
 
 ### Frontend Layer & UX
 
@@ -58,9 +58,9 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | GDELT-01 | Phase 34 | Complete |
-| GDELT-02 | Phase 34 | Pending |
+| GDELT-02 | Phase 34 | Complete |
 | GDELT-03 | Phase 34 | Pending |
-| GDELT-04 | Phase 34 | Pending |
+| GDELT-04 | Phase 34 | Complete |
 | GDELT-05 | Phase 35 | Pending |
 | GDELT-06 | Phase 35 | Pending |
 | GDELT-07 | Phase 35 | Pending |
