@@ -58,10 +58,12 @@ export function SettingsPanel({ onClose: _onClose }: SettingsPanelProps) {
     defaultPreset,
     defaultCamera,
     defaultMode,
+    showEntityLabels,
     setDefaultLayers,
     setDefaultPreset,
     setDefaultCamera,
     setDefaultMode,
+    setShowEntityLabels,
   } = useSettingsStore();
 
   function handleLayerToggle(key: keyof typeof defaultLayers) {
@@ -88,6 +90,21 @@ export function SettingsPanel({ onClose: _onClose }: SettingsPanelProps) {
       defaultPos={{ x: 300, y: 60 }}
       defaultWidth={280}
     >
+      {/* 0. DISPLAY */}
+      <div style={sectionStyle}>
+        <div style={headingStyle}>Display</div>
+        <label style={labelStyle}>
+          <input
+            type="checkbox"
+            style={checkboxStyle}
+            checked={showEntityLabels}
+            onChange={() => setShowEntityLabels(!showEntityLabels)}
+            aria-label="Entity Labels"
+          />
+          Entity Labels
+        </label>
+      </div>
+
       {/* 1. LAYERS */}
       <div style={sectionStyle}>
         <div style={headingStyle}>Default Layers</div>
