@@ -471,3 +471,61 @@ async def test_aircraft_geo_altitude_vertical_rate_position_source_stored_and_re
                 {"icao24": icao24},
             )
             await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# VPC-03, VPC-04: bbox query-param filtering
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_no_bbox():
+    """VPC-03: GET /api/aircraft/ without bbox returns 200 with a list."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/aircraft/")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_list_aircraft_bbox():
+    """VPC-04: GET /api/aircraft/ with bbox returns only in-range aircraft.
+
+    Seeds two aircraft rows: one inside bbox, one outside.
+    After bbox filtering, only the inside row is returned.
+    """
+    from app.db import AsyncSessionLocal
+    from app.models.aircraft import Aircraft
+
+    now = datetime.now(timezone.utc)
+    # Inside bbox (lat=40, lon=10)
+    ac_in = Aircraft(
+        icao24="aaa111", latitude=40.0, longitude=10.0,
+        is_active=True, fetched_at=now,
+    )
+    # Outside bbox (lat=60, lon=10) -- above max_lat=50
+    ac_out = Aircraft(
+        icao24="bbb222", latitude=60.0, longitude=10.0,
+        is_active=True, fetched_at=now,
+    )
+    async with AsyncSessionLocal() as session:
+        session.add_all([ac_in, ac_out])
+        await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(
+            "/api/aircraft/",
+            params={"min_lat": 10, "max_lat": 50, "min_lon": -10, "max_lon": 30},
+        )
+    assert response.status_code == 200
+    icaos = [r["icao24"] for r in response.json()]
+    assert "aaa111" in icaos
+    assert "bbb222" not in icaos
+
+    # Cleanup
+    async with AsyncSessionLocal() as session:
+        for icao in ("aaa111", "bbb222"):
+            row = await session.get(Aircraft, icao)
+            if row:
+                await session.delete(row)
+        await session.commit()
