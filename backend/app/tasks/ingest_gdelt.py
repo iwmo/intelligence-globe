@@ -40,20 +40,22 @@ logger = logging.getLogger(__name__)
 GDELT_LASTUPDATE_URL = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
 POLL_INTERVAL_SECONDS = 900
 
-# GDELT CSV column indices (0-based, tab-delimited, NO header row)
+# GDELT 2.0 CSV column indices (0-based, tab-delimited, NO header row, 61 columns total)
+# GDELT 2.0 adds ADM2Code to each of the three geo blocks (Actor1Geo, Actor2Geo, ActionGeo),
+# shifting ActionGeo_Lat/Long and trailing fields relative to GDELT 1.0.
 _COL_GLOBALEVENTID = 0
 _COL_SQLDATE = 1
 _COL_ACTOR1NAME = 6
-_COL_ACTOR2NAME = 21
-_COL_EVENTCODE = 27
-_COL_QUADCLASS = 30
-_COL_GOLDSTEINSCALE = 31
-_COL_NUMMENTIONS = 32
+_COL_ACTOR2NAME = 16
+_COL_EVENTCODE = 26
+_COL_QUADCLASS = 29
+_COL_GOLDSTEINSCALE = 30
+_COL_NUMMENTIONS = 31
 _COL_AVGTONE = 34
-_COL_LAT = 47
-_COL_LON = 48
-_COL_DATEADDED = 57
-_COL_SOURCEURL = 58
+_COL_LAT = 56   # ActionGeo_Lat
+_COL_LON = 57   # ActionGeo_Long
+_COL_DATEADDED = 59
+_COL_SOURCEURL = 60
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -93,7 +95,7 @@ def parse_gdelt_row(row: list[str] | dict[str, str]) -> dict[str, Any] | None:
 
 def _parse_gdelt_row_list(row: list[str]) -> dict[str, Any] | None:
     """Parse a positional-list GDELT row (from CSV reader)."""
-    if len(row) < 59:
+    if len(row) < 61:
         return None
 
     # Coordinates — skip if missing
