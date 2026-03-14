@@ -3,6 +3,10 @@ import {
   Viewer,
   PointPrimitiveCollection,
   PolylineCollection,
+  LabelCollection,
+  LabelStyle,
+  VerticalOrigin,
+  HorizontalOrigin,
   Cartesian3,
   ArcType,
   BlendOption,
@@ -17,6 +21,7 @@ import {
 } from 'cesium';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { flyToCartesian } from '../lib/viewerRegistry';
 import { resolveTimestamp } from '../lib/resolveTimestamp';
 import type { OverheadSat } from '../workers/overpassElevation';
@@ -103,6 +108,7 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
   const satellites = useSatellites();
   const workerRef = useRef<Worker | null>(null);
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
+  const labelCollectionRef = useRef<LabelCollection | null>(null);
   const orbitCollectionRef = useRef<PolylineCollection | null>(null);
   const overpassCollectionRef = useRef<PolylineCollection | null>(null);
   const aoiCollectionRef = useRef<PointPrimitiveCollection | null>(null);
@@ -127,6 +133,10 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
     // Create PointPrimitiveCollection once
     const collection = viewer.scene.primitives.add(new PointPrimitiveCollection({ blendOption: BlendOption.OPAQUE }));
     collectionRef.current = collection;
+
+    // Create parallel LabelCollection for entity labels
+    const labelColl = viewer.scene.primitives.add(new LabelCollection());
+    labelCollectionRef.current = labelColl;
 
     // Spawn worker
     const worker = new Worker(
@@ -154,6 +164,21 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
           });
           pt.scaleByDistance = new NearFarScalar(5e5, 1.5, 5e7, 0.3);
           map.set(satData[i].norad_cat_id, i);
+          // Add parallel label (hidden by default; visibility controlled by showEntityLabels)
+          labelColl.add({
+            position: Cartesian3.ZERO,
+            text: (satData[i].omm['OBJECT_NAME'] as string) ?? String(satData[i].norad_cat_id),
+            font: '11px monospace',
+            fillColor: Color.fromCssColorString('#00D4FF'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, -18),
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            horizontalOrigin: HorizontalOrigin.CENTER,
+            scaleByDistance: new NearFarScalar(5e5, 1.2, 5e7, 0.0),
+            show: false,
+          });
         }
       }
 
@@ -165,6 +190,11 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
           const pt = collection.get(i / 4);
           if (pt && !collection.isDestroyed()) {
             pt.position = new Cartesian3(x, y, z);
+          }
+          // Sync label position to match point
+          const lbl2 = labelColl.get(i / 4);
+          if (lbl2 && !labelColl.isDestroyed()) {
+            lbl2.position = new Cartesian3(x, y, z);
           }
         }
       }
@@ -279,6 +309,10 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
       if (collection && !collection.isDestroyed()) {
         viewer.scene.primitives.remove(collection);
       }
+      if (labelCollectionRef.current && !labelCollectionRef.current.isDestroyed()) {
+        viewer.scene.primitives.remove(labelCollectionRef.current);
+      }
+      labelCollectionRef.current = null;
       if (orbitCollectionRef.current && !orbitCollectionRef.current.isDestroyed()) {
         viewer.scene.primitives.remove(orbitCollectionRef.current);
       }
@@ -309,6 +343,19 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
       pt.show = layerVisible && matchesSatelliteFilter(sat, satelliteFilter);
     }
   }, [satelliteFilter, satellites.data, layerVisible]);
+
+  // Label visibility effect: sync LabelCollection show state with showEntityLabels toggle
+  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  useEffect(() => {
+    if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) return;
+    const labelColl = labelCollectionRef.current;
+    if (labelColl.length === 0) return;
+    for (let i = 0; i < labelColl.length; i++) {
+      const lbl = labelColl.get(i);
+      const pt = collectionRef.current?.get(i);
+      lbl.show = showEntityLabels && (pt?.show ?? false);
+    }
+  }, [showEntityLabels, satelliteFilter, satellites.data, layerVisible]);
 
   // Effect 2: Watch selectedSatelliteId to trigger COMPUTE_ORBIT
   const selectedId = useAppStore(s => s.selectedSatelliteId);
