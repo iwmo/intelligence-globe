@@ -94,7 +94,7 @@ export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_W
 
     function onMouseUp() {
       if (!panelRef.current) return;
-      const w = parseFloat(panelRef.current.style.width) || DEFAULT_WIDTH;
+      const w = parseFloat(panelRef.current.style.width) || state.width;
       setState(s => ({ ...s, width: w }));
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
