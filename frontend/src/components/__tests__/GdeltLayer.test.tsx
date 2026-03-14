@@ -10,12 +10,24 @@ import { render } from '@testing-library/react';
 const mockEntitiesAdd = vi.fn();
 const mockEntitiesRemoveAll = vi.fn();
 
+// Shared mutable list so Effect 3 tests can inspect entity.point.show after render.
+// Cleared in beforeEach alongside the spies.
+const mockEntitiesList: Array<{ id?: string; point?: { show?: unknown } }> = [];
+
 vi.mock('cesium', () => {
   // All class definitions must be inside the factory to avoid hoisting issues.
   class MockCustomDataSource {
     entities = {
-      add: mockEntitiesAdd,
-      removeAll: mockEntitiesRemoveAll,
+      add: (e: unknown) => {
+        mockEntitiesAdd(e);
+        mockEntitiesList.push(e as { id?: string; point?: { show?: unknown } });
+        return e;
+      },
+      removeAll: () => {
+        mockEntitiesRemoveAll();
+        mockEntitiesList.length = 0;
+      },
+      get values() { return mockEntitiesList; },
     };
     clustering: unknown = null;
     show = true;
@@ -62,11 +74,17 @@ vi.mock('cesium', () => {
     }
   }
 
+  class MockConstantProperty {
+    value: unknown;
+    constructor(v: unknown) { this.value = v; }
+  }
+
   return {
     CustomDataSource: MockCustomDataSource,
     EntityCluster: MockEntityCluster,
     Entity: MockEntity,
     PointGraphics: MockPointGraphics,
+    ConstantProperty: MockConstantProperty,
     Cartesian3: { fromDegrees: vi.fn((_lon: number, _lat: number) => ({ lon: _lon, lat: _lat })) },
     Color: {
       fromCssColorString: vi.fn((s: string) => ({ css: s })),
@@ -78,11 +96,13 @@ vi.mock('cesium', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Store mock — default: layers.gdelt=true, all quad classes active
+// Store mock — default: layers.gdelt=true, all quad classes active, live mode
 // ---------------------------------------------------------------------------
 
 let mockGdeltQuadClassFilter = [1, 2, 3, 4];
 let mockLayersGdelt = true;
+let mockReplayMode: 'live' | 'playback' = 'live';
+let mockReplayTs = 0;
 
 vi.mock('../../store/useAppStore', () => ({
   useAppStore: vi.fn((selector: (s: Record<string, unknown>) => unknown) =>
@@ -91,8 +111,11 @@ vi.mock('../../store/useAppStore', () => ({
       gdeltQuadClassFilter: mockGdeltQuadClassFilter,
       selectedGdeltEventId: null,
       setSelectedGdeltEventId: vi.fn(),
-      replayMode: 'live',
+      replayMode: mockReplayMode,
+      replayTs: mockReplayTs,
       viewportBbox: null,
+      replayWindowStart: null,
+      replayWindowEnd: null,
     })
   ),
 }));
@@ -169,8 +192,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockEntitiesAdd.mockReset();
   mockEntitiesRemoveAll.mockReset();
+  mockEntitiesList.length = 0;
   mockGdeltQuadClassFilter = [1, 2, 3, 4];
   mockLayersGdelt = true;
+  mockReplayMode = 'live';
+  mockReplayTs = 0;
   mockGdeltData = twoEvents;
 });
 
@@ -213,6 +239,13 @@ describe('GdeltLayer — GDELT-05 entity creation', () => {
   });
 });
 
+// Helper: unwrap show value from either plain boolean or ConstantProperty wrapper
+function getShowValue(show: unknown): boolean | undefined {
+  if (typeof show === 'boolean') return show;
+  if (show && typeof show === 'object' && 'value' in show) return (show as { value: boolean }).value;
+  return undefined;
+}
+
 describe('GdeltLayer — GDELT-07 QuadClass filter', () => {
   it('entity.point.show is false for quad_class not in gdeltQuadClassFilter', () => {
     // quad_class 3 (event 1002) must be hidden when filter is [1, 2]
@@ -220,10 +253,11 @@ describe('GdeltLayer — GDELT-07 QuadClass filter', () => {
     const viewer = makeViewer();
     render(<GdeltLayer viewer={viewer as never} />);
 
-    const calls = mockEntitiesAdd.mock.calls as [{ id?: string; point?: { show?: boolean } }][];
-    const entity1002 = calls.find(c => c[0].id === 'gdelt:1002')?.[0];
+    // After all effects run, entity1002 (quad_class=3, not in [1,2]) must be hidden.
+    // Effect 3 (in live mode) sets show = new ConstantProperty(quadClassOk).
+    const entity1002 = mockEntitiesList.find(e => e.id === 'gdelt:1002');
     expect(entity1002).toBeDefined();
-    expect(entity1002!.point?.show).toBe(false);
+    expect(getShowValue(entity1002!.point?.show)).toBe(false);
   });
 
   it('entity.point.show is true for quad_class in gdeltQuadClassFilter', () => {
@@ -232,10 +266,9 @@ describe('GdeltLayer — GDELT-07 QuadClass filter', () => {
     const viewer = makeViewer();
     render(<GdeltLayer viewer={viewer as never} />);
 
-    const calls = mockEntitiesAdd.mock.calls as [{ id?: string; point?: { show?: boolean } }][];
-    const entity1001 = calls.find(c => c[0].id === 'gdelt:1001')?.[0];
+    const entity1001 = mockEntitiesList.find(e => e.id === 'gdelt:1001');
     expect(entity1001).toBeDefined();
-    expect(entity1001!.point?.show).toBe(true);
+    expect(getShowValue(entity1001!.point?.show)).toBe(true);
   });
 
   it('dataSource.show is false when layers.gdelt is false', () => {
@@ -253,5 +286,77 @@ describe('GdeltLayer — GDELT-07 QuadClass filter', () => {
     expect(capturedDs).not.toBeNull();
     // After Effect 2 sets dataSource.show = false, the captured ref should reflect it
     expect(capturedDs!.show).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// twoEventsPlayback: events with occurred_at timestamps for temporal tests
+// event 1001: 2024-01-01T00:00:00Z = epoch 1704067200000
+// event 1002: 2024-01-01T01:00:00Z = epoch 1704070800000
+// ---------------------------------------------------------------------------
+const T_BEFORE = new Date('2023-12-31T23:59:59Z').getTime(); // before both
+const T_BETWEEN = new Date('2024-01-01T00:30:00Z').getTime(); // after 1001, before 1002
+const T_AFTER  = new Date('2024-01-01T02:00:00Z').getTime(); // after both
+
+describe('GdeltLayer — GDELT-10 temporal visibility', () => {
+  it('Test E: in playback mode, entity occurred_at > replayTs has point.show.value = false', () => {
+    // T_BEFORE is before 1001's occurred_at — both events should be hidden
+    mockReplayMode = 'playback';
+    mockReplayTs = T_BEFORE;
+    const viewer = makeViewer();
+    render(<GdeltLayer viewer={viewer as never} />);
+
+    const entity1001 = mockEntitiesList.find(e => e.id === 'gdelt:1001');
+    expect(entity1001).toBeDefined();
+    // ConstantProperty wraps the boolean — check .value
+    expect((entity1001!.point!.show as { value: boolean }).value).toBe(false);
+  });
+
+  it('Test F: in playback mode, entity occurred_at <= replayTs has point.show.value = true', () => {
+    // T_BETWEEN is after 1001's occurred_at — event 1001 should be visible
+    mockReplayMode = 'playback';
+    mockReplayTs = T_BETWEEN;
+    const viewer = makeViewer();
+    render(<GdeltLayer viewer={viewer as never} />);
+
+    const entity1001 = mockEntitiesList.find(e => e.id === 'gdelt:1001');
+    expect(entity1001).toBeDefined();
+    expect((entity1001!.point!.show as { value: boolean }).value).toBe(true);
+
+    const entity1002 = mockEntitiesList.find(e => e.id === 'gdelt:1002');
+    expect(entity1002).toBeDefined();
+    expect((entity1002!.point!.show as { value: boolean }).value).toBe(false);
+  });
+
+  it('Test G: in live mode, all entities have point.show.value = true (temporal filter inactive)', () => {
+    mockReplayMode = 'live';
+    mockReplayTs = T_BEFORE; // even with an old ts, live mode ignores temporal
+    const viewer = makeViewer();
+    render(<GdeltLayer viewer={viewer as never} />);
+
+    for (const entity of mockEntitiesList) {
+      expect((entity.point!.show as { value: boolean }).value).toBe(true);
+    }
+  });
+});
+
+describe('GdeltLayer — GDELT-12 stale indicator', () => {
+  it('Test H: renders GEO STALE div when source_is_stale=true and layers.gdelt=true', () => {
+    const staleEvents = twoEvents.map((e, i) => ({ ...e, source_is_stale: i === 0 }));
+    mockGdeltData = staleEvents as typeof twoEvents;
+    mockLayersGdelt = true;
+    const viewer = makeViewer();
+    const { container } = render(<GdeltLayer viewer={viewer as never} />);
+    expect(container.textContent).toContain('GEO STALE');
+  });
+
+  it('Test I: returns null (no stale div) when source_is_stale=false', () => {
+    // twoEvents default has source_is_stale=false
+    mockGdeltData = twoEvents;
+    mockLayersGdelt = true;
+    const viewer = makeViewer();
+    const { container } = render(<GdeltLayer viewer={viewer as never} />);
+    expect(container.textContent).not.toContain('GEO STALE');
+    expect(container.firstChild).toBeNull();
   });
 });
