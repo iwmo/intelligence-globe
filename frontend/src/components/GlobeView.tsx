@@ -9,7 +9,6 @@ import {
   ScreenSpaceEventType,
   Cartesian2,
   Cartesian3,
-  Cartographic,
   Matrix4,
   Transforms,
   defined,

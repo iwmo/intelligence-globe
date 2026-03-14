@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
-import { ShipRecord } from '../hooks/useShips';
+import type { ShipRecord } from '../hooks/useShips';
 
 function formatLastUpdate(lastUpdate: string | null): string {
   if (!lastUpdate) return 'Unknown';
@@ -79,7 +79,7 @@ export function ShipDetailPanel() {
           </div>
           <div>
             <span style={{ color: '#888' }}>Heading: </span>
-            <span>{headingDisplay(data.true_heading)}</span>
+            <span>{headingDisplay(data.heading)}</span>
           </div>
           {data.nav_status !== null && (
             <div>
