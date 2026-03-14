@@ -7,6 +7,7 @@ import {
   Cartesian3,
   Color,
   EntityCluster,
+  HeightReference,
 } from 'cesium';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
 import { useAppStore } from '../store/useAppStore';
@@ -81,15 +82,17 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
     for (const event of events ?? []) {
       const entity = new Entity({
         id: `gdelt:${event.global_event_id}`,
-        // 10 000 m altitude keeps the point above any terrain so it never
-        // clips through the ellipsoid surface at close zoom levels.
-        position: Cartesian3.fromDegrees(event.longitude, event.latitude, 10_000),
+        position: Cartesian3.fromDegrees(event.longitude, event.latitude, 0),
         point: new PointGraphics({
           color: QUAD_CLASS_COLORS[event.quad_class] ?? Color.WHITE,
           pixelSize: 12,
           outlineColor: Color.BLACK.withAlpha(0.4),
           outlineWidth: 1,
           show: gdeltQuadClassFilter.includes(event.quad_class),
+          // CLAMP_TO_GROUND pins the point to the terrain surface so it is
+          // always below the camera regardless of zoom level. POSITIVE_INFINITY
+          // disables depth testing so terrain doesn't occlude it.
+          heightReference: HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         }),
       });
