@@ -92,10 +92,10 @@
 <summary>🔄 v8.0 GDELT Integration (Phases 34-36) — IN PROGRESS</summary>
 
 - [x] **Phase 34: Backend Foundation** - 4 plans (completed 2026-03-14)
-  - [ ] 34-01-PLAN.md — Alembic migration, GdeltEvent ORM model, test scaffold (Wave 1)
-  - [ ] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup (Wave 2)
-  - [ ] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering (Wave 2)
-  - [ ] 34-04-PLAN.md — Worker registration, full test suite, human verification (Wave 3)
+  - [x] 34-01-PLAN.md — Alembic migration, GdeltEvent ORM model, test scaffold (Wave 1)
+  - [x] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup (Wave 2)
+  - [x] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering (Wave 2)
+  - [x] 34-04-PLAN.md — Worker registration, full test suite, human verification (Wave 3)
 - [ ] **Phase 35: Frontend Layer** - Globe markers, layer toggle, filter chips, inspect panel, OSINT bridge
 - [ ] **Phase 36: Replay and Freshness** - Replay load-once, PlaybackBar dots, stale indicator
 
@@ -115,10 +115,10 @@
 **Plans**: 4 plans
 
 Plans:
-- [ ] 34-01-PLAN.md — Alembic migration, GdeltEvent ORM model, test scaffold
-- [ ] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup
-- [ ] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering
-- [ ] 34-04-PLAN.md — Worker registration, full test suite, human verification
+- [x] 34-01-PLAN.md — Alembic migration, GdeltEvent ORM model, test scaffold
+- [x] 34-02-PLAN.md — RQ ingest worker with 3-layer dedup and 7-day cleanup
+- [x] 34-03-PLAN.md — GET /api/gdelt-events route with bbox + time-range filtering
+- [x] 34-04-PLAN.md — Worker registration, full test suite, human verification
 
 ### Phase 35: Frontend Layer
 **Goal**: GDELT events are visible on the globe as clustered, colour-coded markers that users can toggle, filter by QuadClass, and click to inspect with an OSINT bridge
@@ -180,6 +180,6 @@ Plans:
 | 31. Documentation | v6.0 | 1/1 | Complete | 2026-03-14 |
 | 32. API Key Wiring | v6.0 | 2/2 | Complete | 2026-03-14 |
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
-| 34. Backend Foundation | 4/4 | Complete   | 2026-03-14 | - |
+| 34. Backend Foundation | v8.0 | 4/4 | Complete | 2026-03-14 |
 | 35. Frontend Layer | v8.0 | 0/TBD | Not started | - |
 | 36. Replay and Freshness | v8.0 | 0/TBD | Not started | - |

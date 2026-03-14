@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 34-04-PLAN.md — GDELT worker registration + full suite green; awaiting human-verify checkpoint
-last_updated: "2026-03-14T15:08:56.349Z"
-last_activity: "2026-03-14 — 34-03 complete: GET /api/gdelt-events route with bbox + quad_class + time-range filtering"
+stopped_at: Completed 34-04-PLAN.md — Phase 34 Backend Foundation complete; all 4 plans done; human-verify checkpoint approved (65 live GDELT rows, QuadClass float bug fixed)
+last_updated: "2026-03-14T16:00:00.000Z"
+last_activity: "2026-03-14 — 34-04 complete: GDELT worker registration + human verification; Phase 34 Backend Foundation done"
 progress:
   total_phases: 3
   completed_phases: 1
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 ## Current Position
 
 Phase: 34 — Backend Foundation
-Plan: 03 complete — ready for 34-04
-Status: In Progress — 3/4 plans complete in Phase 34
-Last activity: 2026-03-14 — 34-03 complete: GET /api/gdelt-events route with bbox + quad_class + time-range filtering
+Plan: 04 complete — Phase 34 Backend Foundation fully complete
+Status: Phase 34 Complete — 4/4 plans done; ready for Phase 35
+Last activity: 2026-03-14 — 34-04 complete: GDELT worker registration + human verification checkpoint approved (65 live rows)
 
 ```
-v8.0 Progress: [██████████] 99% (0/3 phases complete, 3/4 plans in Phase 34)
-Phase 34 ███  Phase 35 _  Phase 36 _
+v8.0 Progress: [██████████] 33% (1/3 phases complete, Phase 34 done)
+Phase 34 ████  Phase 35 _  Phase 36 _
 ```
 
 ## Performance Metrics
@@ -69,6 +69,7 @@ Phase 34 ███  Phase 35 _  Phase 36 _
 - cleanup_old_events takes no args, opens its own session — matches test stub; aligns with test-first design
 - asyncio.iscoroutine guard on Redis sadd result — single code path for sync Redis (prod) and AsyncMock (tests); no aioredis dependency
 - Response uses latitude/longitude keys (not lat/lon) — test contract is authoritative over plan's response shape example
+- QuadClass must be parsed as `int(float(row[col]))` not `int(row[col])` — GDELT publishes QuadClass as floats (e.g. "4.0"); discovered during human-verify live run in Phase 34-04
 
 ### Phase Dependency Map
 
@@ -108,7 +109,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:08:56.345Z
-Stopped at: Completed 34-04-PLAN.md — GDELT worker registration + full suite green; awaiting human-verify checkpoint
+Last session: 2026-03-14T16:00:00.000Z
+Stopped at: Completed 34-04-PLAN.md — Phase 34 Backend Foundation fully complete (human-verify approved)
 Resume file: None
-Next action: `/gsd:plan-phase 34` — Backend Foundation (GDELT-01 through GDELT-04)
+Next action: `/gsd:plan-phase 35` — Frontend Layer (GDELT-05 through GDELT-09)
