@@ -19,7 +19,7 @@
 - [x] **GDELT-06**: GDELT layer has a sidebar toggle; bbox params are suppressed in replay mode (VPC-08 pattern); React Query refetches every 15 minutes in live mode only
 - [x] **GDELT-07**: User can filter visible GDELT events by QuadClass via 4-chip filter (Verbal Cooperation / Material Cooperation / Verbal Conflict / Material Conflict)
 - [x] **GDELT-08**: Clicking a GDELT marker opens a `GdeltDetailPanel` (DraggablePanel) showing source URL, actor names, GoldsteinScale score, tone, and an automated-extraction disclaimer
-- [ ] **GDELT-09**: `GdeltDetailPanel` includes a "Log as OSINT Event" button that pre-populates `OsintEventPanel` with the GDELT event's location, timestamp, and source URL
+- [x] **GDELT-09**: `GdeltDetailPanel` includes a "Log as OSINT Event" button that pre-populates `OsintEventPanel` with the GDELT event's location, timestamp, and source URL
 
 ### Replay & Freshness
 
@@ -65,7 +65,7 @@
 | GDELT-06 | Phase 35 | Complete |
 | GDELT-07 | Phase 35 | Complete |
 | GDELT-08 | Phase 35 | Complete |
-| GDELT-09 | Phase 35 | Pending |
+| GDELT-09 | Phase 35 | Complete |
 | GDELT-10 | Phase 36 | Pending |
 | GDELT-11 | Phase 36 | Pending |
 | GDELT-12 | Phase 36 | Pending |
