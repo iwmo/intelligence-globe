@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
 status: completed
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-03-14T08:18:54.344Z"
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-03-14T08:33:39.120Z"
 last_activity: 2026-03-14 — Phase 29 Plan 01 executed (production nginx Docker stack smoke-tested)
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # Project State
@@ -24,14 +24,14 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 
 ## Current Position
 
-Phase: 29 — Production Docker Stack (complete)
+Phase: 30 — CI Pipeline (complete)
 Plan: 01 of 01 complete
-Status: Phase 29 complete, ready for Phase 30
-Last activity: 2026-03-14 — Phase 29 Plan 01 executed (production nginx Docker stack smoke-tested)
+Status: Phase 30 complete, ready for Phase 31
+Last activity: 2026-03-14 — Phase 30 Plan 01 executed (GitHub Actions CI pipeline with 4 parallel jobs)
 
 ```
-v6.0 Progress: [██████░░░░░░░░░░░░░░] 60% (3/5 phases)
-Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 ░  Phase 31 ░
+v6.0 Progress: [████████░░░░░░░░░░░░] 80% (4/5 phases)
+Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 ░
 ```
 
 ## Performance Metrics
@@ -44,6 +44,7 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 ░  Phase 31 ░
 | Phase 27-secrets-cleanup P01 | 2 | 3 tasks | 4 files |
 | Phase 28-api-key-auth P01 | 3min | 2 tasks | 4 files |
 | Phase 29-production-docker-stack P01 | 15 | 3 tasks | 4 files |
+| Phase 30-ci-pipeline P01 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,11 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 ░  Phase 31 ░
 - (29-01) VITE_CESIUM_ION_TOKEN passed as build ARG not runtime env — Vite inlines env vars at bundle compile time; runtime env in nginx container has no effect
 - (29-01) Python stdlib urllib probe for backend healthcheck (curl absent in python:3.12-slim); Redis ping probe for worker/ais-worker healthchecks
 - (29-01) Backend port 8000 removed from base compose, added to override only — nginx port 80 is the sole public entry point in production; FRONTEND_ORIGIN default updated to http://localhost
+- (30-01) Commit-SHA allowlisting in .gitleaks.toml (not path/regex) — narrowest scope, unblocks CI without silencing future detections
+- (30-01) DATABASE_URL uses postgresql+asyncpg:// prefix — asyncpg driver requirement for SQLAlchemy async engine
+- (30-01) Postgres service hostname is localhost (not 'postgres') — pytest job runs on runner, not in a container
+- (30-01) fetch-depth:0 mandatory on secret-scan job — gitleaks must scan full history, not just HEAD
+- (30-01) alembic upgrade head runs before pytest — tests query real tables, schema must exist first
 
 ### Phase Dependency Map
 
@@ -100,7 +106,7 @@ None blocking roadmap. Credential rotation (see above) is a user action item, no
 
 ## Session Continuity
 
-Last session: 2026-03-14T08:16:27.126Z
-Stopped at: Completed 29-01-PLAN.md
+Last session: 2026-03-14T08:33:39.114Z
+Stopped at: Completed 30-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 30` or `/gsd:execute-phase 30`

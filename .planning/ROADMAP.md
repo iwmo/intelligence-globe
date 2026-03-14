@@ -76,7 +76,7 @@
 - [x] **Phase 27: Secrets Cleanup** — Scrub hardcoded credentials from docker-compose.yml, add .dockerignore files, publish .env.example (completed 2026-03-14)
 - [x] **Phase 28: API Key Auth** — Backend middleware protecting write endpoints with static API_KEY (completed 2026-03-14)
 - [x] **Phase 29: Production Docker Stack** — nginx reverse proxy, single port 80 entry point, Docker healthchecks (completed 2026-03-14)
-- [ ] **Phase 30: CI Pipeline** — GitHub Actions: pytest, vitest+tsc, gitleaks, docker build
+- [x] **Phase 30: CI Pipeline** — GitHub Actions: pytest, vitest+tsc, gitleaks, docker build (completed 2026-03-14)
 - [ ] **Phase 31: Documentation** — Root README.md and LICENSE file
 
 ## Phase Details
@@ -178,5 +178,5 @@ Plans:
 | 27. Secrets Cleanup | v6.0 | 1/1 | Complete | 2026-03-14 |
 | 28. API Key Auth | 1/1 | Complete    | 2026-03-14 | - |
 | 29. Production Docker Stack | 1/1 | Complete    | 2026-03-14 | - |
-| 30. CI Pipeline | v6.0 | 0/1 | Not started | - |
+| 30. CI Pipeline | 1/1 | Complete   | 2026-03-14 | - |
 | 31. Documentation | v6.0 | 0/1 | Not started | - |

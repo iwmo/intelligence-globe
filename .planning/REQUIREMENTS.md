@@ -23,10 +23,10 @@ Requirements for the Production Ready milestone. Each maps to roadmap phases sta
 
 ### CI/CD
 
-- [ ] **CI-01**: GitHub Actions workflow runs `pytest` on every push and PR
-- [ ] **CI-02**: GitHub Actions workflow runs `vitest run` and `tsc --noEmit` on every push and PR
-- [ ] **CI-03**: GitHub Actions workflow runs secret scanning (gitleaks) to block credentials from being merged
-- [ ] **CI-04**: GitHub Actions workflow verifies both Docker images build successfully (`docker build --target production`)
+- [x] **CI-01**: GitHub Actions workflow runs `pytest` on every push and PR
+- [x] **CI-02**: GitHub Actions workflow runs `vitest run` and `tsc --noEmit` on every push and PR
+- [x] **CI-03**: GitHub Actions workflow runs secret scanning (gitleaks) to block credentials from being merged
+- [x] **CI-04**: GitHub Actions workflow verifies both Docker images build successfully (`docker build --target production`)
 
 ### Documentation
 
@@ -80,10 +80,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROD-02 | Phase 29 | Complete |
 | PROD-03 | Phase 29 | Complete |
 | PROD-04 | Phase 29 | Complete |
-| CI-01 | Phase 30 | Pending |
-| CI-02 | Phase 30 | Pending |
-| CI-03 | Phase 30 | Pending |
-| CI-04 | Phase 30 | Pending |
+| CI-01 | Phase 30 | Complete |
+| CI-02 | Phase 30 | Complete |
+| CI-03 | Phase 30 | Complete |
+| CI-04 | Phase 30 | Complete |
 | DOC-01 | Phase 31 | Pending |
 | DOC-02 | Phase 31 | Pending |
 
