@@ -97,8 +97,8 @@ interface AppState {
   gdeltQuadClassFilter: number[];
   setGdeltQuadClassFilter: (classes: number[]) => void;
   toggleGdeltQuadClass: (qc: number) => void;
-  selectedGdeltEventId: number | null;
-  setSelectedGdeltEventId: (id: number | null) => void;
+  selectedGdeltEventId: string | null;
+  setSelectedGdeltEventId: (id: string | null) => void;
   gdeltOsintPrefill: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null;
   setGdeltOsintPrefill: (v: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null) => void;
 }
