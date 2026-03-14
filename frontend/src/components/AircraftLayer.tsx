@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react';
 import {
   Viewer,
   BillboardCollection,
+  LabelCollection,
+  LabelStyle,
+  VerticalOrigin,
+  HorizontalOrigin,
   PolylineCollection,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -16,6 +20,7 @@ import {
 } from 'cesium';
 import { useAircraft } from '../hooks/useAircraft';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 
 const POLL_INTERVAL_MS = 90_000;
@@ -84,12 +89,15 @@ const currPositions = new Map<string, Cartesian3>();
 let clickTimer: ReturnType<typeof setTimeout> | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const billboardsByIcao24 = new Map<string, any>(); // Billboard reference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const labelsByIcao24 = new Map<string, any>(); // Label reference — mirrors billboardsByIcao24
 let lastUpdateTime = Date.now();
 const scratchLerp = new Cartesian3(); // reused every frame — zero GC pressure
 
 export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const aircraft = useAircraft();
   const collectionRef = useRef<BillboardCollection | null>(null);
+  const labelCollectionRef = useRef<LabelCollection | null>(null);
   const trailCollectionRef = useRef<PolylineCollection | null>(null);
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const rafRef = useRef<number>(0);
@@ -118,6 +126,11 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     // Create collection once per viewer mount
     if (!collectionRef.current || collectionRef.current.isDestroyed()) {
       collectionRef.current = viewer.scene.primitives.add(new BillboardCollection({ blendOption: BlendOption.OPAQUE }));
+    }
+
+    // Create parallel LabelCollection for entity labels
+    if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) {
+      labelCollectionRef.current = viewer.scene.primitives.add(new LabelCollection());
     }
 
     // Set up unified click handler (once per viewer).
@@ -204,6 +217,10 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
         viewer.scene.primitives.remove(col);
       }
       collectionRef.current = null;
+      const lc = labelCollectionRef.current;
+      if (lc && !lc.isDestroyed()) { viewer.scene.primitives.remove(lc); }
+      labelCollectionRef.current = null;
+      labelsByIcao24.clear();
       const trail = trailCollectionRef.current;
       if (trail && !trail.isDestroyed()) {
         viewer.scene.primitives.remove(trail);
@@ -253,6 +270,24 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
         });
         billboardsByIcao24.set(ac.icao24, bb);
+        // Add parallel label (hidden by default; visibility controlled by showEntityLabels)
+        if (!labelsByIcao24.has(ac.icao24) && labelCollectionRef.current && !labelCollectionRef.current.isDestroyed()) {
+          const lbl = labelCollectionRef.current.add({
+            position: nextPos,
+            text: (ac.callsign?.trim() || ac.icao24).toUpperCase(),
+            font: '11px monospace',
+            fillColor: Color.fromCssColorString('#FF8C00'),
+            outlineColor: Color.BLACK,
+            outlineWidth: 2,
+            style: LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cartesian2(0, -22),
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            horizontalOrigin: HorizontalOrigin.CENTER,
+            scaleByDistance: new NearFarScalar(1e4, 1.4, 5e6, 0.0),
+            show: false,
+          });
+          labelsByIcao24.set(ac.icao24, lbl);
+        }
       } else {
         // Update heading for existing aircraft
         const existingBb = billboardsByIcao24.get(ac.icao24);
@@ -279,6 +314,9 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           const curr = currPositions.get(icao24);
           if (prev && curr && bb && !collection.isDestroyed()) {
             bb.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
+            // Sync label position alongside billboard
+            const lbl = labelsByIcao24.get(icao24);
+            if (lbl) lbl.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
           }
         }
         rafRef.current = requestAnimationFrame(lerp);
@@ -300,6 +338,15 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       bb.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
     }
   }, [aircraftFilter, aircraft.data, layerVisible]);
+
+  // Label visibility effect: sync LabelCollection show state with showEntityLabels toggle
+  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  useEffect(() => {
+    for (const [icao24, lbl] of labelsByIcao24) {
+      const bb = billboardsByIcao24.get(icao24);
+      lbl.show = showEntityLabels && (bb?.show ?? false);
+    }
+  }, [showEntityLabels, aircraftFilter, aircraft.data, layerVisible]);
 
   // Effect 3: Trail-on-selection — show trail polyline for selected aircraft
   useEffect(() => {
