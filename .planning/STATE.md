@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
 status: completed
-stopped_at: 31-01 complete — v6.0 milestone complete
-last_updated: "2026-03-14T08:57:06.408Z"
+stopped_at: Completed 32-01-PLAN.md — SEC-04 API key wiring closed
+last_updated: "2026-03-14T09:30:26.974Z"
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
@@ -23,13 +23,13 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 
 ## Current Position
 
-Phase: 31 — Documentation (complete)
+Phase: 32 — API Key Wiring (complete)
 Plan: 01 of 01 — complete (all 3 tasks done, including human-verify approval)
-Status: v6.0 milestone fully complete — README.md and LICENSE created and human-approved
+Status: v6.0 gap closure complete — SEC-04 satisfied, OSINT event submission authenticated end-to-end
 
 ```
-v6.0 Progress: [████████████████████] 100% (5/5 phases complete)
-Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 █
+v6.0 Progress: [████████████████████] 100% (6/6 phases complete)
+Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 █  Phase 32 █
 ```
 
 ## Performance Metrics
@@ -44,6 +44,7 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 █
 | Phase 29-production-docker-stack P01 | 15 | 3 tasks | 4 files |
 | Phase 30-ci-pipeline P01 | 1 | 2 tasks | 2 files |
 | Phase 31-documentation P01 | ~5min | 3 tasks | 2 files |
+| Phase 32-api-key-wiring P01 | ~15min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 █  Phase 31 █
 - (30-01) alembic upgrade head runs before pytest — tests query real tables, schema must exist first
 - (31-01) <Author Name> placeholder left in LICENSE for user to fill — real name must not be auto-invented
 - (31-01) README sole user-facing URL is http://localhost; POSTGRES_PASSWORD changeme described as functional not a warning
+- (32-01) VITE_API_KEY added as docker-compose frontend build ARG (not runtime env on nginx) — Vite inlines VITE_* vars at bundle compile time; runtime env on nginx has no effect
+- (32-01) API_KEY forwarded to backend service only, not worker or ais-worker — those services have no HTTP endpoints
+- (32-01) VITE_API_KEY must equal API_KEY (same secret value) — documented in .env.example with explicit must-match comment
 
 ### Phase Dependency Map
 
@@ -109,7 +113,7 @@ None blocking roadmap. Credential rotation (see above) is a user action item, no
 
 ## Session Continuity
 
-Last session: 2026-03-14T09:00:00Z
-Stopped at: 31-01 complete — v6.0 milestone complete
+Last session: 2026-03-14T09:30:26.972Z
+Stopped at: Completed 32-01-PLAN.md — SEC-04 API key wiring closed
 Resume file: None
 Next action: v6.0 is complete. Before public release: rotate credentials (git filter-repo), replace <Author Name> in LICENSE.

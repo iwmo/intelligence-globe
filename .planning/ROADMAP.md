@@ -78,7 +78,7 @@
 - [x] **Phase 29: Production Docker Stack** — nginx reverse proxy, single port 80 entry point, Docker healthchecks (completed 2026-03-14)
 - [x] **Phase 30: CI Pipeline** — GitHub Actions: pytest, vitest+tsc, gitleaks, docker build (completed 2026-03-14)
 - [x] **Phase 31: Documentation** — Root README.md and LICENSE file (completed 2026-03-14)
-- [ ] **Phase 32: API Key Wiring** — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY
+- [x] **Phase 32: API Key Wiring** — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY (completed 2026-03-14)
 
 ## Phase Details
 
@@ -195,4 +195,4 @@ Plans:
 | 29. Production Docker Stack | 1/1 | Complete    | 2026-03-14 | - |
 | 30. CI Pipeline | 1/1 | Complete    | 2026-03-14 | - |
 | 31. Documentation | v6.0 | Complete    | 2026-03-14 | 2026-03-14 |
-| 32. API Key Wiring | v6.0 | 0/1 | Pending | - |
+| 32. API Key Wiring | 1/1 | Complete   | 2026-03-14 | - |
