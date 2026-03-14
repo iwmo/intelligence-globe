@@ -11,6 +11,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM base AS builder
 ARG VITE_CESIUM_ION_TOKEN
 ENV VITE_CESIUM_ION_TOKEN=$VITE_CESIUM_ION_TOKEN
+ARG VITE_API_KEY
+ENV VITE_API_KEY=$VITE_API_KEY
 COPY . .
 RUN npm run build
 
