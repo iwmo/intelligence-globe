@@ -4,42 +4,50 @@ import {
   CustomDataSource,
   Entity,
   PointGraphics,
+  ConstantProperty,
   Cartesian3,
   Color,
   EntityCluster,
   HeightReference,
 } from 'cesium';
+import { QUAD_CLASS_HEX } from '../data/gdeltColors';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
 import { useAppStore } from '../store/useAppStore';
 
 // ---------------------------------------------------------------------------
 // QuadClass colour map (module-level, allocated once)
-// 1 = Verbal Cooperation   → blue
-// 2 = Material Cooperation → green
-// 3 = Verbal Conflict      → yellow
-// 4 = Material Conflict    → red
+// Derived from the canonical QUAD_CLASS_HEX palette in gdeltColors.ts so that
+// PlaybackBar (Plan 02) can share the same hex values for CSS backgrounds.
 // ---------------------------------------------------------------------------
-const QUAD_CLASS_COLORS: Record<number, Color> = {
-  1: Color.fromCssColorString('#3B82F6'),
-  2: Color.fromCssColorString('#22C55E'),
-  3: Color.fromCssColorString('#EAB308'),
-  4: Color.fromCssColorString('#EF4444'),
-};
+const QUAD_CLASS_COLORS: Record<number, Color> = Object.fromEntries(
+  Object.entries(QUAD_CLASS_HEX).map(([k, hex]) => [Number(k), Color.fromCssColorString(hex)])
+);
 
 // ---------------------------------------------------------------------------
 // GdeltLayer
 //
-// Renders null to the DOM. All rendering is done via a CesiumJS
-// CustomDataSource with EntityCluster so GDELT event PointGraphics cluster
-// automatically. DO NOT create a ScreenSpaceEventHandler here — the unified
-// click handler lives in AircraftLayer to avoid the dual-pick race condition.
+// Renders null to the DOM (or a GEO STALE indicator if source data is stale).
+// All globe rendering is done via a CesiumJS CustomDataSource.
+//
+// Effect 1: init DataSource (deps: [viewer])
+// Effect 2: sync entities on new data (deps: [events, gdeltQuadClassFilter, layerVisible, viewer])
+// Effect 3: per-tick temporal visibility (deps: [replayTs, replayMode, gdeltQuadClassFilter])
+//
+// DO NOT create a ScreenSpaceEventHandler here — the unified click handler
+// lives in AircraftLayer to avoid the dual-pick race condition.
 // ---------------------------------------------------------------------------
 export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
   const { data: events } = useGdeltEvents();
   const gdeltQuadClassFilter = useAppStore(s => s.gdeltQuadClassFilter);
   const layerVisible = useAppStore(s => s.layers.gdelt);
+  const replayMode = useAppStore(s => s.replayMode);
+  const replayTs = useAppStore(s => s.replayTs);
 
   const dataSourceRef = useRef<CustomDataSource | null>(null);
+
+  // Maps for Effect 3: keyed on global_event_id (without the 'gdelt:' prefix)
+  const tsMapRef = useRef<Map<string, number>>(new Map());
+  const quadMapRef = useRef<Map<string, number>>(new Map());
 
   // Effect 1 — init DataSource (deps: [viewer])
   // Creates the CustomDataSource + EntityCluster once per viewer mount and
@@ -67,11 +75,16 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
 
   // Effect 2 — sync entities (deps: [events, gdeltQuadClassFilter, layerVisible, viewer])
   // Full rebuild on every data refresh — GDELT events are immutable once ingested.
+  // Effect 3 owns temporal visibility; Effect 2 only sets initial QuadClass show state.
   // ANTI-PATTERN avoided: no per-render iteration; batch set inside single effect.
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !dataSourceRef.current) return;
 
     const dataSource = dataSourceRef.current;
+
+    // Clear temporal/quad maps before rebuild
+    tsMapRef.current.clear();
+    quadMapRef.current.clear();
 
     // Full rebuild — removeAll then re-add
     dataSource.entities.removeAll();
@@ -80,6 +93,12 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
     dataSource.show = layerVisible;
 
     for (const event of events ?? []) {
+      // Populate per-event maps for Effect 3 lookups
+      // Always use String() to guard against numeric ids in test fixtures vs real string ids.
+      const evtKey = String(event.global_event_id);
+      tsMapRef.current.set(evtKey, new Date(event.occurred_at).getTime());
+      quadMapRef.current.set(evtKey, event.quad_class);
+
       const entity = new Entity({
         id: `gdelt:${event.global_event_id}`,
         position: Cartesian3.fromDegrees(event.longitude, event.latitude, 0),
@@ -88,6 +107,7 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
           pixelSize: 12,
           outlineColor: Color.BLACK.withAlpha(0.4),
           outlineWidth: 1,
+          // Initial show based on QuadClass filter only; temporal state is set by Effect 3
           show: gdeltQuadClassFilter.includes(event.quad_class),
           // CLAMP_TO_GROUND pins the point to the terrain surface so it is
           // always below the camera regardless of zoom level. POSITIVE_INFINITY
@@ -99,6 +119,47 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
       dataSource.entities.add(entity);
     }
   }, [events, gdeltQuadClassFilter, layerVisible, viewer]);
+
+  // Effect 3 — per-tick temporal visibility (deps: [replayTs, replayMode, gdeltQuadClassFilter])
+  // Runs on every scrubber tick. Updates entity.point.show based on occurred_at vs replayTs.
+  // Does NOT rebuild entities — tsMapRef/quadMapRef are the O(1) lookup tables.
+  // In live mode, currentTs = Infinity so all events are visible.
+  useEffect(() => {
+    const ds = dataSourceRef.current;
+    if (!ds) return;
+    const currentTs = replayMode === 'live' ? Infinity : replayTs;
+    for (const entity of ds.entities.values) {
+      if (!entity.point) continue;
+      const evtId = entity.id?.replace('gdelt:', '');
+      if (!evtId) continue;
+      const occurredAt = tsMapRef.current.get(evtId);
+      const quadClass  = quadMapRef.current.get(evtId);
+      const temporalOk  = occurredAt !== undefined ? occurredAt <= currentTs : true;
+      const quadClassOk = quadClass !== undefined
+        ? gdeltQuadClassFilter.includes(quadClass)
+        : true;
+      // ConstantProperty wraps a plain boolean so CesiumJS tracks it correctly
+      // for entities initialised with a plain boolean show at construction time.
+      entity.point.show = new ConstantProperty(temporalOk && quadClassOk);
+    }
+  }, [replayTs, replayMode, gdeltQuadClassFilter]);
+
+  // Stale indicator: render a fixed overlay when any event reports a stale source
+  const sourceIsStale = events?.some(e => e.source_is_stale) ?? false;
+
+  if (layerVisible && sourceIsStale) {
+    return (
+      <div style={{
+        position: 'fixed', top: '85px', right: '12px', zIndex: 100,
+        background: 'rgba(245, 158, 11, 0.15)',
+        border: '1px solid #F59E0B', color: '#F59E0B',
+        fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
+        padding: '2px 6px', borderRadius: '3px', pointerEvents: 'none',
+      }}>
+        GEO STALE
+      </div>
+    );
+  }
 
   return null;
 }
