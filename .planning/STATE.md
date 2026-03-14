@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 34-04-PLAN.md — Phase 34 Backend Foundation fully complete (human-verify approved)
-last_updated: "2026-03-14T15:25:00.164Z"
-last_activity: "2026-03-14 — 34-04 complete: GDELT worker registration + human verification checkpoint approved (65 live rows)"
+status: in-progress
+stopped_at: Completed 35-01-PLAN.md — GDELT store slices and Wave 0 test stubs
+last_updated: "2026-03-14T18:56:00.000Z"
+last_activity: "2026-03-14 — 35-01 complete: useAppStore GDELT slices + Wave 0 test stubs for GdeltLayer/useGdeltEvents/GdeltDetailPanel"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 9
+  completed_plans: 5
 ---
 
 # Project State
@@ -20,18 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v8.0 GDELT Integration — Phase 34: Backend Foundation
+**Current focus:** v8.0 GDELT Integration — Phase 35: Frontend Layer
 
 ## Current Position
 
-Phase: 34 — Backend Foundation
-Plan: 04 complete — Phase 34 Backend Foundation fully complete
-Status: Phase 34 Complete — 4/4 plans done; ready for Phase 35
-Last activity: 2026-03-14 — 34-04 complete: GDELT worker registration + human verification checkpoint approved (65 live rows)
+Phase: 35 — Frontend Layer
+Plan: 01 complete — GDELT store slices and Wave 0 test stubs
+Status: Phase 35 In Progress — 1/5 plans done
+Last activity: 2026-03-14 — 35-01 complete: useAppStore GDELT slices + Wave 0 test stubs for GdeltLayer/useGdeltEvents/GdeltDetailPanel
 
 ```
-v8.0 Progress: [██████████] 33% (1/3 phases complete, Phase 34 done)
-Phase 34 ████  Phase 35 _  Phase 36 _
+v8.0 Progress: [███████████████] 55% (Phase 34 done, Phase 35 in progress 1/5)
+Phase 34 ████  Phase 35 █____  Phase 36 _
 ```
 
 ## Performance Metrics
@@ -45,6 +45,7 @@ Phase 34 ████  Phase 35 _  Phase 36 _
 | Phase 34 P02 | 3min | 2 tasks | 1 files |
 | Phase 34-backend-foundation P03 | 4min | 1 tasks | 2 files |
 | Phase 34 P04 | 2min | 1 tasks | 1 files |
+| Phase 35 P01 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Phase 34 ████  Phase 35 _  Phase 36 _
 - asyncio.iscoroutine guard on Redis sadd result — single code path for sync Redis (prod) and AsyncMock (tests); no aioredis dependency
 - Response uses latitude/longitude keys (not lat/lon) — test contract is authoritative over plan's response shape example
 - QuadClass must be parsed as `int(float(row[col]))` not `int(row[col])` — GDELT publishes QuadClass as floats (e.g. "4.0"); discovered during human-verify live run in Phase 34-04
+- `layers.gdelt` defaults to `false` — GDELT layer starts hidden to avoid visual overload on initial globe load
+- `gdeltQuadClassFilter` lives in global Zustand store (not component local state) — filter persists across layer toggle/hide cycles
+- Wave 0 stub pattern: use `describe.skip` for components not yet created, `it.todo()` for contract declaration — test files compile and run before implementations exist
 
 ### Phase Dependency Map
 
@@ -109,7 +113,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T16:00:00.000Z
-Stopped at: Completed 34-04-PLAN.md — Phase 34 Backend Foundation fully complete (human-verify approved)
+Last session: 2026-03-14T18:56:00.000Z
+Stopped at: Completed 35-01-PLAN.md — GDELT store slices and Wave 0 test stubs
 Resume file: None
-Next action: `/gsd:plan-phase 35` — Frontend Layer (GDELT-05 through GDELT-09)
+Next action: Execute 35-02-PLAN.md — useGdeltEvents hook implementation
