@@ -179,7 +179,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
       const bb = shipBillboardsByMmsi.get(mmsi);
       lbl.show = showEntityLabels && (bb?.show ?? false);
     }
-  }, [showEntityLabels, layerVisible]);
+  }, [showEntityLabels, layerVisible, ships.data]);
 
   // Effect: Playback snapshot interpolation
   // Runs only when replayMode === 'playback'. Ships have no live lerp — this is purely additive.
