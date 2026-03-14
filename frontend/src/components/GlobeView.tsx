@@ -10,7 +10,10 @@ import {
   Cartesian2,
   Cartesian3,
   Cartographic,
+  Matrix4,
+  Transforms,
   defined,
+  Math as CesiumMath,
 } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import '../styles/globe.css';
@@ -92,33 +95,93 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
         // NAV-01: Register custom double-click zoom toward cursor point
         const dblHandler = new ScreenSpaceEventHandler(viewer.scene.canvas);
         dblHandler.setInputAction((event: { position: Cartesian2 }) => {
-          // Primary: pick terrain/water surface position
+          // Primary: pick terrain/water surface position via depth buffer
           let picked: Cartesian3 | undefined = viewer.scene.pickPosition(event.position);
 
-          // Fallback: if pickPosition fails (e.g. billboard/entity surface, sky edge),
-          // project click to nearest ellipsoid point. This handles entities where
-          // scene.pickPosition returns undefined (pitfall 3 from research).
+          // Fallback: project click onto the mathematical ellipsoid via ray cast.
           if (!defined(picked)) {
             const ellipsoidPick = viewer.scene.camera.pickEllipsoid(event.position);
             picked = ellipsoidPick ?? undefined;
           }
 
-          // Sky guard: if still undefined, click hit sky — do nothing (NAV-01 requirement)
+          // Sky guard: if still undefined, click hit sky — do nothing
           if (!picked) return;
 
-          const carto = Cartographic.fromCartesian(picked);
           const currentAlt = viewer.camera.positionCartographic.height;
           // Zoom ~2.5x per double-click; 500m minimum prevents zooming into terrain
           const targetAlt = Math.max(500, currentAlt * 0.4);
 
+          // Read camera heading and pitch IN THE ENU FRAME AT THE CAMERA POSITION.
+          // viewer.camera.pitch and .heading are already ENU-relative (Camera.js getter
+          // temporarily sets the ENU-at-camera transform before reading the values).
+          const pitch = viewer.camera.pitch;   // negative = looking below horizontal
+          const heading = viewer.camera.heading;
+
+          // NAV-01 tilt fix — approach 3: explicit world-space destination.
+          //
+          // We compute the destination camera position in world space using the ENU
+          // frame AT THE TARGET (picked surface point). This is the same transform
+          // Cesium's flyToBoundingSphere uses internally, but done explicitly so the
+          // math is verifiable line-by-line without relying on flyToBoundingSphere
+          // internals.
+          //
+          // Geometry:
+          //   targetAlt ≈ vertical height of camera above surface after zoom.
+          //   range = slant distance from camera to target along the look ray.
+          //   At pitch p (negative = looking down): range × |sin(p)| = targetAlt
+          //   Guard: if pitch nearly horizontal, avoid infinite range.
+          const sinPitch = Math.abs(Math.sin(pitch));
+          const MIN_SIN = Math.sin(CesiumMath.toRadians(5));
+          const range = sinPitch > MIN_SIN ? targetAlt / sinPitch : targetAlt;
+
+          // Build the ENU frame at the picked surface point.
+          // Columns: [East, North, Up, picked] in ECEF world space.
+          const enuAtTarget = Transforms.eastNorthUpToFixedFrame(picked);
+
+          // In ENU space, the camera offset from target = rotate a unit vector
+          // by heading (around Up/Z) then pitch (around North/Y), then negate,
+          // then scale by range. This places the camera so that looking FROM the
+          // camera TOWARD `picked` reproduces exactly (heading, pitch).
+          //
+          // headingAdjusted matches Cesium's internal convention (zeroToTwoPi - PI/2).
+          const headingAdj = CesiumMath.zeroToTwoPi(heading) - CesiumMath.PI_OVER_TWO;
+          const cosH = Math.cos(-headingAdj),  sinH = Math.sin(-headingAdj);
+          const cosP = Math.cos(-pitch),       sinP = Math.sin(-pitch);
+          // UNIT_X = [1,0,0] rotated by pitch around Y then heading around Z:
+          // After pitch around Y: [cosP, 0, -sinP]
+          // After heading around Z: [cosP*cosH, cosP*sinH, -sinP]
+          // Negate (camera is opposite side from look direction): [-cosP*cosH, -cosP*sinH, sinP]
+          const enuOffset = new Cartesian3(-cosP * cosH * range, -cosP * sinH * range, sinP * range);
+
+          // Transform ENU offset to world (ECEF) space and add to target position.
+          const destWorld = Matrix4.multiplyByPoint(enuAtTarget, enuOffset, new Cartesian3());
+
+          // Look direction in world space: from destWorld toward picked.
+          const dirWorld = Cartesian3.normalize(
+            Cartesian3.subtract(picked, destWorld, new Cartesian3()),
+            new Cartesian3(),
+          );
+
+          // Up direction: ENU "Up" axis transformed to world space.
+          // UNIT_Z in ENU = local Up (radially outward from Earth at `picked`).
+          // Matrix4.multiplyByPointAsVector transforms a direction vector (no translation).
+          const upWorld = Cartesian3.normalize(
+            Matrix4.multiplyByPointAsVector(enuAtTarget, Cartesian3.UNIT_Z, new Cartesian3()),
+            new Cartesian3(),
+          );
+
+          // When nearly top-down (pitch ≈ -90°), dirWorld and upWorld are
+          // antiparallel — Cesium cannot build a valid basis from them and the
+          // camera flips. Use heading/pitch/roll form instead, which Cesium
+          // resolves correctly in the ENU frame at the destination.
+          const isNearlyVertical = pitch < -CesiumMath.toRadians(85);
+
           viewer.camera.flyTo({
-            destination: Cartesian3.fromRadians(carto.longitude, carto.latitude, targetAlt),
+            destination: destWorld,
+            orientation: isNearlyVertical
+              ? { heading, pitch, roll: 0 }
+              : { direction: dirWorld, up: upWorld },
             duration: 0.6,
-            orientation: {
-              heading: viewer.camera.heading,
-              pitch: viewer.camera.pitch,
-              roll: 0,
-            },
           });
         }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
