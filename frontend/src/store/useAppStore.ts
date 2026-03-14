@@ -20,7 +20,7 @@ export interface PostProcessUniforms {
 interface AppState {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean; gpsJamming: boolean; streetTraffic: boolean };
+  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean; gpsJamming: boolean; streetTraffic: boolean; gdelt: boolean };
   setLayerVisible: (layer: keyof AppState['layers'], visible: boolean) => void;
   selectedSatelliteId: number | null;
   setSelectedSatelliteId: (id: number | null) => void;
@@ -92,12 +92,21 @@ interface AppState {
   // Phase 33: viewport bbox for culled data loading
   viewportBbox: ViewportBbox | null;
   setViewportBbox: (bbox: ViewportBbox | null) => void;
+
+  // Phase 35: GDELT slices
+  gdeltQuadClassFilter: number[];
+  setGdeltQuadClassFilter: (classes: number[]) => void;
+  toggleGdeltQuadClass: (qc: number) => void;
+  selectedGdeltEventId: number | null;
+  setSelectedGdeltEventId: (id: number | null) => void;
+  gdeltOsintPrefill: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null;
+  setGdeltOsintPrefill: (v: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false },
+  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false },
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
@@ -179,4 +188,17 @@ export const useAppStore = create<AppState>((set) => ({
   // Phase 33: viewport bbox
   viewportBbox: null,
   setViewportBbox: (bbox) => set({ viewportBbox: bbox }),
+
+  // Phase 35: GDELT slices
+  gdeltQuadClassFilter: [1, 2, 3, 4],
+  setGdeltQuadClassFilter: (classes) => set({ gdeltQuadClassFilter: classes }),
+  toggleGdeltQuadClass: (qc) => set((s) => ({
+    gdeltQuadClassFilter: s.gdeltQuadClassFilter.includes(qc)
+      ? s.gdeltQuadClassFilter.filter(c => c !== qc)
+      : [...s.gdeltQuadClassFilter, qc],
+  })),
+  selectedGdeltEventId: null,
+  setSelectedGdeltEventId: (id) => set({ selectedGdeltEventId: id }),
+  gdeltOsintPrefill: null,
+  setGdeltOsintPrefill: (v) => set({ gdeltOsintPrefill: v }),
 }));

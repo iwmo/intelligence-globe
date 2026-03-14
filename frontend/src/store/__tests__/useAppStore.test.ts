@@ -268,6 +268,98 @@ describe('useAppStore — isPlaying slice', () => {
   });
 });
 
+describe('useAppStore — GDELT slices', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      gdeltQuadClassFilter: [1, 2, 3, 4],
+      selectedGdeltEventId: null,
+      gdeltOsintPrefill: null,
+    } as Parameters<typeof useAppStore.setState>[0]);
+  });
+
+  describe('gdeltQuadClassFilter', () => {
+    it('defaults to [1,2,3,4]', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      expect(state['gdeltQuadClassFilter']).toEqual([1, 2, 3, 4]);
+    });
+
+    it('toggleGdeltQuadClass(2) on default state → [1,3,4]', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['toggleGdeltQuadClass'] as (qc: number) => void)(2);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['gdeltQuadClassFilter']).toEqual([1, 3, 4]);
+    });
+
+    it('toggleGdeltQuadClass(2) when [1,3,4] → [1,2,3,4]', () => {
+      useAppStore.setState({ gdeltQuadClassFilter: [1, 3, 4] } as Parameters<typeof useAppStore.setState>[0]);
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['toggleGdeltQuadClass'] as (qc: number) => void)(2);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['gdeltQuadClassFilter']).toEqual([1, 3, 4, 2]);
+    });
+
+    it('setGdeltQuadClassFilter([3,4]) sets exactly [3,4]', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['setGdeltQuadClassFilter'] as (c: number[]) => void)([3, 4]);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['gdeltQuadClassFilter']).toEqual([3, 4]);
+    });
+  });
+
+  describe('layers.gdelt', () => {
+    it('layers.gdelt defaults to false', () => {
+      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false } } as Parameters<typeof useAppStore.setState>[0]);
+      const { layers } = useAppStore.getState();
+      expect((layers as Record<string, unknown>)['gdelt']).toBe(false);
+    });
+
+    it('setLayerVisible("gdelt", true) sets layers.gdelt to true', () => {
+      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false } } as Parameters<typeof useAppStore.setState>[0]);
+      (useAppStore.getState().setLayerVisible as (layer: string, visible: boolean) => void)('gdelt', true);
+      const { layers } = useAppStore.getState();
+      expect((layers as Record<string, unknown>)['gdelt']).toBe(true);
+    });
+  });
+
+  describe('selectedGdeltEventId', () => {
+    it('defaults to null', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      expect(state['selectedGdeltEventId']).toBeNull();
+    });
+
+    it('setSelectedGdeltEventId(42) sets selectedGdeltEventId to 42', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['setSelectedGdeltEventId'] as (id: number | null) => void)(42);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['selectedGdeltEventId']).toBe(42);
+    });
+  });
+
+  describe('gdeltOsintPrefill', () => {
+    it('defaults to null', () => {
+      const state = useAppStore.getState() as Record<string, unknown>;
+      expect(state['gdeltOsintPrefill']).toBeNull();
+    });
+
+    it('setGdeltOsintPrefill stores the value', () => {
+      const val = { lat: 1, lon: 2, ts: '2026-01-01T00:00:00Z', sourceUrl: null };
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['setGdeltOsintPrefill'] as (v: typeof val | null) => void)(val);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['gdeltOsintPrefill']).toEqual(val);
+    });
+
+    it('setGdeltOsintPrefill(null) clears it', () => {
+      const val = { lat: 1, lon: 2, ts: '2026-01-01T00:00:00Z', sourceUrl: null };
+      const state = useAppStore.getState() as Record<string, unknown>;
+      (state['setGdeltOsintPrefill'] as (v: typeof val | null) => void)(val);
+      (state['setGdeltOsintPrefill'] as (v: typeof val | null) => void)(null);
+      const updated = useAppStore.getState() as Record<string, unknown>;
+      expect(updated['gdeltOsintPrefill']).toBeNull();
+    });
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({
