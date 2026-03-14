@@ -44,7 +44,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
 
   // MGRS update on camera move
   useEffect(() => {
-    if (!viewer) return;
+    if (!viewer) return undefined;
     const handler = () => {
       const cart = viewer.camera.positionCartographic;
       const lon = CesiumMath.toDegrees(cart.longitude);
@@ -54,7 +54,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
       setLatLon([lat.toFixed(4), lon.toFixed(4)]);
     };
     viewer.camera.moveEnd.addEventListener(handler);
-    return () => viewer.camera.moveEnd.removeEventListener(handler);
+    return () => { viewer.camera.moveEnd.removeEventListener(handler); };
   }, [viewer]);
 
   // Live UTC clock updated every second

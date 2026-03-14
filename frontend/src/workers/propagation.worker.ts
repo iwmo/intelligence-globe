@@ -84,7 +84,8 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
       }
     }
 
-    self.postMessage({ type: 'POSITIONS', buf }, [buf.buffer]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (self as any).postMessage({ type: 'POSITIONS', buf }, [buf.buffer]);
     return;
   }
 

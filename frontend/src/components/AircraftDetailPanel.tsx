@@ -26,13 +26,6 @@ interface AircraftRoute {
   destination: Airport | null;
 }
 
-function formatAirport(a: Airport | null): string {
-  if (!a) return '?';
-  const code = a.iata ?? a.icao ?? '?';
-  const place = a.city ?? a.country ?? '';
-  return place ? `${code} · ${place}` : code;
-}
-
 export function AircraftDetailPanel() {
   const selectedId = useAppStore(s => s.selectedAircraftId);
   const clearSelection = useAppStore(s => s.setSelectedAircraftId);
@@ -62,8 +55,6 @@ export function AircraftDetailPanel() {
   });
 
   if (!selectedId) return null;
-
-  const hasRoute = routeData && (routeData.origin || routeData.destination);
 
   return (
     <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>

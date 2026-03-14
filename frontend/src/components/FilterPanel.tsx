@@ -35,11 +35,6 @@ const resetButtonStyle: React.CSSProperties = {
   letterSpacing: '0.08em',
 };
 
-// API serves LEO-only (mean_motion >= 11.25 rev/day, altitude < 2000 km)
-const ALTITUDE_BANDS: Record<string, [number, number]> = {
-  'LEO': [0, 2000],
-};
-
 export function FilterPanel() {
   const satelliteFilter = useAppStore(s => s.satelliteFilter);
   const setSatelliteFilter = useAppStore(s => s.setSatelliteFilter);
