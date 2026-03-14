@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
 status: completed
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-03-14T07:10:09.255Z"
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-14T07:23:30.051Z"
 last_activity: 2026-03-14 — Phase 27 Plan 01 executed (secrets cleanup)
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -20,18 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v6.0 Production Ready — Phase 28 next
+**Current focus:** v6.0 Production Ready — Phase 29 next
 
 ## Current Position
 
-Phase: 27 — Secrets Cleanup (complete)
+Phase: 28 — API Key Auth (complete)
 Plan: 01 of 01 complete
-Status: Phase 27 complete, ready for Phase 28
-Last activity: 2026-03-14 — Phase 27 Plan 01 executed (secrets cleanup)
+Status: Phase 28 complete, ready for Phase 29
+Last activity: 2026-03-14 — Phase 28 Plan 01 executed (API key auth on OSINT write endpoint)
 
 ```
-v6.0 Progress: [██░░░░░░░░░░░░░░░░░░] 20% (1/5 phases)
-Phase 27 █  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
+v6.0 Progress: [████░░░░░░░░░░░░░░░░] 40% (2/5 phases)
+Phase 27 █  Phase 28 █  Phase 29 ░  Phase 30 ░  Phase 31 ░
 ```
 
 ## Performance Metrics
@@ -42,6 +42,7 @@ Phase 27 █  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
 | Phases planned | 5 | 5 |
 | Plans complete | TBD | 0 |
 | Phase 27-secrets-cleanup P01 | 2 | 3 tasks | 4 files |
+| Phase 28-api-key-auth P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -55,6 +56,8 @@ Phase 27 █  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
 - Phase 31 depends on 29+30 so README can accurately describe the CI and Docker stack
 - (27-01) Credential variables use :?message syntax in docker-compose.yml — fail loud when .env absent, expose variable name not value
 - (27-01) .dockerignore co-located with Dockerfile in service directories (not project root) for correct Docker build context filtering
+- (28-01) verify_api_key uses Optional[str] = Header(default=None) so absent X-API-Key header yields 401 not FastAPI's 422
+- (28-01) monkeypatch.setattr on module-level settings singleton (not setenv) — settings is instantiated at import time
 
 ### Phase Dependency Map
 
@@ -92,7 +95,7 @@ None blocking roadmap. Credential rotation (see above) is a user action item, no
 
 ## Session Continuity
 
-Last session: 2026-03-14T07:07:05.963Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-03-14T07:23:30.046Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 28` or `/gsd:execute-phase 28`
+Next action: `/gsd:plan-phase 29` or `/gsd:execute-phase 29`
