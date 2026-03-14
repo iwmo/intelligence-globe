@@ -90,7 +90,9 @@
   2. `backend/.dockerignore` and `frontend/.dockerignore` exist and exclude `.env` and `*.env` files
   3. `.env.example` lists every required variable (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`, `AISSTREAM_API_KEY`, `VITE_CESIUM_ION_TOKEN`, `API_KEY`, and any others) with placeholder values
   4. Running `docker compose config` with no `.env` file produces a visible unset-variable error rather than silently substituting a credential
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ### Phase 28: API Key Auth
 **Goal**: Write endpoints are protected — unauthenticated callers receive 401, not data
@@ -101,7 +103,9 @@
   2. `POST /api/osint` returns HTTP 401 when the header value does not match `API_KEY` env var
   3. `POST /api/osint` returns HTTP 201 when the correct `API_KEY` value is supplied
   4. All read endpoints (`GET /api/*`) are unaffected and return data without any key
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ### Phase 29: Production Docker Stack
 **Goal**: The project runs on a single port 80 via nginx with no dev-server ports exposed and all services health-checked
@@ -112,7 +116,9 @@
   2. Browser requests to `http://localhost/api/aircraft` are proxied to the backend container and return JSON
   3. The frontend is served as a production nginx static build (no Vite HMR socket, no dev overlays)
   4. `docker compose ps` shows `healthy` for `backend`, `worker`, and `ais-worker` after startup
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ### Phase 30: CI Pipeline
 **Goal**: Every push and PR is automatically verified for test correctness, type safety, secret hygiene, and image buildability
@@ -123,7 +129,9 @@
   2. A GitHub Actions run executes `vitest run` and `tsc --noEmit`; a TypeScript error in any `.tsx` file fails the check
   3. A GitHub Actions run executes gitleaks; committing a real credential causes the workflow to fail and block merge
   4. A GitHub Actions run builds both backend and frontend Docker images with `--target production`; a broken Dockerfile fails the check
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ### Phase 31: Documentation
 **Goal**: Any developer can clone the repo, read the README, and have the stack running within minutes
@@ -133,7 +141,9 @@
   1. Root `README.md` exists and includes: project overview, prerequisites (Docker, .env setup), `cp .env.example .env` onboarding step, `docker compose up` command, and API key configuration instructions
   2. `LICENSE` file exists in the repository root
   3. A developer following only the README can start the stack without consulting any other file
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Strip credential fallbacks, create .dockerignore files, expand .env.example
 
 ## Progress
 
