@@ -4,8 +4,8 @@ milestone: v6.0
 milestone_name: Production Ready
 status: completed
 stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-03-14T07:23:30.051Z"
-last_activity: 2026-03-14 — Phase 27 Plan 01 executed (secrets cleanup)
+last_updated: "2026-03-14T07:27:06.962Z"
+last_activity: 2026-03-14 — Phase 28 Plan 01 executed (API key auth on OSINT write endpoint)
 progress:
   total_phases: 5
   completed_phases: 2
