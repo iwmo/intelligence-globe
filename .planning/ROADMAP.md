@@ -78,6 +78,7 @@
 - [x] **Phase 29: Production Docker Stack** — nginx reverse proxy, single port 80 entry point, Docker healthchecks (completed 2026-03-14)
 - [x] **Phase 30: CI Pipeline** — GitHub Actions: pytest, vitest+tsc, gitleaks, docker build (completed 2026-03-14)
 - [x] **Phase 31: Documentation** — Root README.md and LICENSE file (completed 2026-03-14)
+- [ ] **Phase 32: API Key Wiring** — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY
 
 ## Phase Details
 
@@ -145,6 +146,20 @@ Plans:
 Plans:
 - [x] 31-01-PLAN.md — Root README.md and LICENSE file
 
+### Phase 32: API Key Wiring
+**Goal**: The API_KEY env var is delivered to the backend container and the OsintEventPanel UI sends the key on every POST — OSINT event submission works end-to-end in production
+**Depends on**: Phase 28 (auth middleware), Phase 29 (docker-compose), Phase 31 (README)
+**Requirements**: SEC-04
+**Gap Closure**: Closes gaps from v6.0 audit (MISSING-01, MISSING-02, BROKEN-01, BROKEN-02)
+**Success Criteria** (what must be TRUE):
+  1. `docker-compose.yml` backend `environment` block contains `API_KEY: ${API_KEY:?Set API_KEY in .env}`
+  2. `OsintEventPanel.tsx` fetch headers include `'X-API-Key': import.meta.env.VITE_API_KEY`
+  3. `.env.example` includes `VITE_API_KEY=your-secret-api-key` with a descriptive comment
+  4. `README.md` API Keys table documents `VITE_API_KEY` with purpose and source
+**Plans**: 1 plan
+Plans:
+- [ ] 32-01-PLAN.md — Forward API_KEY to backend container, add X-API-Key header to OsintEventPanel, document VITE_API_KEY
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -180,3 +195,4 @@ Plans:
 | 29. Production Docker Stack | 1/1 | Complete    | 2026-03-14 | - |
 | 30. CI Pipeline | 1/1 | Complete    | 2026-03-14 | - |
 | 31. Documentation | v6.0 | Complete    | 2026-03-14 | 2026-03-14 |
+| 32. API Key Wiring | v6.0 | 0/1 | Pending | - |

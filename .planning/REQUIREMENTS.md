@@ -12,7 +12,7 @@ Requirements for the Production Ready milestone. Each maps to roadmap phases sta
 - [x] **SEC-01**: `docker-compose.yml` contains no hardcoded credential fallback values — only bare `${VAR}` references, no `:-default` for secrets
 - [x] **SEC-02**: `backend/.dockerignore` and `frontend/.dockerignore` exist and exclude `.env`, `*.env`, and any credential files from `COPY . .`
 - [x] **SEC-03**: Root `.env.example` includes all required variables with placeholder values (`OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`, `AISSTREAM_API_KEY`, `VITE_CESIUM_ION_TOKEN`)
-- [x] **SEC-04**: Static API key middleware protects `POST /api/osint` (and any future write endpoints) — key configured via `API_KEY` env var, returns 401 if missing/invalid
+- [ ] **SEC-04**: Static API key middleware protects `POST /api/osint` (and any future write endpoints) — key configured via `API_KEY` env var, returns 401 if missing/invalid; `API_KEY` forwarded to backend container and `X-API-Key` header sent by UI
 
 ### Production Stack
 
@@ -30,8 +30,8 @@ Requirements for the Production Ready milestone. Each maps to roadmap phases sta
 
 ### Documentation
 
-- [ ] **DOC-01**: Root `README.md` covers project overview, prerequisites, setup (`cp .env.example .env`), running with Docker Compose, and API key configuration
-- [ ] **DOC-02**: `LICENSE` file added to the repository
+- [x] **DOC-01**: Root `README.md` covers project overview, prerequisites, setup (`cp .env.example .env`), running with Docker Compose, and API key configuration
+- [x] **DOC-02**: `LICENSE` file added to the repository
 
 ## Future Requirements
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 27 | Complete |
 | SEC-02 | Phase 27 | Complete |
 | SEC-03 | Phase 27 | Complete |
-| SEC-04 | Phase 28 | Complete |
+| SEC-04 | Phase 32 | Pending |
 | PROD-01 | Phase 29 | Complete |
 | PROD-02 | Phase 29 | Complete |
 | PROD-03 | Phase 29 | Complete |
@@ -84,8 +84,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CI-02 | Phase 30 | Complete |
 | CI-03 | Phase 30 | Complete |
 | CI-04 | Phase 30 | Complete |
-| DOC-01 | Phase 31 | Pending |
-| DOC-02 | Phase 31 | Pending |
+| DOC-01 | Phase 31 | Complete |
+| DOC-02 | Phase 31 | Complete |
+| SEC-04 (gap closure) | Phase 32 | Pending |
 
 **Coverage:**
 - v6.0 requirements: 14 total
