@@ -4,8 +4,8 @@ milestone: v6.0
 milestone_name: Production Ready
 status: completed
 stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-03-14T08:16:27.129Z"
-last_activity: 2026-03-14 — Phase 28 Plan 01 executed (API key auth on OSINT write endpoint)
+last_updated: "2026-03-14T08:18:54.344Z"
+last_activity: 2026-03-14 — Phase 29 Plan 01 executed (production nginx Docker stack smoke-tested)
 progress:
   total_phases: 5
   completed_phases: 3

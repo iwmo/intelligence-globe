@@ -177,6 +177,6 @@ Plans:
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 27. Secrets Cleanup | v6.0 | 1/1 | Complete | 2026-03-14 |
 | 28. API Key Auth | 1/1 | Complete    | 2026-03-14 | - |
-| 29. Production Docker Stack | 1/1 | Complete   | 2026-03-14 | - |
+| 29. Production Docker Stack | 1/1 | Complete    | 2026-03-14 | - |
 | 30. CI Pipeline | v6.0 | 0/1 | Not started | - |
 | 31. Documentation | v6.0 | 0/1 | Not started | - |
