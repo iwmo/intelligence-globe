@@ -16,10 +16,10 @@ Requirements for the Production Ready milestone. Each maps to roadmap phases sta
 
 ### Production Stack
 
-- [ ] **PROD-01**: `docker-compose.yml` frontend service uses the `production` build target (nginx static serving, not Vite dev server)
-- [ ] **PROD-02**: nginx config added that routes `/api/*` requests to the `backend` container (reverse proxy so frontend can call relative `/api/...` in production)
-- [ ] **PROD-03**: Single public entry point on port 80 via nginx — no exposed Vite port in production
-- [ ] **PROD-04**: Docker Compose healthchecks added for `backend`, `worker`, and `ais-worker` services
+- [x] **PROD-01**: `docker-compose.yml` frontend service uses the `production` build target (nginx static serving, not Vite dev server)
+- [x] **PROD-02**: nginx config added that routes `/api/*` requests to the `backend` container (reverse proxy so frontend can call relative `/api/...` in production)
+- [x] **PROD-03**: Single public entry point on port 80 via nginx — no exposed Vite port in production
+- [x] **PROD-04**: Docker Compose healthchecks added for `backend`, `worker`, and `ais-worker` services
 
 ### CI/CD
 
@@ -76,10 +76,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-02 | Phase 27 | Complete |
 | SEC-03 | Phase 27 | Complete |
 | SEC-04 | Phase 28 | Complete |
-| PROD-01 | Phase 29 | Pending |
-| PROD-02 | Phase 29 | Pending |
-| PROD-03 | Phase 29 | Pending |
-| PROD-04 | Phase 29 | Pending |
+| PROD-01 | Phase 29 | Complete |
+| PROD-02 | Phase 29 | Complete |
+| PROD-03 | Phase 29 | Complete |
+| PROD-04 | Phase 29 | Complete |
 | CI-01 | Phase 30 | Pending |
 | CI-02 | Phase 30 | Pending |
 | CI-03 | Phase 30 | Pending |

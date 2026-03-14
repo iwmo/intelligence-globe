@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
 status: completed
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-03-14T07:27:06.962Z"
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-03-14T08:16:27.129Z"
 last_activity: 2026-03-14 — Phase 28 Plan 01 executed (API key auth on OSINT write endpoint)
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,18 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** v6.0 Production Ready — Phase 29 next
+**Current focus:** v6.0 Production Ready — Phase 30 next
 
 ## Current Position
 
-Phase: 28 — API Key Auth (complete)
+Phase: 29 — Production Docker Stack (complete)
 Plan: 01 of 01 complete
-Status: Phase 28 complete, ready for Phase 29
-Last activity: 2026-03-14 — Phase 28 Plan 01 executed (API key auth on OSINT write endpoint)
+Status: Phase 29 complete, ready for Phase 30
+Last activity: 2026-03-14 — Phase 29 Plan 01 executed (production nginx Docker stack smoke-tested)
 
 ```
-v6.0 Progress: [████░░░░░░░░░░░░░░░░] 40% (2/5 phases)
-Phase 27 █  Phase 28 █  Phase 29 ░  Phase 30 ░  Phase 31 ░
+v6.0 Progress: [██████░░░░░░░░░░░░░░] 60% (3/5 phases)
+Phase 27 █  Phase 28 █  Phase 29 █  Phase 30 ░  Phase 31 ░
 ```
 
 ## Performance Metrics
@@ -43,6 +43,7 @@ Phase 27 █  Phase 28 █  Phase 29 ░  Phase 30 ░  Phase 31 ░
 | Plans complete | TBD | 0 |
 | Phase 27-secrets-cleanup P01 | 2 | 3 tasks | 4 files |
 | Phase 28-api-key-auth P01 | 3min | 2 tasks | 4 files |
+| Phase 29-production-docker-stack P01 | 15 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,10 @@ Phase 27 █  Phase 28 █  Phase 29 ░  Phase 30 ░  Phase 31 ░
 - (27-01) .dockerignore co-located with Dockerfile in service directories (not project root) for correct Docker build context filtering
 - (28-01) verify_api_key uses Optional[str] = Header(default=None) so absent X-API-Key header yields 401 not FastAPI's 422
 - (28-01) monkeypatch.setattr on module-level settings singleton (not setenv) — settings is instantiated at import time
+- (29-01) nginx.conf co-located with Dockerfile in frontend/ — Docker build context is ./frontend; project-root files are invisible to COPY instructions
+- (29-01) VITE_CESIUM_ION_TOKEN passed as build ARG not runtime env — Vite inlines env vars at bundle compile time; runtime env in nginx container has no effect
+- (29-01) Python stdlib urllib probe for backend healthcheck (curl absent in python:3.12-slim); Redis ping probe for worker/ais-worker healthchecks
+- (29-01) Backend port 8000 removed from base compose, added to override only — nginx port 80 is the sole public entry point in production; FRONTEND_ORIGIN default updated to http://localhost
 
 ### Phase Dependency Map
 
@@ -95,7 +100,7 @@ None blocking roadmap. Credential rotation (see above) is a user action item, no
 
 ## Session Continuity
 
-Last session: 2026-03-14T07:23:30.046Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-03-14T08:16:27.126Z
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 29` or `/gsd:execute-phase 29`
+Next action: `/gsd:plan-phase 30` or `/gsd:execute-phase 30`
