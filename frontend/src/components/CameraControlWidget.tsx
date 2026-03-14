@@ -87,7 +87,11 @@ export function CameraControlWidget(): React.ReactElement {
 
       sync(); // init from current camera state
       v.camera.moveEnd.addEventListener(sync);
-      cleanup = () => v.camera.moveEnd.removeEventListener(sync);
+      cleanup = () => {
+        try {
+          if (!v.isDestroyed()) v.camera.moveEnd.removeEventListener(sync);
+        } catch { /* viewer may be mid-destruction */ }
+      };
       return true;
     }
 
