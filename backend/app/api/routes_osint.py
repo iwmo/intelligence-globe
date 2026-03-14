@@ -17,6 +17,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import verify_api_key
 from app.db import get_db
 from app.models.osint_event import OsintEvent
 
@@ -76,7 +77,7 @@ async def list_events(db: AsyncSession = Depends(get_db)):
     return {"events": [_event_dict(r) for r in rows]}
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(verify_api_key)], status_code=201)
 async def create_event(body: OsintEventCreate, db: AsyncSession = Depends(get_db)):
     """Create a new OSINT event. Returns the created event with its id."""
     event = OsintEvent(

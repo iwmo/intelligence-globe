@@ -47,8 +47,13 @@ async def test_create_event(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_invalid_category():
-    """POST /api/osint-events with invalid category must return 422 (validation error)."""
+async def test_invalid_category(monkeypatch):
+    """POST /api/osint-events with invalid category must return 422 (validation error).
+
+    Auth must pass first (correct key supplied) so that Pydantic validation runs
+    and returns 422 for the bad category value.
+    """
+    monkeypatch.setattr("app.config.settings.api_key", "correct-key")
     payload = {
         "ts": 1_700_000_000_000,
         "category": "INVALID",
@@ -58,7 +63,9 @@ async def test_invalid_category():
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.post("/api/osint-events", json=payload)
+        response = await client.post(
+            "/api/osint-events", json=payload, headers={"X-API-Key": "correct-key"}
+        )
     assert response.status_code == 422
 
 
