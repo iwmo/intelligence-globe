@@ -5,6 +5,9 @@ import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
 import { useOsintEvents } from '../hooks/useOsintEvents';
 import { EVENT_COLORS } from '../data/osintEvents';
 import type { OsintEvent } from '../data/osintEvents';
+import { useGdeltEvents } from '../hooks/useGdeltEvents';
+import type { GdeltEvent } from '../hooks/useGdeltEvents';
+import { QUAD_CLASS_HEX } from '../data/gdeltColors';
 
 const SPEED_PRESETS = [
   { label: '1m/s',  value: 60 },
@@ -44,6 +47,9 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
 
   // Dynamic OSINT events from database
   const { events: osintEvents } = useOsintEvents(replayMode === 'playback');
+
+  // GDELT-11: single-load replay session events — TanStack Query cache hit (same queryKey as GdeltLayer)
+  const { data: gdeltEvents } = useGdeltEvents();
 
   // Fetch available replay window on mount and when mode changes
   useEffect(() => {
@@ -239,6 +245,37 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
                       borderRadius: '50%',
                       background: EVENT_COLORS[evt.category] ?? '#fff',
                       cursor: 'pointer',
+                      zIndex: 2,
+                      border: '1px solid rgba(0,0,0,0.5)',
+                      padding: '4px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                );
+              });
+            })()}
+            {/* GDELT event timeline dots — GDELT-11 */}
+            {hasWindow && (() => {
+              return (gdeltEvents ?? []).map((evt: GdeltEvent) => {
+                const ts = new Date(evt.occurred_at).getTime();
+                const frac = (ts - replayWindowStart!) / (replayWindowEnd! - replayWindowStart!);
+                if (frac < 0 || frac > 1) return null;
+                return (
+                  <div
+                    key={`gdelt-${evt.global_event_id}`}
+                    title={`GDELT Q${evt.quad_class} ${evt.occurred_at}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${frac * 100}%`,
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '8px',
+                      height: '8px',
+                      minWidth: '16px',
+                      minHeight: '16px',
+                      borderRadius: '50%',
+                      background: QUAD_CLASS_HEX[evt.quad_class] ?? '#fff',
+                      cursor: 'default',
                       zIndex: 2,
                       border: '1px solid rgba(0,0,0,0.5)',
                       padding: '4px',
