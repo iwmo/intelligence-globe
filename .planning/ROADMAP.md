@@ -102,7 +102,9 @@
   - [ ] 35-03-PLAN.md — GdeltLayer CustomDataSource + EntityCluster + LeftSidebar toggle (Wave 2)
   - [ ] 35-04-PLAN.md — GdeltDetailPanel + QuadClass filter chips + App.tsx mount (Wave 3)
   - [ ] 35-05-PLAN.md — OSINT bridge: prefill store slice, OsintEventPanel wiring, human verify (Wave 4)
-- [ ] **Phase 36: Replay and Freshness** - Replay load-once, PlaybackBar dots, stale indicator
+- [ ] **Phase 36: Replay and Freshness** - 2 plans (0/2 complete)
+  - [ ] 36-01-PLAN.md — useGdeltEvents since/until replay window + GdeltLayer Effect 3 temporal visibility + stale indicator (Wave 1)
+  - [ ] 36-02-PLAN.md — PlaybackBar GDELT timeline dots + human verification (Wave 2)
 
 </details>
 
@@ -153,7 +155,11 @@ Plans:
   2. GDELT events accumulate on the globe as the scrubber advances, appearing at their `occurred_at` (SQLDATE) position — events future to the current scrubber position are invisible; past events remain visible; no flicker on scrub
   3. Coloured dots representing GDELT events appear on the PlaybackBar timeline track at their `occurred_at` positions, using the same QuadClass colour scheme as the globe markers
   4. The GDELT layer card displays a `source_is_stale` freshness indicator when the last ingest cycle is stale, using the same visual treatment as the GPS jamming layer card
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 36-01-PLAN.md — useGdeltEvents since/until replay window + GdeltLayer Effect 3 temporal visibility + GEO STALE indicator
+- [ ] 36-02-PLAN.md — PlaybackBar GDELT timeline dots + human verification checkpoint
 
 ## Progress
 
