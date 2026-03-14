@@ -17,13 +17,28 @@ export interface AircraftRecord {
 
 export function useAircraft() {
   const replayMode = useAppStore(s => s.replayMode);
+  const viewportBbox = useAppStore(s => s.viewportBbox);
+
+  // VPC-08: suppress bbox during playback — replay covers arbitrary space/time
+  const effectiveBbox = replayMode === 'live' ? viewportBbox : null;
+
   return useQuery<AircraftRecord[]>({
-    queryKey: ['aircraft'],
+    queryKey: ['aircraft', effectiveBbox],  // bbox in key triggers refetch on camera pan
     queryFn: async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s — aircraft payload can be large
       try {
-        const res = await fetch('/api/aircraft/', { signal: controller.signal });
+        let url = '/api/aircraft/';
+        if (effectiveBbox) {
+          const params = new URLSearchParams({
+            min_lat: String(effectiveBbox.minLat),
+            max_lat: String(effectiveBbox.maxLat),
+            min_lon: String(effectiveBbox.minLon),
+            max_lon: String(effectiveBbox.maxLon),
+          });
+          url = `/api/aircraft/?${params}`;
+        }
+        const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`Aircraft fetch failed: ${res.status}`);
         return res.json() as Promise<AircraftRecord[]>;
       } finally {
