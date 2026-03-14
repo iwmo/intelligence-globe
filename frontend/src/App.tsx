@@ -10,6 +10,9 @@ import { MilitaryAircraftLayer } from './components/MilitaryAircraftLayer';
 import { ShipLayer } from './components/ShipLayer';
 import { GpsJammingLayer } from './components/GpsJammingLayer';
 import { StreetTrafficLayer } from './components/StreetTrafficLayer';
+import { GdeltLayer } from './components/GdeltLayer';
+import { GdeltDetailPanel } from './components/GdeltDetailPanel';
+import { useGdeltEvents } from './hooks/useGdeltEvents';
 import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
@@ -32,6 +35,7 @@ export default function App() {
   const [osintPanelOpen, setOsintPanelOpen] = useState(false);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const { cleanUI } = useAppStore();
+  const gdeltEvents = useGdeltEvents();
 
   useKeyboardShortcuts();
   useViewerClock(cesiumViewer);
@@ -80,6 +84,10 @@ export default function App() {
       <GpsJammingLayer viewer={cesiumViewer} />
       {/* Phase 9: Street Traffic layer — particle dots on roads, manages own visibility via store */}
       <StreetTrafficLayer viewer={cesiumViewer} />
+      {/* Phase 35: GDELT layer — clustered PointGraphics, QuadClass filter, click selection */}
+      <GdeltLayer viewer={cesiumViewer} />
+      {/* Phase 35: GDELT detail panel — renders null internally when no event selected */}
+      <GdeltDetailPanel events={gdeltEvents.data ?? []} />
 
       {/* Phase 7: Post-processing (invisible, manages WebGL stages) */}
       <PostProcessEngine viewer={cesiumViewer} />
