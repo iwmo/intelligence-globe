@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 
-const MIN_WIDTH = 160;
+const DEFAULT_MIN_WIDTH = 160;
 const DEFAULT_WIDTH = 240;
 
 interface PanelState {
@@ -33,7 +33,7 @@ function save(id: string, state: PanelState) {
   } catch {}
 }
 
-export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_WIDTH, children }: DraggablePanelProps) {
+export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_WIDTH, minWidth = DEFAULT_MIN_WIDTH, children }: DraggablePanelProps) {
   const [state, setState] = useState<PanelState>(() => load(id, defaultPos, defaultWidth));
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -87,7 +87,7 @@ export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_W
     function onMouseMove(ev: MouseEvent) {
       if (!panelRef.current) return;
       const delta = ev.clientX - prevMouseX;
-      currentWidth = Math.max(MIN_WIDTH, currentWidth + delta);
+      currentWidth = Math.max(minWidth, currentWidth + delta);
       panelRef.current.style.width = `${currentWidth}px`;
       prevMouseX = ev.clientX;
     }
@@ -102,7 +102,7 @@ export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_W
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [state.width]);
+  }, [state.width, minWidth]);
 
   const toggleCollapsed = useCallback(() => {
     setState(s => ({ ...s, collapsed: !s.collapsed }));
