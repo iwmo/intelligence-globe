@@ -200,4 +200,4 @@ Plans:
 | 33. Viewport Culling | v7.0 | 4/4 | Complete | 2026-03-14 |
 | 34. Backend Foundation | v8.0 | Complete    | 2026-03-14 | 2026-03-14 |
 | 35. Frontend Layer | 5/5 | Complete    | 2026-03-14 | - |
-| 36. Replay and Freshness | v8.0 | 0/TBD | Not started | - |
+| 36. Replay and Freshness | 1/2 | In Progress|  | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 35-05-PLAN.md — OSINT bridge complete, Phase 35 fully done
-last_updated: "2026-03-14T17:15:30.019Z"
+stopped_at: Completed 36-01-PLAN.md — GDELT replay window, Effect 3 temporal visibility, GEO STALE indicator
+last_updated: "2026-03-14T17:38:27.905Z"
 last_activity: "2026-03-14 — 35-05 complete: OSINT bridge complete, Phase 35 fully done"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 11
+  completed_plans: 10
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-14 after v8.0 milestone start)
 
 ## Current Position
 
-Phase: 35 — Frontend Layer
-Plan: 05 complete — OSINT bridge wired: GdeltDetailPanel LOG button, OsintEventPanel prefill, App.tsx reactive open
-Status: Phase 35 Complete — 5/5 plans done
-Last activity: 2026-03-14 — 35-05 complete: OSINT bridge complete, Phase 35 fully done
+Phase: 36 — Replay and Freshness
+Plan: 01 complete — GDELT replay window wired, Effect 3 temporal visibility, GEO STALE indicator
+Status: Phase 36 In Progress — 1/2 plans done
+Last activity: 2026-03-14 — 36-01 complete: replay window, temporal visibility, stale indicator
 
 ```
 v8.0 Progress: [████████████████] 80% (Phase 34 done, Phase 35 in progress 4/5)
@@ -50,6 +50,7 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 | Phase 35 P03 | 3min | 2 tasks | 4 files |
 | Phase 35 P04 | 112 | 2 tasks | 4 files |
 | Phase 35 P05 | 60min | 2 tasks | 4 files |
+| Phase 36-replay-and-freshness P01 | 7min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Phase 34 ████  Phase 35 ████_  Phase 36 _
 - gdeltEvents.data ?? [] passed from App.tsx to GdeltDetailPanel — avoids undefined prop; panel renders null internally when no event selected
 - App.tsx useEffect sets osintPanelOpen=true when gdeltOsintPrefill !== null — OsintEventPanel clears prefill safely without collapsing panel (osintPanelOpen is the durable gate)
 - Prefill cleared inside OsintEventPanel useEffect immediately after reading — single-shot trigger, no re-render loop; open state maintained via osintPanelOpen not gdeltOsintPrefill
+- queryKey excludes replayTs — only window bounds [since, until] in queryKey; per-tick temporal filtering is client-side Effect 3 only; single fetch per playback session
+- ConstantProperty(bool) used in Effect 3 for entity.point.show — CesiumJS tracks property changes correctly after initial plain boolean construction when wrapped in ConstantProperty
+- String(global_event_id) key in tsMapRef/quadMapRef — guards against numeric vs string id type mismatch in Map lookups; test fixtures use numbers, production API returns strings
 
 ### Phase Dependency Map
 
@@ -127,7 +131,7 @@ None. All three phases are independently researchable without blockers. Phase 4 
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:09:39.864Z
-Stopped at: Completed 35-05-PLAN.md — OSINT bridge complete, Phase 35 fully done
+Last session: 2026-03-14T17:38:27.901Z
+Stopped at: Completed 36-01-PLAN.md — GDELT replay window, Effect 3 temporal visibility, GEO STALE indicator
 Resume file: None
 Next action: Execute 35-05-PLAN.md — OSINT bridge (GdeltDetailPanel Log button + OsintEventPanel prefill)

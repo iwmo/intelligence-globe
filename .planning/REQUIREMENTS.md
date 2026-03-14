@@ -23,9 +23,9 @@
 
 ### Replay & Freshness
 
-- [ ] **GDELT-10**: `useGdeltEvents` hook loads events once per replay session using a `since`/`until` time window; events accumulate client-side as the scrubber advances, anchored at `occurred_at` (SQLDATE position)
+- [x] **GDELT-10**: `useGdeltEvents` hook loads events once per replay session using a `since`/`until` time window; events accumulate client-side as the scrubber advances, anchored at `occurred_at` (SQLDATE position)
 - [ ] **GDELT-11**: GDELT events appear as coloured dots on the PlaybackBar timeline scrubber track (same pattern as existing OSINT event dots)
-- [ ] **GDELT-12**: GDELT layer card shows `source_is_stale` freshness indicator when the last ingest cycle is stale (same pattern as GPS jamming layer)
+- [x] **GDELT-12**: GDELT layer card shows `source_is_stale` freshness indicator when the last ingest cycle is stale (same pattern as GPS jamming layer)
 
 ## v2 Requirements (Deferred)
 
@@ -66,9 +66,9 @@
 | GDELT-07 | Phase 35 | Complete |
 | GDELT-08 | Phase 35 | Complete |
 | GDELT-09 | Phase 35 | Complete |
-| GDELT-10 | Phase 36 | Pending |
+| GDELT-10 | Phase 36 | Complete |
 | GDELT-11 | Phase 36 | Pending |
-| GDELT-12 | Phase 36 | Pending |
+| GDELT-12 | Phase 36 | Complete |
 
 **Coverage:**
 - v1 requirements: 12 total
