@@ -1,0 +1,11 @@
+# Secrets — never copy into image
+.env
+*.env
+.env.*
+.env.local
+.env.*.local
+
+# Build artifacts (reduce context size)
+node_modules/
+dist/
+.vite/

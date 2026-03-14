@@ -1,0 +1,14 @@
+# Secrets — never copy into image
+.env
+*.env
+.env.*
+.env.local
+.env.*.local
+
+# Build artifacts (reduce context size)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
