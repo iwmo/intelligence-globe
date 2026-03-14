@@ -92,3 +92,8 @@ Services started by `docker compose up`:
 ## CI
 
 GitHub Actions runs four checks on every push and pull request — `pytest` (backend unit tests), `vitest` + `tsc` (frontend tests and type-checking), `gitleaks` (secret scanning across full git history), and a Docker build verification for both images. All four jobs must pass before a branch can be merged.
+
+
+## License
+
+MIT — see [LICENSE](LICENSE)
