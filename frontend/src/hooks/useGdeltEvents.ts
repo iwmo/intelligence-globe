@@ -21,26 +21,50 @@ export interface GdeltEvent {
 export function useGdeltEvents() {
   const replayMode = useAppStore(s => s.replayMode);
   const viewportBbox = useAppStore(s => s.viewportBbox);
+  const replayWindowStart = useAppStore(s => s.replayWindowStart);
+  const replayWindowEnd = useAppStore(s => s.replayWindowEnd);
 
   // VPC-08: suppress bbox during playback — replay covers arbitrary space/time
   const effectiveBbox = replayMode === 'live' ? viewportBbox : null;
 
+  // GDELT-10: window bounds for single-load replay session.
+  // Only populated when in playback AND both window values are non-null.
+  // replayTs is intentionally NOT in the queryKey — window bounds are constant
+  // per session; per-tick temporal filtering is handled by GdeltLayer Effect 3.
+  const replayWindowSince =
+    replayMode === 'playback' && replayWindowStart != null
+      ? new Date(replayWindowStart).toISOString()
+      : null;
+  const replayWindowUntil =
+    replayMode === 'playback' && replayWindowEnd != null
+      ? new Date(replayWindowEnd).toISOString()
+      : null;
+
   return useQuery<GdeltEvent[]>({
-    queryKey: ['gdelt-events', effectiveBbox],
+    queryKey: ['gdelt-events', effectiveBbox, replayWindowSince, replayWindowUntil],
     queryFn: async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000);
       try {
-        let url = '/api/gdelt-events';
+        const params = new URLSearchParams();
+
         if (effectiveBbox) {
-          const params = new URLSearchParams({
-            min_lat: String(effectiveBbox.minLat),
-            max_lat: String(effectiveBbox.maxLat),
-            min_lon: String(effectiveBbox.minLon),
-            max_lon: String(effectiveBbox.maxLon),
-          });
-          url = `/api/gdelt-events?${params}`;
+          params.set('min_lat', String(effectiveBbox.minLat));
+          params.set('max_lat', String(effectiveBbox.maxLat));
+          params.set('min_lon', String(effectiveBbox.minLon));
+          params.set('max_lon', String(effectiveBbox.maxLon));
         }
+
+        if (replayWindowSince != null) {
+          params.set('since', replayWindowSince);
+        }
+        if (replayWindowUntil != null) {
+          params.set('until', replayWindowUntil);
+        }
+
+        const qs = params.toString();
+        const url = qs ? `/api/gdelt-events?${qs}` : '/api/gdelt-events';
+
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`GDELT events fetch failed: ${res.status}`);
         return res.json() as Promise<GdeltEvent[]>;
