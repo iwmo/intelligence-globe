@@ -20,6 +20,7 @@ import { OsintEventPanel } from './components/OsintEventPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useViewerClock } from './hooks/useViewerClock';
+import { useViewportBbox } from './hooks/useViewportBbox';
 import { useAppStore } from './store/useAppStore';
 import { CameraControlWidget } from './components/CameraControlWidget';
 import { Settings } from 'lucide-react';
@@ -34,6 +35,7 @@ export default function App() {
 
   useKeyboardShortcuts();
   useViewerClock(cesiumViewer);
+  useViewportBbox(cesiumViewer);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
