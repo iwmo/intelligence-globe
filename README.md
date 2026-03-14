@@ -92,16 +92,3 @@ Services started by `docker compose up`:
 ## CI
 
 GitHub Actions runs four checks on every push and pull request — `pytest` (backend unit tests), `vitest` + `tsc` (frontend tests and type-checking), `gitleaks` (secret scanning across full git history), and a Docker build verification for both images. All four jobs must pass before a branch can be merged.
-
-## Security Note
-
-If you fork this repository or plan to make it public, **rotate the following credentials before doing so** — earlier versions of the project may have contained real values in git history:
-
-- OpenSky OAuth2 client secret (`OPENSKY_CLIENT_SECRET`)
-- AISStream API key (`AISSTREAM_API_KEY`)
-
-Use [`git filter-repo`](https://github.com/newren/git-filter-repo) to purge the history, or reset the repository entirely.
-
-## License
-
-MIT — see [LICENSE](LICENSE)
