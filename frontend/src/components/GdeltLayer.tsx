@@ -47,14 +47,10 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
     if (!viewer || viewer.isDestroyed()) return;
 
     const dataSource = new CustomDataSource('gdelt');
-    dataSource.clustering = new EntityCluster({
-      enabled: true,
-      pixelRange: 40,
-      minimumClusterSize: 3,
-      clusterBillboards: false,
-      clusterLabels: false,
-      clusterPoints: true,   // CRITICAL — must be true for PointGraphics to cluster
-    });
+    // Clustering disabled: clicking a cluster entity returns a synthetic cluster
+    // object (no gdelt: id), making individual event selection impossible.
+    // Re-enable with a clusterEvent handler if event volume grows beyond ~5k.
+    dataSource.clustering = new EntityCluster({ enabled: false });
 
     viewer.dataSources.add(dataSource);
     dataSourceRef.current = dataSource;
@@ -88,7 +84,7 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
         position: Cartesian3.fromDegrees(event.longitude, event.latitude, 0),
         point: new PointGraphics({
           color: QUAD_CLASS_COLORS[event.quad_class] ?? Color.WHITE,
-          pixelSize: 8,
+          pixelSize: 12,
           outlineColor: Color.BLACK.withAlpha(0.4),
           outlineWidth: 1,
           show: gdeltQuadClassFilter.includes(event.quad_class),

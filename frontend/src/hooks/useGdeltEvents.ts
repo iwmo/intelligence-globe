@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 
 export interface GdeltEvent {
-  global_event_id: number;
+  global_event_id: string;
   occurred_at: string;           // ISO string
   discovered_at: string | null;
   latitude: number;
