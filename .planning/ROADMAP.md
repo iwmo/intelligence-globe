@@ -175,7 +175,7 @@ Plans:
 | 24. Satellite Propagation Fix | v5.0 | 2/2 | Complete | 2026-03-13 |
 | 25. Layer Audit | v5.0 | 4/4 | Complete | 2026-03-13 |
 | 26. End-to-End Verification + Stale Indicators | v5.0 | 4/4 | Complete | 2026-03-13 |
-| 27. Secrets Cleanup | 1/1 | Complete   | 2026-03-14 | - |
+| 27. Secrets Cleanup | 1/1 | Complete    | 2026-03-14 | - |
 | 28. API Key Auth | v6.0 | 0/? | Not started | - |
 | 29. Production Docker Stack | v6.0 | 0/? | Not started | - |
 | 30. CI Pipeline | v6.0 | 0/? | Not started | - |
