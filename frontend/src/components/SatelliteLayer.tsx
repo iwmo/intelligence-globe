@@ -180,6 +180,16 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
             show: false,
           });
         }
+        // Immediately apply current showEntityLabels state so labels are visible
+        // on initial load when the toggle was persisted true in localStorage.
+        const initialShow = useSettingsStore.getState().showEntityLabels;
+        if (initialShow) {
+          for (let j = 0; j < labelColl.length; j++) {
+            const lbl = labelColl.get(j);
+            const pt = collection.get(j);
+            lbl.show = pt?.show !== false; // show unless the point itself is hidden
+          }
+        }
       }
 
       if (msg.type === 'POSITIONS') {
@@ -349,7 +359,7 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
   useEffect(() => {
     if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) return;
     const labelColl = labelCollectionRef.current;
-    if (labelColl.length === 0) return;
+    // NOTE: no length guard — must run even after async LOADED populates the collection
     for (let i = 0; i < labelColl.length; i++) {
       const lbl = labelColl.get(i);
       const pt = collectionRef.current?.get(i);
