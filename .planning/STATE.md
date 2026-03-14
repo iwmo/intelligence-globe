@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: Production Ready
-status: defining_requirements
-stopped_at: Requirements defined, roadmap pending
+status: roadmap_ready
+stopped_at: Roadmap created, ready for Phase 27 planning
 last_updated: "2026-03-14T00:00:00.000Z"
-last_activity: "2026-03-14 — Milestone v6.0 started; 14 requirements defined across 4 categories"
+last_activity: "2026-03-14 — Roadmap created for v6.0 (5 phases, 14 requirements, phases 27-31)"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,23 +21,56 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Planning v6.0 Production Ready milestone
+**Current focus:** v6.0 Production Ready — Phase 27 next
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 27 — Secrets Cleanup (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-14 — Milestone v6.0 started
+Status: Roadmap ready, awaiting Phase 27 planning
+Last activity: 2026-03-14 — Roadmap created
+
+```
+v6.0 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/5 phases)
+Phase 27 ░  Phase 28 ░  Phase 29 ░  Phase 30 ░  Phase 31 ░
+```
+
+## Performance Metrics
+
+| Metric | v6.0 Target | Current |
+|--------|-------------|---------|
+| Requirements covered | 14/14 | 14/14 (roadmap) |
+| Phases planned | 5 | 5 |
+| Plans complete | TBD | 0 |
 
 ## Accumulated Context
 
 ### Key Decisions (v6.0)
 
 - Static API key (not JWT/session auth) — homelab tool, single user, simple shared secret sufficient
-- Full production nginx stack (not separate docker-compose.prod.yml) — single compose file covers both dev and prod with build targets
-- All 4 CI checks: pytest, vitest+tsc, gitleaks secret scanning, docker build
+- Full production nginx stack integrated into main docker-compose.yml (not a separate compose file) — single source of truth, build targets differentiate dev vs prod
+- All 4 CI checks: pytest, vitest+tsc, gitleaks secret scanning, docker build — covers correctness + security
 - Observability deferred — current /health endpoint sufficient for homelab use
+- Phase 27 runs before Phase 28 so API_KEY is guaranteed present in .env.example before middleware uses it
+- Phase 31 depends on 29+30 so README can accurately describe the CI and Docker stack
+
+### Phase Dependency Map
+
+```
+Phase 27 (Secrets)
+  └─► Phase 28 (API Key Auth)
+  └─► Phase 29 (Production Docker)
+  └─► Phase 30 (CI Pipeline)
+         └─► Phase 31 (Documentation)
+```
+
+### CRITICAL: Credential Rotation Required Before Public Release
+
+User must revoke and rotate the following before making the repo public — real keys are in git history via old docker-compose.yml hardcoded fallbacks:
+- OpenSky OAuth2 client secret
+- AISStream API key
+
+Phase 27 (SEC-01) removes the fallbacks from the compose file but does NOT purge git history. User action required: `git filter-repo` or GitHub repo reset.
 
 ### Preserved from v5.0
 
@@ -53,10 +86,11 @@ None.
 
 ### Blockers/Concerns
 
-- User must revoke OpenSky and AISStream credentials before making repo public — real keys are in git history via old docker-compose.yml fallbacks.
+None blocking roadmap. Credential rotation (see above) is a user action item, not a code task.
 
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Requirements defined, roadmap pending
+Stopped at: Roadmap created (phases 27-31), Phase 27 ready for planning
 Resume file: None
+Next action: `/gsd:plan-phase 27`
