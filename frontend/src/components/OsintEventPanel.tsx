@@ -77,19 +77,27 @@ export function OsintEventPanel({ open = true, onClose }: Props) {
   };
 
   return (
+    <>
+      {/* Backdrop scrim */}
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.45)', zIndex: 299,
+      }} />
     <div
       style={{
         position: 'fixed',
-        top: '60px',
-        right: '16px',
-        zIndex: 90,
-        width: '280px',
-        background: 'rgba(0,10,20,0.92)',
-        border: '1px solid rgba(0,212,255,0.3)',
-        padding: '12px',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 300,
+        width: '340px',
+        background: 'rgba(0,10,20,0.96)',
+        border: '1px solid rgba(0,212,255,0.4)',
+        borderRadius: '6px',
+        padding: '16px',
         fontFamily: 'monospace',
         fontSize: '11px',
         color: '#ccc',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -190,5 +198,6 @@ export function OsintEventPanel({ open = true, onClose }: Props) {
         </button>
       </form>
     </div>
+    </>
   );
 }

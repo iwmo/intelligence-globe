@@ -96,3 +96,9 @@
     @apply font-sans;
   }
 }
+
+/* Intel panel custom scrollbar */
+.intel-panel-scroll::-webkit-scrollbar { width: 4px; }
+.intel-panel-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+.intel-panel-scroll::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.25); border-radius: 2px; }
+.intel-panel-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }

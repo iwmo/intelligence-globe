@@ -156,30 +156,26 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
       ref={containerRef}
       style={{
         position: 'fixed',
-        bottom: '32px', // sit above the 32px BottomStatusBar
-        left: '50%',
-        transform: 'translateX(-50%)',
+        bottom: 28,
+        left: 40,
+        right: 40,
         zIndex: 90,
         background: 'rgba(0, 10, 20, 0.85)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        border: '1px solid rgba(0, 212, 255, 0.2)',
-        borderRadius: '6px',
-        padding: '6px 10px',
+        borderTop: '1px solid rgba(0, 212, 255, 0.15)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
-        minWidth: '320px',
-        maxWidth: '90vw',
+        padding: '0',
       }}
     >
       {/* Header row with collapse toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: 36 }}>
         <span style={{
           fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
           letterSpacing: '0.15em', color: 'rgba(0,212,255,0.6)',
         }}>
-          JUMP TO CITY
+          NAV
         </span>
         <button
           onClick={toggleCollapsed}
@@ -210,7 +206,7 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
         gridTemplateRows: collapsed ? '0fr' : '1fr',
         transition: 'grid-template-rows 0.18s ease',
       }}>
-        <div style={{ overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 12px 8px' }}>
 
       {/* City quick-jump search */}
       <div style={{ position: 'relative' }}>

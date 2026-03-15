@@ -54,7 +54,7 @@ export function BottomStatusBar() {
         bottom: 0,
         left: 0,
         right: 0,
-        height: '32px',
+        height: '28px',
         background: 'rgba(0, 0, 0, 0.85)',
         borderTop: '1px solid rgba(0, 212, 255, 0.2)',
         display: 'flex',
