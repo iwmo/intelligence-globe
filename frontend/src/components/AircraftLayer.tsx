@@ -273,6 +273,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
 
       // Add new billboard if not yet in collection
       if (!billboardsByIcao24.has(ac.icao24)) {
+        const { layers, aircraftFilter: currentFilter } = useAppStore.getState();
         const bb = collection.add({
           position: nextPos,
           image: AIRCRAFT_ICON,
@@ -282,6 +283,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           alignedAxis: Cartesian3.ZERO,
           id: ac.icao24,         // bare icao24 — no prefix — click handler unchanged
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
+          show: layers.aircraft && matchesAircraftFilter(ac, currentFilter),
         });
         billboardsByIcao24.set(ac.icao24, bb);
         // Add parallel label (hidden by default; visibility controlled by showEntityLabels)

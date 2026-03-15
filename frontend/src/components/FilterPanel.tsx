@@ -1,18 +1,6 @@
 import { useAppStore } from '../store/useAppStore';
 
-const inputStyle: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.4)',
-  border: '1px solid rgba(0,212,255,0.2)',
-  color: '#e0e0e0',
-  fontSize: '11px',
-  borderRadius: '4px',
-  padding: '4px 8px',
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  width: '100%',
-};
+const CONSTELLATIONS = ['Starlink', 'ISS', 'Iridium', 'OneWeb', 'Other'];
 
 const labelStyle: React.CSSProperties = {
   color: 'rgba(0,212,255,0.6)',
@@ -20,7 +8,27 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.08em',
   display: 'block',
-  marginBottom: '4px',
+  marginBottom: '6px',
+};
+
+const chipBase: React.CSSProperties = {
+  fontFamily: 'monospace',
+  fontSize: '9px',
+  padding: '2px 6px',
+  background: 'rgba(0,0,0,0.4)',
+  border: '1px solid rgba(0,212,255,0.2)',
+  borderRadius: '2px',
+  color: 'rgba(0,212,255,0.55)',
+  cursor: 'pointer',
+  letterSpacing: '0.06em',
+  lineHeight: 1.4,
+  userSelect: 'none',
+};
+
+const chipActive: React.CSSProperties = {
+  background: 'rgba(0,212,255,0.15)',
+  border: '1px solid rgba(0,212,255,0.55)',
+  color: 'rgba(0,212,255,0.95)',
 };
 
 const resetButtonStyle: React.CSSProperties = {
@@ -39,14 +47,18 @@ export function FilterPanel() {
   const satelliteFilter = useAppStore(s => s.satelliteFilter);
   const setSatelliteFilter = useAppStore(s => s.setSatelliteFilter);
 
-  const handleConstellationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setSatelliteFilter({ constellation: val === 'All' ? null : val });
-  };
+  const selected = satelliteFilter.constellation ?? [];
 
-  const resetSatelliteFilters = () => {
+  function toggleConstellation(name: string) {
+    const next = selected.includes(name)
+      ? selected.filter(c => c !== name)
+      : [...selected, name];
+    setSatelliteFilter({ constellation: next.length > 0 ? next : null });
+  }
+
+  function resetSatelliteFilters() {
     setSatelliteFilter({ constellation: null, altitudeBand: null });
-  };
+  }
 
   return (
     <div style={{ padding: '12px' }}>
@@ -64,18 +76,17 @@ export function FilterPanel() {
 
       <div style={{ marginBottom: '8px' }}>
         <label style={labelStyle}>Constellation</label>
-        <select
-          style={selectStyle}
-          value={satelliteFilter.constellation ?? 'All'}
-          onChange={handleConstellationChange}
-        >
-          <option value="All">All</option>
-          <option value="Starlink">Starlink</option>
-          <option value="ISS">ISS</option>
-          <option value="Iridium">Iridium</option>
-          <option value="OneWeb">OneWeb</option>
-          <option value="Other">Other</option>
-        </select>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {CONSTELLATIONS.map(name => (
+            <button
+              key={name}
+              style={{ ...chipBase, ...(selected.includes(name) ? chipActive : {}) }}
+              onClick={() => toggleConstellation(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <button style={resetButtonStyle} onClick={resetSatelliteFilters}>

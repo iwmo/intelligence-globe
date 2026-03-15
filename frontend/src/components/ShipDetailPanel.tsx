@@ -15,7 +15,6 @@ function formatLastUpdate(lastUpdate: string | null): string {
 
 export function ShipDetailPanel() {
   const selectedShipId = useAppStore(s => s.selectedShipId);
-  const setSelectedShipId = useAppStore(s => s.setSelectedShipId);
 
   const { data, isLoading, isError } = useQuery<ShipRecord>({
     queryKey: ['ship', selectedShipId],
@@ -39,17 +38,6 @@ export function ShipDetailPanel() {
 
   return (
     <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ color: '#06B6D4', fontWeight: 'bold', fontSize: '14px' }}>
-          VESSEL
-        </span>
-        <button
-          onClick={() => setSelectedShipId(null)}
-          style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '16px' }}
-        >
-          &times;
-        </button>
-      </div>
 
       {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
       {isError && <div style={{ color: '#ff4444' }}>Failed to load vessel data</div>}

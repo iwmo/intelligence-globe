@@ -51,14 +51,14 @@ function deriveConstellation(objectName: string): string {
 
 function matchesSatelliteFilter(
   sat: { norad_cat_id: number; omm: Record<string, unknown> },
-  filter: { constellation: string | null; altitudeBand: [number, number] | null }
+  filter: { constellation: string[] | null; altitudeBand: [number, number] | null }
 ): boolean {
   const omm = sat.omm as Record<string, unknown>;
 
-  if (filter.constellation) {
+  if (filter.constellation && filter.constellation.length > 0) {
     const satConst = (omm.constellation as string | undefined)
       ?? deriveConstellation((omm.OBJECT_NAME as string) ?? '');
-    if (satConst !== filter.constellation) return false;
+    if (!filter.constellation.includes(satConst)) return false;
   }
 
   if (filter.altitudeBand) {

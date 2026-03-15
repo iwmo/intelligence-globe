@@ -3,12 +3,17 @@ import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
 import { MilitaryDetailPanel } from './MilitaryDetailPanel';
 import { ShipDetailPanel } from './ShipDetailPanel';
+import { DraggablePanel } from './DraggablePanel';
 
 export function RightDrawer() {
   const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
   const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
   const selectedShipId = useAppStore(s => s.selectedShipId);
+  const setSelectedSatelliteId = useAppStore(s => s.setSelectedSatelliteId);
+  const setSelectedAircraftId = useAppStore(s => s.setSelectedAircraftId);
+  const setSelectedMilitaryId = useAppStore(s => s.setSelectedMilitaryId);
+  const setSelectedShipId = useAppStore(s => s.setSelectedShipId);
 
   const isOpen =
     selectedSatelliteId !== null ||
@@ -18,24 +23,34 @@ export function RightDrawer() {
 
   if (!isOpen) return null;
 
+  const title =
+    selectedSatelliteId !== null ? 'SATELLITE' :
+    selectedAircraftId !== null ? 'AIRCRAFT' :
+    selectedMilitaryId !== null ? 'MILITARY' :
+    'VESSEL';
+
+  function handleClose() {
+    setSelectedSatelliteId(null);
+    setSelectedAircraftId(null);
+    setSelectedMilitaryId(null);
+    setSelectedShipId(null);
+  }
+
+  const defaultX = typeof window !== 'undefined' ? window.innerWidth - 252 : 1668;
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: '120px',
-      right: '12px',
-      width: '240px',
-      height: 'auto',
-      maxHeight: '320px',
-      background: 'rgba(10, 14, 20, 0.92)',
-      border: '1px solid rgba(0, 212, 255, 0.2)',
-      borderRadius: '6px',
-      zIndex: 100,
-      overflowY: 'auto',
-    }}>
+    <DraggablePanel
+      id="detail-panel"
+      title={title}
+      defaultPos={{ x: defaultX, y: 120 }}
+      defaultWidth={240}
+      minWidth={180}
+      onClose={handleClose}
+    >
       {selectedSatelliteId !== null && <SatelliteDetailPanel />}
       {selectedAircraftId !== null && <AircraftDetailPanel />}
       {selectedMilitaryId !== null && <MilitaryDetailPanel />}
       {selectedShipId !== null && <ShipDetailPanel />}
-    </div>
+    </DraggablePanel>
   );
 }

@@ -4,10 +4,6 @@ import type { MilitaryAircraftRecord } from '../hooks/useMilitaryAircraft';
 
 export function MilitaryDetailPanel() {
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
-  const setSelectedMilitaryId = useAppStore(s => s.setSelectedMilitaryId);
-  const setSelectedAircraftId = useAppStore(s => s.setSelectedAircraftId);
-  const setSelectedSatelliteId = useAppStore(s => s.setSelectedSatelliteId);
-  const setSelectedShipId = useAppStore(s => s.setSelectedShipId);
 
   const { data, isLoading, isError } = useQuery<MilitaryAircraftRecord>({
     queryKey: ['military', selectedMilitaryId],
@@ -22,26 +18,8 @@ export function MilitaryDetailPanel() {
 
   if (!selectedMilitaryId) return null;
 
-  function handleClose() {
-    setSelectedMilitaryId(null);
-    setSelectedAircraftId(null);
-    setSelectedSatelliteId(null);
-    setSelectedShipId(null);
-  }
-
   return (
     <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ color: '#F59E0B', fontWeight: 'bold', fontSize: '14px' }}>
-          MILITARY
-        </span>
-        <button
-          onClick={handleClose}
-          style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '16px' }}
-        >
-          &times;
-        </button>
-      </div>
 
       {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
       {isError && <div style={{ color: '#ff4444' }}>Failed to load military aircraft data</div>}

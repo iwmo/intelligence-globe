@@ -16,6 +16,7 @@ interface DraggablePanelProps {
   defaultPos: { x: number; y: number };
   defaultWidth?: number;
   minWidth?: number;
+  onClose?: () => void;
   children: React.ReactNode;
 }
 
@@ -33,7 +34,7 @@ function save(id: string, state: PanelState) {
   } catch {}
 }
 
-export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_WIDTH, minWidth = DEFAULT_MIN_WIDTH, children }: DraggablePanelProps) {
+export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_WIDTH, minWidth = DEFAULT_MIN_WIDTH, onClose, children }: DraggablePanelProps) {
   const [state, setState] = useState<PanelState>(() => load(id, defaultPos, defaultWidth));
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -146,29 +147,54 @@ export function DraggablePanel({ id, title, defaultPos, defaultWidth = DEFAULT_W
         }}>
           {title}
         </span>
-        <button
-          data-nodrag
-          onClick={toggleCollapsed}
-          title={state.collapsed ? 'Expand' : 'Collapse'}
-          style={{
-            background: 'none',
-            border: '1px solid rgba(0,212,255,0.3)',
-            borderRadius: '2px',
-            color: 'rgba(0,212,255,0.7)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            lineHeight: 1,
-            width: '18px',
-            height: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            padding: 0,
-          }}
-        >
-          {state.collapsed ? '+' : '−'}
-        </button>
+        <div data-nodrag style={{ display: 'flex', gap: '4px' }}>
+          {onClose && (
+            <button
+              onClick={onClose}
+              title="Close"
+              style={{
+                background: 'none',
+                border: '1px solid rgba(0,212,255,0.3)',
+                borderRadius: '2px',
+                color: 'rgba(0,212,255,0.7)',
+                cursor: 'pointer',
+                fontSize: '14px',
+                lineHeight: 1,
+                width: '18px',
+                height: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          )}
+          <button
+            onClick={toggleCollapsed}
+            title={state.collapsed ? 'Expand' : 'Collapse'}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(0,212,255,0.3)',
+              borderRadius: '2px',
+              color: 'rgba(0,212,255,0.7)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              lineHeight: 1,
+              width: '18px',
+              height: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              padding: 0,
+            }}
+          >
+            {state.collapsed ? '+' : '−'}
+          </button>
+        </div>
       </div>
 
       {/* Content — grid collapse animation */}

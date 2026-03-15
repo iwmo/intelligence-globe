@@ -15,7 +15,6 @@ interface SatelliteDetail {
 
 export function SatelliteDetailPanel() {
   const selectedId = useAppStore(s => s.selectedSatelliteId);
-  const clearSelection = useAppStore(s => s.setSelectedSatelliteId);
 
   const { data, isLoading, isError } = useQuery<SatelliteDetail>({
     queryKey: ['satellite', selectedId],
@@ -32,17 +31,6 @@ export function SatelliteDetailPanel() {
 
   return (
     <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ color: '#00D4FF', fontWeight: 'bold', fontSize: '14px' }}>
-          SATELLITE
-        </span>
-        <button
-          onClick={() => clearSelection(null)}
-          style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '16px' }}
-        >
-          &times;
-        </button>
-      </div>
 
       {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
       {isError && <div style={{ color: '#ff4444' }}>Failed to load satellite data</div>}

@@ -168,7 +168,7 @@ export function CameraControlWidget(): React.ReactElement {
   }
 
   return (
-    <DraggablePanel id="camera-controls" title="CAMERA" defaultPos={{ x: defaultX, y: 150 }} defaultWidth={210} minWidth={160}>
+    <DraggablePanel id="camera-controls" title="CAMERA" defaultPos={{ x: defaultX, y: 150 }} defaultWidth={210} minWidth={130}>
       <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
         {/* Zoom */}

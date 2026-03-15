@@ -149,7 +149,7 @@ export function GdeltLayer({ viewer }: { viewer: Viewer | null }) {
   if (layerVisible && sourceIsStale) {
     return (
       <div style={{
-        position: 'fixed', top: '85px', right: '12px', zIndex: 100,
+        position: 'fixed', top: '125px', right: '12px', zIndex: 100,
         background: 'rgba(245, 158, 11, 0.15)',
         border: '1px solid #F59E0B', color: '#F59E0B',
         fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,

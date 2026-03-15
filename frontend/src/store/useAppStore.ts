@@ -34,7 +34,7 @@ interface AppState {
   setSelectedShipId: (id: string | null) => void;
 
   satelliteFilter: {
-    constellation: string | null;
+    constellation: string[] | null;
     altitudeBand: [number, number] | null; // [min_km, max_km]
   };
   setSatelliteFilter: (f: Partial<AppState['satelliteFilter']>) => void;

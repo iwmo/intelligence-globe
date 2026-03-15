@@ -27,6 +27,13 @@ export function useGdeltEvents() {
   // VPC-08: suppress bbox during playback — replay covers arbitrary space/time
   const effectiveBbox = replayMode === 'live' ? viewportBbox : null;
 
+  // Live mode: only fetch events from the last 24 hours.
+  // Floor to the nearest 15-min boundary to keep the queryKey stable within
+  // each refetch cycle and avoid redundant re-fetches between renders.
+  const liveSince = replayMode === 'live'
+    ? new Date(Math.floor((Date.now() - 86_400_000) / 900_000) * 900_000).toISOString()
+    : null;
+
   // GDELT-10: window bounds for single-load replay session.
   // Only populated when in playback AND both window values are non-null.
   // replayTs is intentionally NOT in the queryKey — window bounds are constant
@@ -41,7 +48,7 @@ export function useGdeltEvents() {
       : null;
 
   return useQuery<GdeltEvent[]>({
-    queryKey: ['gdelt-events', effectiveBbox, replayWindowSince, replayWindowUntil],
+    queryKey: ['gdelt-events', effectiveBbox, liveSince, replayWindowSince, replayWindowUntil],
     queryFn: async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000);
@@ -55,6 +62,9 @@ export function useGdeltEvents() {
           params.set('max_lon', String(effectiveBbox.maxLon));
         }
 
+        if (liveSince != null) {
+          params.set('since', liveSince);
+        }
         if (replayWindowSince != null) {
           params.set('since', replayWindowSince);
         }

@@ -27,17 +27,17 @@ describe('useAppStore — filter and search slices', () => {
     });
 
     it('setSatelliteFilter merges partial update — constellation only', () => {
-      useAppStore.getState().setSatelliteFilter({ constellation: 'Starlink' });
+      useAppStore.getState().setSatelliteFilter({ constellation: ['Starlink'] });
       const { satelliteFilter } = useAppStore.getState();
-      expect(satelliteFilter.constellation).toBe('Starlink');
+      expect(satelliteFilter.constellation).toEqual(['Starlink']);
       expect(satelliteFilter.altitudeBand).toBeNull();
     });
 
     it('setSatelliteFilter merges partial update — altitudeBand only', () => {
-      useAppStore.getState().setSatelliteFilter({ constellation: 'Starlink' });
+      useAppStore.getState().setSatelliteFilter({ constellation: ['Starlink'] });
       useAppStore.getState().setSatelliteFilter({ altitudeBand: [200, 2000] });
       const { satelliteFilter } = useAppStore.getState();
-      expect(satelliteFilter.constellation).toBe('Starlink');
+      expect(satelliteFilter.constellation).toEqual(['Starlink']);
       expect(satelliteFilter.altitudeBand).toEqual([200, 2000]);
     });
   });
