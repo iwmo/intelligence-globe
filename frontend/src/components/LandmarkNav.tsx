@@ -157,20 +157,24 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
       style={{
         position: 'fixed',
         bottom: 28,
-        left: 40,
-        right: 40,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 90,
         background: 'rgba(0, 10, 20, 0.85)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        borderTop: '1px solid rgba(0, 212, 255, 0.15)',
+        border: '1px solid rgba(0, 212, 255, 0.15)',
+        borderRadius: '4px',
         display: 'flex',
         flexDirection: 'column',
         padding: '0',
+        minWidth: 240,
+        maxWidth: 640,
+        width: 'max-content',
       }}
     >
       {/* Header row with collapse toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', height: 36 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', height: 26 }}>
         <span style={{
           fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
           letterSpacing: '0.15em', color: 'rgba(0,212,255,0.6)',
@@ -202,11 +206,11 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
 
       {/* Collapsible content */}
       <div style={{
-        display: 'grid',
-        gridTemplateRows: collapsed ? '0fr' : '1fr',
-        transition: 'grid-template-rows 0.18s ease',
+        overflow: 'hidden',
+        maxHeight: collapsed ? 0 : 300,
+        transition: 'max-height 0.18s ease',
       }}>
-        <div style={{ overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 12px 8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 12px 8px' }}>
 
       {/* City quick-jump search */}
       <div style={{ position: 'relative' }}>
@@ -297,8 +301,8 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
         ))}
       </div>
 
-        </div>{/* end overflow wrapper */}
-      </div>{/* end grid collapse */}
+        </div>
+      </div>
     </div>
   );
 }

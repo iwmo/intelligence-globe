@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
 import { Layers, Search, SlidersHorizontal, Monitor } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { PostProcessPanel } from './PostProcessPanel';
-import { zoomStep } from '../lib/viewerRegistry';
 
 type LeftTab = 'layers' | 'search' | 'filters' | 'visual' | null;
 
@@ -21,19 +20,45 @@ function loadTab(): LeftTab {
   catch { return null; }
 }
 
+function loadPanelWidth(): number {
+  try { return parseInt(localStorage.getItem('left-panel-width') ?? '260') || 260; }
+  catch { return 260; }
+}
+
 interface LeftSidebarProps {
   workerRef: RefObject<Worker | null>;
 }
 
 export function LeftSidebar({ workerRef }: LeftSidebarProps) {
   const [activeTab, setActiveTab] = useState<LeftTab>(() => loadTab());
-  const cleanUI = useAppStore(s => s.cleanUI);
-  const setCleanUI = useAppStore(s => s.setCleanUI);
+  const [panelWidth, setPanelWidth] = useState<number>(loadPanelWidth);
+  const panelWidthRef = useRef(panelWidth);
+  panelWidthRef.current = panelWidth;
+
+  useEffect(() => {
+    try { localStorage.setItem('left-panel-width', String(panelWidth)); } catch {}
+  }, [panelWidth]);
 
   function handleTabClick(tab: NonNullable<LeftTab>) {
     const next: LeftTab = activeTab === tab ? null : tab;
     setActiveTab(next);
     try { localStorage.setItem('left-sidebar-tab', JSON.stringify(next)); } catch {}
+  }
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = panelWidthRef.current;
+    function onMove(ev: MouseEvent) {
+      const newW = Math.max(180, Math.min(520, startW + ev.clientX - startX));
+      setPanelWidth(newW);
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   const panelOpen = activeTab !== null;
@@ -60,33 +85,6 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         <TabIcon id="search"  icon={<Search size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Search" />
         <TabIcon id="filters" icon={<SlidersHorizontal size={16} />} activeTab={activeTab} onTabClick={handleTabClick} tooltip="Filters" />
         <TabIcon id="visual"  icon={<Monitor size={16} />}           activeTab={activeTab} onTabClick={handleTabClick} tooltip="Visual Engine" />
-
-        <div style={{ flex: 1 }} />
-
-        {/* Zoom controls */}
-        <button onClick={() => zoomStep('in')}  title="Zoom in"  style={zoomBtnStyle}>+</button>
-        <button onClick={() => zoomStep('out')} title="Zoom out" style={{ ...zoomBtnStyle, marginBottom: 6 }}>−</button>
-
-        {/* Clean UI toggle */}
-        <button
-          onClick={() => setCleanUI(!cleanUI)}
-          title="Clean UI"
-          style={{
-            width: 40,
-            height: 26,
-            background: 'none',
-            border: 'none',
-            borderTop: '1px solid rgba(0,212,255,0.1)',
-            color: 'rgba(255,255,255,0.3)',
-            cursor: 'pointer',
-            fontSize: 8,
-            fontFamily: 'monospace',
-            letterSpacing: '0.05em',
-            marginBottom: 2,
-          }}
-        >
-          CLEAN
-        </button>
       </div>
 
       {/* Sliding left panel */}
@@ -95,12 +93,12 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         left: 40,
         top: 26,
         bottom: 28,
-        width: panelOpen ? 260 : 0,
+        width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
         borderRight: panelOpen ? '1px solid rgba(0,212,255,0.15)' : 'none',
         overflow: 'hidden',
-        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        transition: panelOpen ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex',
         flexDirection: 'column',
       }}>
@@ -154,6 +152,25 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
           {activeTab === 'filters' && <FilterPanel />}
           {activeTab === 'visual'  && <div style={{ padding: '4px 0' }}><PostProcessPanel /></div>}
         </div>
+
+        {/* Resize handle */}
+        {panelOpen && (
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              cursor: 'col-resize',
+              background: 'transparent',
+              zIndex: 10,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,212,255,0.25)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+          />
+        )}
       </div>
     </>
   );
@@ -193,24 +210,6 @@ function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
     </button>
   );
 }
-
-const zoomBtnStyle: React.CSSProperties = {
-  width: 32,
-  height: 26,
-  background: 'transparent',
-  border: '1px solid rgba(0,212,255,0.2)',
-  borderRadius: 3,
-  color: '#00D4FF',
-  cursor: 'pointer',
-  fontFamily: 'monospace',
-  fontSize: 16,
-  lineHeight: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-  marginBottom: 2,
-};
 
 function LayersTabContent() {
   const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass } = useAppStore();

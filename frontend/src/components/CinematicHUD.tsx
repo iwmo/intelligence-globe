@@ -50,8 +50,9 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
       {/* 1. Classification Banner — top center */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
+        height: 26,
         background: 'rgba(0, 80, 0, 0.7)', color: '#00ff00',
-        textAlign: 'center', padding: '4px 0',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '11px', fontFamily: 'monospace',
         letterSpacing: '0.15em', textTransform: 'uppercase', userSelect: 'none',
       }}>

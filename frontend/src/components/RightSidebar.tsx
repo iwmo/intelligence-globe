@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Compass, Settings } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
@@ -8,6 +8,7 @@ import { ShipDetailPanel } from './ShipDetailPanel';
 import { CameraControlWidget } from './CameraControlWidget';
 import { SettingsPanel } from './SettingsPanel';
 import { GdeltDetailPanel } from './GdeltDetailPanel';
+import { zoomStep } from '../lib/viewerRegistry';
 
 type RightTab = 'camera' | 'settings' | null;
 
@@ -19,8 +20,20 @@ const ENTITY_COLORS: Record<string, string> = {
   'GDELT EVENT': '#EAB308',
 };
 
+function loadPanelWidth(): number {
+  try { return parseInt(localStorage.getItem('right-panel-width') ?? '280') || 280; }
+  catch { return 280; }
+}
+
 export function RightSidebar() {
   const [activeRightTab, setActiveRightTab] = useState<RightTab>(null);
+  const [panelWidth, setPanelWidth] = useState<number>(loadPanelWidth);
+  const panelWidthRef = useRef(panelWidth);
+  panelWidthRef.current = panelWidth;
+
+  useEffect(() => {
+    try { localStorage.setItem('right-panel-width', String(panelWidth)); } catch {}
+  }, [panelWidth]);
 
   const selectedSatelliteId  = useAppStore(s => s.selectedSatelliteId);
   const selectedAircraftId   = useAppStore(s => s.selectedAircraftId);
@@ -79,6 +92,22 @@ export function RightSidebar() {
     setActiveRightTab(prev => prev === tab ? null : tab);
   }
 
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = panelWidthRef.current;
+    function onMove(ev: MouseEvent) {
+      const newW = Math.max(140, Math.min(520, startW - (ev.clientX - startX)));
+      setPanelWidth(newW);
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
   return (
     <>
       {/* Right icon rail */}
@@ -123,10 +152,14 @@ export function RightSidebar() {
             height: 8,
             borderRadius: '50%',
             background: ENTITY_COLORS[entityType],
-            marginBottom: 12,
+            marginBottom: 4,
             boxShadow: `0 0 6px ${ENTITY_COLORS[entityType]}`,
           }} />
         )}
+
+        {/* Zoom controls */}
+        <button onClick={() => zoomStep('in')}  title="Zoom in"  style={zoomBtnStyle}>+</button>
+        <button onClick={() => zoomStep('out')} title="Zoom out" style={{ ...zoomBtnStyle, marginBottom: 6 }}>−</button>
       </div>
 
       {/* Context panel */}
@@ -135,12 +168,12 @@ export function RightSidebar() {
         right: 40,
         top: 62,
         bottom: 28,
-        width: panelOpen ? 280 : 0,
+        width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
         borderLeft: panelOpen ? '1px solid rgba(0,212,255,0.15)' : 'none',
         overflow: 'hidden',
-        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        transition: panelOpen ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex',
         flexDirection: 'column',
       }}>
@@ -197,6 +230,25 @@ export function RightSidebar() {
           {!hasEntity && activeRightTab === 'camera'   && <CameraControlWidget />}
           {!hasEntity && activeRightTab === 'settings' && <SettingsPanel />}
         </div>
+
+        {/* Resize handle */}
+        {panelOpen && (
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              cursor: 'col-resize',
+              background: 'transparent',
+              zIndex: 10,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,212,255,0.25)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+          />
+        )}
       </div>
     </>
   );
@@ -237,3 +289,21 @@ function RightTabIcon({ id, icon, activeTab, onTabClick, tooltip, disabled }: Ri
     </button>
   );
 }
+
+const zoomBtnStyle: React.CSSProperties = {
+  width: 32,
+  height: 26,
+  background: 'transparent',
+  border: '1px solid rgba(0,212,255,0.2)',
+  borderRadius: 3,
+  color: '#00D4FF',
+  cursor: 'pointer',
+  fontFamily: 'monospace',
+  fontSize: 16,
+  lineHeight: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  marginBottom: 2,
+};
