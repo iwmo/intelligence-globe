@@ -80,6 +80,19 @@ vi.mock('cesium', () => {
     Material: { fromType: vi.fn(() => ({})) },
     JulianDate: { now: vi.fn() },
     Viewer: class MockViewer {},
+    LabelCollection: class MockLabelCollection {
+      add = vi.fn(() => ({ text: '', show: true, position: null }));
+      removeAll = vi.fn();
+      isDestroyed = vi.fn(() => false);
+      length = 0;
+      get = vi.fn(() => ({ text: '', show: true, position: null }));
+    },
+    LabelStyle: { FILL_AND_OUTLINE: 'FILL_AND_OUTLINE' },
+    VerticalOrigin: { CENTER: 'CENTER', TOP: 'TOP', BOTTOM: 'BOTTOM' },
+    HorizontalOrigin: { CENTER: 'CENTER', LEFT: 'LEFT', RIGHT: 'RIGHT' },
+    NearFarScalar: class MockNearFarScalar {
+      constructor(_near: number, _nearValue: number, _far: number, _farValue: number) {}
+    },
   };
 });
 
