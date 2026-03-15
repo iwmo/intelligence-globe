@@ -5,7 +5,7 @@ milestone_name: ADSB.lol Migration
 status: completed
 stopped_at: Completed 43-04-PLAN.md
 last_updated: "2026-03-15T11:11:08.144Z"
-last_activity: "2026-03-15 — Phase 42 complete: roll field added to detail endpoint return dict and AircraftDetail TypeScript interface"
+last_activity: "2026-03-15 — Phase 43-02 complete: Phase 39 VALIDATION.md created with nyquist_compliant: true covering UI-01 through UI-04"
 progress:
   total_phases: 6
   completed_phases: 6
@@ -86,6 +86,11 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 
 ### Decisions (Phase 43)
 
+- 43-03: Phase 40 VALIDATION.md created from verified facts in 40-VERIFICATION.md (7/7 must-haves) — all per-task commands and statuses grounded in real evidence
+- 43-03: Wave 0 marked N/A for phase 40 — plans 01/02 are filesystem/grep-verifiable (no test scaffold), plan 03 extended a pre-existing test file
+- 43-01: All 13 per-task rows in 38-VALIDATION.md flipped to green — evidence from 38-VERIFICATION.md (11/11 passed 2026-03-15)
+- 43-01: Wave 0 note added clarifying tests were created in plan 01 TDD RED phase, not pre-existing infrastructure
+- 43-01: Approval date set to 2026-03-15 matching 38-VERIFICATION.md verified timestamp
 - 43-04: Created Phase 41 VALIDATION.md retroactively from existing VERIFICATION.md and SUMMARY.md — both were complete and accurate, enabling exact field population
 - 43-04: Wave 0 documented as TDD RED commit 88708d1; tests added to pre-existing file (not new file); wave_0_complete: true
 
