@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
-stopped_at: Completed 38-backend-migration plan 03 (38-03-PLAN.md)
-last_updated: "2026-03-15T09:05:11.682Z"
-last_activity: 2026-03-15 — 38-02 Alembic migration + model updates complete
+stopped_at: Completed 38-backend-migration plan 04 (38-04-PLAN.md)
+last_updated: "2026-03-15T09:10:08.111Z"
+last_activity: 2026-03-15 — 38-03 ingest_adsbiol.py worker created; all 13 tests GREEN
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -24,11 +24,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 38 — Backend Migration (in progress — plan 03/04 complete)
-Status: 38-03 ingest worker complete; 38-04 (wiring/cleanup) next
-Last activity: 2026-03-15 — 38-03 ingest_adsbiol.py worker created; all 13 tests GREEN
+Phase: 38 — Backend Migration (complete — all 4/4 plans done)
+Status: 38-04 complete; all OpenSky modules removed, ADSB.lol wired end-to-end
+Last activity: 2026-03-15 — 38-04 worker wiring and OpenSky cutover complete
 
-Progress: [----------] 0/2 phases complete (3/4 plans in phase 38)
+Progress: [██████████] 100% (4/4 plans in phase 38)
 
 ## Accumulated Context
 
@@ -85,6 +85,7 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 38-03: Synchronous redis_client at module level — test mock contract requires MagicMock, not aioredis AsyncMock
 - 38-03: os.getenv() inside function body for adsbio_base_url — settings singleton cannot reflect patched env; getenv reads fresh each call
 - 38-03: Tombstone sweep guarded by box_param is None — viewport bbox queries must not tombstone out-of-view aircraft
+- 38-04: Retired test_ingest_military.py with module-level pytest.skip (mirrors test_ingest_aircraft.py pattern from Plan 01); file was not pre-retired as plan assumed
 
 ### Pending Todos
 
@@ -96,7 +97,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:05:11.680Z
-Stopped at: Completed 38-backend-migration plan 03 (38-03-PLAN.md)
+Last session: 2026-03-15T09:10:08.108Z
+Stopped at: Completed 38-backend-migration plan 04 (38-04-PLAN.md)
 Resume file: None
-Next action: Execute plan 38-04 (wiring, cleanup, retire old ingest files)
+Next action: Phase 38 complete — run alembic upgrade head to apply Plan 38-02 schema migrations to local DB

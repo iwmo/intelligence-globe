@@ -110,7 +110,7 @@
 
 **Milestone Goal:** Replace OpenSky Network and airplanes.live with ADSB.lol re-API as the single aircraft data source, unlocking richer telemetry fields, no credit limits, and a unified commercial + military ingest pipeline.
 
-- [ ] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=`
+- [x] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=` (completed 2026-03-15)
 - [ ] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer
 
 ## Phase Details
@@ -184,5 +184,5 @@ Plans:
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
-| 38. Backend Migration | 3/4 | In Progress|  | - |
+| 38. Backend Migration | 4/4 | Complete   | 2026-03-15 | - |
 | 39. Frontend Telemetry UI | v10.0 | 0/TBD | Not started | - |
