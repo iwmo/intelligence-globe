@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: in_progress
-stopped_at: Completed 42-01-PLAN.md
-last_updated: "2026-03-15T10:53:00.000Z"
-last_activity: 2026-03-15 — Phase 42 complete: roll field added to detail endpoint and AircraftDetail interface
+status: completed
+stopped_at: Completed 43-04-PLAN.md
+last_updated: "2026-03-15T11:11:08.144Z"
+last_activity: "2026-03-15 — Phase 42 complete: roll field added to detail endpoint return dict and AircraftDetail TypeScript interface"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 15
   percent: 73
 ---
 
@@ -84,6 +84,11 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 39-02: computeIconRotation extracted as named export from AircraftLayer.tsx — enables unit testing without Cesium mocks; roll applied as additive offset to heading: toRadians(-(trueTrack ?? 0) + (roll ?? 0))
 - 39-02: ac.roll passed directly (typed number | null from AircraftRecord) — no ?? null needed since type already nullable
 
+### Decisions (Phase 43)
+
+- 43-04: Created Phase 41 VALIDATION.md retroactively from existing VERIFICATION.md and SUMMARY.md — both were complete and accurate, enabling exact field population
+- 43-04: Wave 0 documented as TDD RED commit 88708d1; tests added to pre-existing file (not new file); wave_0_complete: true
+
 ### Decisions (Phase 42)
 
 - 42-01: roll placed after type_code in detail return dict — matches list endpoint field order and groups with telemetry block
@@ -128,7 +133,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:53:00.000Z
-Stopped at: Completed 42-01-PLAN.md
+Last session: 2026-03-15T11:11:08.139Z
+Stopped at: Completed 43-04-PLAN.md
 Resume file: None
 Next action: Plan and execute Phase 43 (Nyquist catch-up)

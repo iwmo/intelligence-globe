@@ -115,7 +115,7 @@
 - [x] **Phase 40: v10.0 Tech Debt Cleanup** — Delete dead OpenSky worker file, fix stale poll interval comment in useAircraft.ts, fix pre-existing SatelliteLayer Cesium mock test failures (completed 2026-03-15)
 - [x] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap (completed 2026-03-15)
 - [x] **Phase 42: Fix Detail API Roll Field** — Add `roll` to `get_aircraft()` return dict, closing MISSING-01 integration gap and BROKEN-01 flow gap from v10.0 audit (completed 2026-03-15)
-- [ ] **Phase 43: Nyquist Validation Catch-up** — Add VALIDATION.md for phases 39, 40, 41 and resolve `nyquist_compliant: false` in phase 38, achieving Nyquist compliance across all v10.0 phases
+- [x] **Phase 43: Nyquist Validation Catch-up** — Add VALIDATION.md for phases 39, 40, 41 and resolve `nyquist_compliant: false` in phase 38, achieving Nyquist compliance across all v10.0 phases (completed 2026-03-15)
 
 ## Phase Details
 
@@ -249,5 +249,5 @@ Plans:
 | 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
 | 40. v10.0 Tech Debt Cleanup | v10.0 | 3/3 | Complete | 2026-03-15 |
 | 41. Aircraft Registration & Type Code Display | v10.0 | 1/1 | Complete | 2026-03-15 |
-| 42. Fix Detail API Roll Field | 1/1 | Complete   | 2026-03-15 | — |
-| 43. Nyquist Validation Catch-up | v10.0 | 0/4 | Pending | — |
+| 42. Fix Detail API Roll Field | 1/1 | Complete    | 2026-03-15 | — |
+| 43. Nyquist Validation Catch-up | 4/4 | Complete   | 2026-03-15 | — |
