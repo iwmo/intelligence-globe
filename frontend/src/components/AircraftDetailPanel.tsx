@@ -190,6 +190,22 @@ export function AircraftDetailPanel() {
             </div>
           )}
 
+          {/* Registration — absent when null */}
+          {data.registration != null && (
+            <div data-testid="registration-row">
+              <span style={{ color: '#888' }}>Reg: </span>
+              <span>{data.registration}</span>
+            </div>
+          )}
+
+          {/* Type — absent when null */}
+          {data.type_code != null && (
+            <div data-testid="type-row">
+              <span style={{ color: '#888' }}>Type: </span>
+              <span>{data.type_code}</span>
+            </div>
+          )}
+
           {/* Nav modes chips — absent when null or empty */}
           {data.nav_modes && data.nav_modes.length > 0 && (
             <div data-testid="nav-modes-section">
