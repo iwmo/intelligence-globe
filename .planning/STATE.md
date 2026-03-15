@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
-stopped_at: Completed 40-01-PLAN.md
-last_updated: "2026-03-15T10:07:33.240Z"
+stopped_at: Completed 41-01-PLAN.md
+last_updated: "2026-03-15T10:17:54.508Z"
 last_activity: 2026-03-15 — Phase 40 plan 03 executed; all 11 satellite cleanup tests pass
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 99
+  completed_phases: 4
+  total_plans: 10
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 40 — v10.0 Tech Debt Cleanup (plan 03 complete)
-Status: Phase 40 plan 03 complete — SatelliteLayer.cleanup.test.tsx now fully passing
-Last activity: 2026-03-15 — Phase 40 plan 03 executed; all 11 satellite cleanup tests pass
+Phase: 41 — Aircraft Registration and Type Display (plan 01 complete)
+Status: Phase 41 plan 01 complete — registration-row and type-row rendering in AircraftDetailPanel; all 17 tests pass
+Last activity: 2026-03-15 — Phase 41 plan 01 executed; registration and type_code fields now displayed in AircraftDetailPanel
 
-Progress: [██████████] 99% (8/9 plans across 4 phases)
+Progress: [██████████] 100% (10/10 plans across 4 phases)
 
 ## Accumulated Context
 
@@ -84,6 +84,12 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 39-02: computeIconRotation extracted as named export from AircraftLayer.tsx — enables unit testing without Cesium mocks; roll applied as additive offset to heading: toRadians(-(trueTrack ?? 0) + (roll ?? 0))
 - 39-02: ac.roll passed directly (typed number | null from AircraftRecord) — no ?? null needed since type already nullable
 
+### Decisions (Phase 41)
+
+- 41-01: registration-row and type-row placed after Mach row, before nav_modes chips — groups identification fields after performance telemetry (natural scan order)
+- 41-01: Label abbreviations "Reg:" and "Type:" used — compact, fits monospace panel style without truncation
+- 41-01: No refactor step needed — two JSX blocks are self-contained and match existing patterns exactly
+
 ### Decisions (Phase 40)
 
 - 40-01: ingest_aircraft.py was never committed to git (untracked on disk) — git rm deleted from filesystem; --allow-empty commit recorded the event; file confirmed deleted
@@ -115,7 +121,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:04:33.541Z
-Stopped at: Completed 40-01-PLAN.md
+Last session: 2026-03-15T10:17:54.505Z
+Stopped at: Completed 41-01-PLAN.md
 Resume file: None
-Next action: Plan and execute Phase 40 (tech debt cleanup), then Phase 41 (registration/type display)
+Next action: All planned phases complete — v10.0 milestone delivered

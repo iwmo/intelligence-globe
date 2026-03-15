@@ -113,7 +113,7 @@
 - [x] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=` (completed 2026-03-15)
 - [x] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer (completed 2026-03-15)
 - [x] **Phase 40: v10.0 Tech Debt Cleanup** — Delete dead OpenSky worker file, fix stale poll interval comment in useAircraft.ts, fix pre-existing SatelliteLayer Cesium mock test failures (completed 2026-03-15)
-- [ ] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap
+- [x] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap (completed 2026-03-15)
 
 ## Phase Details
 
@@ -218,4 +218,4 @@ Plans:
 | 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
 | 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
 | 40. v10.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-03-15 | — |
-| 41. Aircraft Registration & Type Code Display | v10.0 | 0/1 | Pending | — |
+| 41. Aircraft Registration & Type Code Display | 1/1 | Complete   | 2026-03-15 | — |
