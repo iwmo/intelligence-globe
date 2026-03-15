@@ -88,6 +88,7 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 
 - 40-01: ingest_aircraft.py was never committed to git (untracked on disk) — git rm deleted from filesystem; --allow-empty commit recorded the event; file confirmed deleted
 - 40-01: ingest_adsbiol.py lives at backend/app/tasks/ingest_adsbiol.py (not workers/) — plan artifact path was inaccurate but objective (delete dead OpenSky worker) was correct and achieved
+- 40-02: staleTime and refetchInterval both set to 15_000 — matches ADSB.lol backend refresh (~15s), eliminates up-to-90s data lag; OpenSky comment removed as it referenced a retired data source
 - 40-03: Added length and get to MockLabelCollection beyond plan spec — SatelliteLayer.tsx accesses labelColl.length and labelColl.get(i) in LOADED/POSITIONS handlers; required for render-time correctness
 - 40-03: Cesium mock completeness rule established — every symbol in the component's cesium import block must appear in vi.mock('cesium') or the import resolves to undefined and crashes at module-scope instantiation
 
