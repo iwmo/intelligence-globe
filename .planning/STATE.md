@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: in_progress
-stopped_at: Gap closure phases added (42, 43)
-last_updated: "2026-03-15T15:00:00.000Z"
-last_activity: 2026-03-15 — Gap closure phases 42 and 43 added from v10.0 audit (roll field fix + Nyquist catch-up)
+stopped_at: Completed 42-01-PLAN.md
+last_updated: "2026-03-15T10:53:00.000Z"
+last_activity: 2026-03-15 — Phase 42 complete: roll field added to detail endpoint and AircraftDetail interface
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 10
-  percent: 67
+  completed_plans: 11
+  percent: 73
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 42 — Fix Detail API Roll Field (not started)
-Status: Gap closure phases 42-43 added from v10.0 audit; ready to plan Phase 42
-Last activity: 2026-03-15 — Gap closure phases 42 and 43 added from v10.0 audit
+Phase: 42 — Fix Detail API Roll Field (complete)
+Status: Phase 42 complete; Phase 43 (Nyquist catch-up) is next
+Last activity: 2026-03-15 — Phase 42 complete: roll field added to detail endpoint return dict and AircraftDetail TypeScript interface
 
-Progress: [██████████░░░░░] 67% (10/15 plans across 6 phases)
+Progress: [███████████░░░░] 73% (11/15 plans across 6 phases)
 
 ## Accumulated Context
 
@@ -84,6 +84,13 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 39-02: computeIconRotation extracted as named export from AircraftLayer.tsx — enables unit testing without Cesium mocks; roll applied as additive offset to heading: toRadians(-(trueTrack ?? 0) + (roll ?? 0))
 - 39-02: ac.roll passed directly (typed number | null from AircraftRecord) — no ?? null needed since type already nullable
 
+### Decisions (Phase 42)
+
+- 42-01: roll placed after type_code in detail return dict — matches list endpoint field order and groups with telemetry block
+- 42-01: roll: number | null in TypeScript — matches Python Float | None; consistent with ias, tas, mach nullable numeric fields
+- 42-01: No JSX roll render row added — phase 42 scope is API + interface parity only, not UI rendering
+- 42-01: Docker VM disk full (100%) during execution — recovered by docker builder prune and postgres container restart; no schema changes needed
+
 ### Decisions (Phase 41)
 
 - 41-01: registration-row and type-row placed after Mach row, before nav_modes chips — groups identification fields after performance telemetry (natural scan order)
@@ -121,7 +128,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:17:54.505Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-03-15T10:53:00.000Z
+Stopped at: Completed 42-01-PLAN.md
 Resume file: None
-Next action: Plan and execute Phase 42 (Fix Detail API Roll Field)
+Next action: Plan and execute Phase 43 (Nyquist catch-up)
