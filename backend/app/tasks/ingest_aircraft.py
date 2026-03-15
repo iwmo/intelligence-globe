@@ -71,9 +71,37 @@ async def fetch_opensky_token(client_id: str, client_secret: str) -> str:
         return resp.json()["access_token"]
 
 
+async def get_viewport_bbox() -> tuple[float, float, float, float] | None:
+    """Read the last-known viewport bounding box from Redis.
+
+    Returns (lamin, lomin, lamax, lomax) if set and not expired, else None.
+    """
+    import os
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    import redis.asyncio as aioredis
+    client = aioredis.from_url(redis_url)
+    try:
+        raw = await client.get("globe:viewport_bbox")
+        if not raw:
+            return None
+        parts = raw.decode().split(",")
+        if len(parts) != 4:
+            return None
+        lamin, lomin, lamax, lomax = (float(p) for p in parts)
+        return lamin, lomin, lamax, lomax
+    except Exception:
+        return None
+    finally:
+        await client.aclose()
+
+
 async def fetch_aircraft_states(token: str) -> tuple[list, int]:
     """Poll the OpenSky /states/all endpoint and return the state-vector list
     together with the response timestamp.
+
+    Uses the stored viewport bounding box (set by the frontend via
+    PUT /api/viewport-bounds) when available, falling back to the global
+    /states/all query.  Bounding box queries cost ~10x fewer credits.
 
     Args:
         token: Valid Bearer access token from fetch_opensky_token().
@@ -89,9 +117,24 @@ async def fetch_aircraft_states(token: str) -> tuple[list, int]:
         RuntimeError: When the server responds with HTTP 429 (rate-limited).
         httpx.HTTPStatusError: For any other non-2xx response.
     """
+    bbox = await get_viewport_bbox()
+    if bbox:
+        lamin, lomin, lamax, lomax = bbox
+        url = (
+            f"{OPENSKY_STATES_URL}"
+            f"?lamin={lamin}&lomin={lomin}&lamax={lamax}&lomax={lomax}"
+        )
+        logger.info(
+            "OpenSky query bounded to viewport: lamin=%.1f lomin=%.1f lamax=%.1f lomax=%.1f",
+            lamin, lomin, lamax, lomax,
+        )
+    else:
+        url = OPENSKY_STATES_URL
+        logger.info("OpenSky query: global (no viewport bounds stored)")
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(
-            OPENSKY_STATES_URL,
+            url,
             headers={"Authorization": f"Bearer {token}"},
         )
 

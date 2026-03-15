@@ -339,8 +339,8 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     }
   }, [aircraftFilter, aircraft.data, layerVisible]);
 
-  // Label visibility effect: sync LabelCollection show state with showEntityLabels toggle
-  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  // Label visibility effect: sync LabelCollection show state with showAircraftLabels toggle
+  const showEntityLabels = useSettingsStore(s => s.showAircraftLabels);
   useEffect(() => {
     for (const [icao24, lbl] of labelsByIcao24) {
       const bb = billboardsByIcao24.get(icao24);

@@ -58,12 +58,18 @@ export function SettingsPanel({ onClose: _onClose }: SettingsPanelProps) {
     defaultPreset,
     defaultCamera,
     defaultMode,
-    showEntityLabels,
+    showSatelliteLabels,
+    showAircraftLabels,
+    showMilitaryLabels,
+    showShipLabels,
     setDefaultLayers,
     setDefaultPreset,
     setDefaultCamera,
     setDefaultMode,
-    setShowEntityLabels,
+    setShowSatelliteLabels,
+    setShowAircraftLabels,
+    setShowMilitaryLabels,
+    setShowShipLabels,
   } = useSettingsStore();
 
   function handleLayerToggle(key: keyof typeof defaultLayers) {
@@ -92,17 +98,24 @@ export function SettingsPanel({ onClose: _onClose }: SettingsPanelProps) {
     >
       {/* 0. DISPLAY */}
       <div style={sectionStyle}>
-        <div style={headingStyle}>Display</div>
-        <label style={labelStyle}>
-          <input
-            type="checkbox"
-            style={checkboxStyle}
-            checked={showEntityLabels}
-            onChange={() => setShowEntityLabels(!showEntityLabels)}
-            aria-label="Entity Labels"
-          />
-          Entity Labels
-        </label>
+        <div style={headingStyle}>Entity Labels</div>
+        {([
+          { key: 'satellite', label: 'Satellites', color: '#00D4FF', checked: showSatelliteLabels, toggle: () => setShowSatelliteLabels(!showSatelliteLabels) },
+          { key: 'aircraft',  label: 'Aircraft',   color: '#FF8C00', checked: showAircraftLabels,  toggle: () => setShowAircraftLabels(!showAircraftLabels) },
+          { key: 'military',  label: 'Military',   color: '#EF4444', checked: showMilitaryLabels,  toggle: () => setShowMilitaryLabels(!showMilitaryLabels) },
+          { key: 'ship',      label: 'Ships',      color: '#22C55E', checked: showShipLabels,      toggle: () => setShowShipLabels(!showShipLabels) },
+        ] as const).map(({ key, label, color, checked, toggle }) => (
+          <label key={key} style={labelStyle}>
+            <input
+              type="checkbox"
+              style={{ ...checkboxStyle, accentColor: color }}
+              checked={checked}
+              onChange={toggle}
+              aria-label={`${label} labels`}
+            />
+            <span style={{ color: checked ? color : 'rgba(255,255,255,0.8)' }}>{label}</span>
+          </label>
+        ))}
       </div>
 
       {/* 1. LAYERS */}

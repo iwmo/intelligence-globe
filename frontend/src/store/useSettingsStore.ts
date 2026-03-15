@@ -15,13 +15,19 @@ export interface SettingsState {
   defaultCamera: { lon: number; lat: number; altMeters: number; pitch: number } | null;
   defaultMode: 'live' | 'playback';
 
-  showEntityLabels: boolean;
+  showSatelliteLabels: boolean;
+  showAircraftLabels: boolean;
+  showMilitaryLabels: boolean;
+  showShipLabels: boolean;
 
   setDefaultLayers: (layers: SettingsState['defaultLayers']) => void;
   setDefaultPreset: (preset: VisualPreset) => void;
   setDefaultCamera: (camera: SettingsState['defaultCamera']) => void;
   setDefaultMode: (mode: 'live' | 'playback') => void;
-  setShowEntityLabels: (v: boolean) => void;
+  setShowSatelliteLabels: (v: boolean) => void;
+  setShowAircraftLabels: (v: boolean) => void;
+  setShowMilitaryLabels: (v: boolean) => void;
+  setShowShipLabels: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -39,13 +45,19 @@ export const useSettingsStore = create<SettingsState>()(
       defaultPreset: 'normal',
       defaultCamera: null,
       defaultMode: 'live',
-      showEntityLabels: false,
+      showSatelliteLabels: false,
+      showAircraftLabels: false,
+      showMilitaryLabels: false,
+      showShipLabels: false,
 
       setDefaultLayers: (layers) => set({ defaultLayers: layers }),
       setDefaultPreset: (preset) => set({ defaultPreset: preset }),
       setDefaultCamera: (camera) => set({ defaultCamera: camera }),
       setDefaultMode: (mode) => set({ defaultMode: mode }),
-      setShowEntityLabels: (v) => set({ showEntityLabels: v }),
+      setShowSatelliteLabels: (v) => set({ showSatelliteLabels: v }),
+      setShowAircraftLabels: (v) => set({ showAircraftLabels: v }),
+      setShowMilitaryLabels: (v) => set({ showMilitaryLabels: v }),
+      setShowShipLabels: (v) => set({ showShipLabels: v }),
     }),
     { name: 'globe-settings' }
   )

@@ -56,7 +56,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.militaryAircraft);
-  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  const showEntityLabels = useSettingsStore(s => s.showMilitaryLabels);
 
   // Replay state — read by playback interpolation effect
   const replayMode  = useAppStore(s => s.replayMode);

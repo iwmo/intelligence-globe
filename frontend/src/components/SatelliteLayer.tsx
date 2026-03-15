@@ -182,7 +182,7 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
         }
         // Immediately apply current showEntityLabels state so labels are visible
         // on initial load when the toggle was persisted true in localStorage.
-        const initialShow = useSettingsStore.getState().showEntityLabels;
+        const initialShow = useSettingsStore.getState().showSatelliteLabels;
         if (initialShow) {
           for (let j = 0; j < labelColl.length; j++) {
             const lbl = labelColl.get(j);
@@ -354,8 +354,8 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
     }
   }, [satelliteFilter, satellites.data, layerVisible]);
 
-  // Label visibility effect: sync LabelCollection show state with showEntityLabels toggle
-  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  // Label visibility effect: sync LabelCollection show state with showSatelliteLabels toggle
+  const showEntityLabels = useSettingsStore(s => s.showSatelliteLabels);
   useEffect(() => {
     if (!labelCollectionRef.current || labelCollectionRef.current.isDestroyed()) return;
     const labelColl = labelCollectionRef.current;

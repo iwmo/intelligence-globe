@@ -57,7 +57,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.ships);
-  const showEntityLabels = useSettingsStore(s => s.showEntityLabels);
+  const showEntityLabels = useSettingsStore(s => s.showShipLabels);
 
   // Replay state — read by playback interpolation effect
   const replayMode  = useAppStore(s => s.replayMode);

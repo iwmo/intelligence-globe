@@ -12,6 +12,7 @@ from app.api.routes_gps_jamming import router as gps_jamming_router
 from app.api.routes_replay import router as replay_router
 from app.api.routes_osint import router as osint_router
 from app.api.routes_gdelt import router as gdelt_router
+from app.api.routes_viewport import router as viewport_router
 
 
 @asynccontextmanager
@@ -25,7 +26,7 @@ app = FastAPI(title="Intelligence Globe API", version=settings.version, lifespan
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
@@ -38,3 +39,4 @@ app.include_router(gps_jamming_router, prefix="/api/gps-jamming")
 app.include_router(replay_router, prefix="/api/replay")
 app.include_router(osint_router, prefix="/api/osint-events")
 app.include_router(gdelt_router, prefix="/api/gdelt-events")
+app.include_router(viewport_router, prefix="/api")
