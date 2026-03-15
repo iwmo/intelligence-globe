@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: completed
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-03-15T10:17:54.508Z"
-last_activity: 2026-03-15 — Phase 40 plan 03 executed; all 11 satellite cleanup tests pass
+status: in_progress
+stopped_at: Gap closure phases added (42, 43)
+last_updated: "2026-03-15T15:00:00.000Z"
+last_activity: 2026-03-15 — Gap closure phases 42 and 43 added from v10.0 audit (roll field fix + Nyquist catch-up)
 progress:
-  total_phases: 4
+  total_phases: 6
   completed_phases: 4
-  total_plans: 10
+  total_plans: 15
   completed_plans: 10
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 41 — Aircraft Registration and Type Display (plan 01 complete)
-Status: Phase 41 plan 01 complete — registration-row and type-row rendering in AircraftDetailPanel; all 17 tests pass
-Last activity: 2026-03-15 — Phase 41 plan 01 executed; registration and type_code fields now displayed in AircraftDetailPanel
+Phase: 42 — Fix Detail API Roll Field (not started)
+Status: Gap closure phases 42-43 added from v10.0 audit; ready to plan Phase 42
+Last activity: 2026-03-15 — Gap closure phases 42 and 43 added from v10.0 audit
 
-Progress: [██████████] 100% (10/10 plans across 4 phases)
+Progress: [██████████░░░░░] 67% (10/15 plans across 6 phases)
 
 ## Accumulated Context
 
@@ -124,4 +124,4 @@ None.
 Last session: 2026-03-15T10:17:54.505Z
 Stopped at: Completed 41-01-PLAN.md
 Resume file: None
-Next action: All planned phases complete — v10.0 milestone delivered
+Next action: Plan and execute Phase 42 (Fix Detail API Roll Field)

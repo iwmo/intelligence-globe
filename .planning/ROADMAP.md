@@ -11,7 +11,7 @@
 - ✅ **v7.0 Viewport Culling** — Phase 33 (shipped 2026-03-14) — [Archive](milestones/v7.0-ROADMAP.md)
 - ✅ **v8.0 GDELT Integration** — Phases 34-36 (shipped 2026-03-14) — [Archive](milestones/v8.0-ROADMAP.md)
 - ✅ **v9.0 Entity Labels** — Phase 37 (shipped 2026-03-15) — [Archive](milestones/v9.0-ROADMAP.md)
-- 🚧 **v10.0 ADSB.lol Migration** — Phases 38-39 (in progress)
+- 🚧 **v10.0 ADSB.lol Migration** — Phases 38-43 (in progress)
 
 ## Phases
 
@@ -114,6 +114,8 @@
 - [x] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer (completed 2026-03-15)
 - [x] **Phase 40: v10.0 Tech Debt Cleanup** — Delete dead OpenSky worker file, fix stale poll interval comment in useAircraft.ts, fix pre-existing SatelliteLayer Cesium mock test failures (completed 2026-03-15)
 - [x] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap (completed 2026-03-15)
+- [ ] **Phase 42: Fix Detail API Roll Field** — Add `roll` to `get_aircraft()` return dict, closing MISSING-01 integration gap and BROKEN-01 flow gap from v10.0 audit
+- [ ] **Phase 43: Nyquist Validation Catch-up** — Add VALIDATION.md for phases 39, 40, 41 and resolve `nyquist_compliant: false` in phase 38, achieving Nyquist compliance across all v10.0 phases
 
 ## Phase Details
 
@@ -174,6 +176,34 @@ Plans:
 Plans:
 - [ ] 41-01-PLAN.md — Render registration and type_code in AircraftDetailPanel.tsx
 
+### Phase 42: Fix Detail API Roll Field
+**Goal**: The aircraft detail API response includes the `roll` field, eliminating the API surface asymmetry between the list and detail endpoints and ensuring `AircraftDetail.roll` is never undefined
+**Depends on**: Phase 41
+**Gap Closure**: Closes MISSING-01 (integration) and BROKEN-01 (flow) from v10.0 audit
+**Success Criteria** (what must be TRUE):
+  1. `GET /api/aircraft/{icao24}` response includes `"roll"` key (number or null)
+  2. `AircraftDetail` TypeScript interface receives a defined value for `roll` — never `undefined`
+  3. Existing tests pass; a test covers `roll` presence in the detail endpoint response
+**Plans**: 1 plan
+Plans:
+- [ ] 42-01-PLAN.md — Add `roll` to `get_aircraft()` return dict and update/add test coverage
+
+### Phase 43: Nyquist Validation Catch-up
+**Goal**: All v10.0 phases have complete, compliant VALIDATION.md files, achieving Nyquist compliance across the milestone before archiving
+**Depends on**: Phase 42
+**Gap Closure**: Closes Nyquist gaps from v10.0 audit — VALIDATION.md missing for phases 39-41, `nyquist_compliant: false` for phase 38
+**Success Criteria** (what must be TRUE):
+  1. Phase 38 VALIDATION.md updated to `nyquist_compliant: true` with wave status reflecting actual implementation
+  2. Phase 39 VALIDATION.md created and marked compliant
+  3. Phase 40 VALIDATION.md created and marked compliant
+  4. Phase 41 VALIDATION.md created and marked compliant
+**Plans**: 4 plans
+Plans:
+- [ ] 43-01-PLAN.md — Nyquist validation for Phase 38 (fix existing draft)
+- [ ] 43-02-PLAN.md — Nyquist validation for Phase 39
+- [ ] 43-03-PLAN.md — Nyquist validation for Phase 40
+- [ ] 43-04-PLAN.md — Nyquist validation for Phase 41
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -217,5 +247,7 @@ Plans:
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
 | 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
 | 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
-| 40. v10.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-03-15 | — |
-| 41. Aircraft Registration & Type Code Display | 1/1 | Complete   | 2026-03-15 | — |
+| 40. v10.0 Tech Debt Cleanup | v10.0 | 3/3 | Complete | 2026-03-15 |
+| 41. Aircraft Registration & Type Code Display | v10.0 | 1/1 | Complete | 2026-03-15 |
+| 42. Fix Detail API Roll Field | v10.0 | 0/1 | Pending | — |
+| 43. Nyquist Validation Catch-up | v10.0 | 0/4 | Pending | — |
