@@ -218,4 +218,44 @@ describe('AircraftDetailPanel — UI-01/02/03 telemetry rendering', () => {
     expect(screen.queryByTestId('tas-row')).toBeNull();
     expect(screen.queryByTestId('mach-row')).toBeNull();
   });
+
+  // Test 14: registration-row present when registration is non-null
+  it('shows registration-row when registration is non-null', () => {
+    storeState.selectedAircraftId = 'abc123';
+    render(<AircraftDetailPanel />);
+    expect(screen.getByTestId('registration-row')).toBeTruthy();
+  });
+
+  // Test 15: registration-row absent when registration is null
+  it('registration-row absent when registration is null', () => {
+    storeState.selectedAircraftId = 'def456';
+    mockedUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'aircraft') {
+        return { data: fixtureAircraftNullTelemetry, isLoading: false, isError: false };
+      }
+      return { data: fixtureRoute, isLoading: false, isError: false };
+    });
+    render(<AircraftDetailPanel />);
+    expect(screen.queryByTestId('registration-row')).toBeNull();
+  });
+
+  // Test 16: type-row present when type_code is non-null
+  it('shows type-row when type_code is non-null', () => {
+    storeState.selectedAircraftId = 'abc123';
+    render(<AircraftDetailPanel />);
+    expect(screen.getByTestId('type-row')).toBeTruthy();
+  });
+
+  // Test 17: type-row absent when type_code is null
+  it('type-row absent when type_code is null', () => {
+    storeState.selectedAircraftId = 'def456';
+    mockedUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === 'aircraft') {
+        return { data: fixtureAircraftNullTelemetry, isLoading: false, isError: false };
+      }
+      return { data: fixtureRoute, isLoading: false, isError: false };
+    });
+    render(<AircraftDetailPanel />);
+    expect(screen.queryByTestId('type-row')).toBeNull();
+  });
 });
