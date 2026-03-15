@@ -11,6 +11,7 @@
 - ✅ **v7.0 Viewport Culling** — Phase 33 (shipped 2026-03-14) — [Archive](milestones/v7.0-ROADMAP.md)
 - ✅ **v8.0 GDELT Integration** — Phases 34-36 (shipped 2026-03-14) — [Archive](milestones/v8.0-ROADMAP.md)
 - ✅ **v9.0 Entity Labels** — Phase 37 (shipped 2026-03-15) — [Archive](milestones/v9.0-ROADMAP.md)
+- 🚧 **v10.0 ADSB.lol Migration** — Phases 38-39 (in progress)
 
 ## Phases
 
@@ -105,6 +106,43 @@
 
 </details>
 
+### v10.0 ADSB.lol Migration (In Progress)
+
+**Milestone Goal:** Replace OpenSky Network and airplanes.live with ADSB.lol re-API as the single aircraft data source, unlocking richer telemetry fields, no credit limits, and a unified commercial + military ingest pipeline.
+
+- [ ] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=`
+- [ ] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer
+
+## Phase Details
+
+### Phase 38: Backend Migration
+**Goal**: The system fetches all aircraft data exclusively from ADSB.lol with no OpenSky or airplanes.live dependency remaining, and persists the full set of new telemetry fields
+**Depends on**: Phase 37
+**Requirements**: INGEST-01, INGEST-02, INGEST-03, INGEST-04, INGEST-05, SCHEMA-01, SCHEMA-02, SCHEMA-03, SCHEMA-04, SCHEMA-05, SCHEMA-06
+**Success Criteria** (what must be TRUE):
+  1. Commercial and military aircraft positions appear on the globe sourced exclusively from ADSB.lol — no OpenSky or airplanes.live requests are made
+  2. The `ADSBIO_BASE_URL` env var controls the ingest endpoint; changing it and restarting the worker changes the source without code edits
+  3. The codebase contains no OAuth2 token fetch, no credit budget counter, and no rate-limit retry logic tied to OpenSky
+  4. Aircraft altitude values in the database are in feet with no metres-to-feet conversion step anywhere in the ingest path
+  5. Viewport bbox filtering uses the `?box=` query parameter; the `?box=` param is absent from ingest requests when in replay mode (VPC-08 preserved)
+**Plans**: 4 plans
+Plans:
+- [ ] 38-01-PLAN.md — TDD: ADSB.lol ingest test scaffold (RED tests for all INGEST-* + SCHEMA-* requirements)
+- [ ] 38-02-PLAN.md — Alembic migration + SQLAlchemy model updates for both tables
+- [ ] 38-03-PLAN.md — ingest_adsbiol.py unified worker + config.py adsbio_base_url
+- [ ] 38-04-PLAN.md — worker.py wiring, docker-compose.yml cleanup, delete retired ingest files
+
+### Phase 39: Frontend Telemetry UI
+**Goal**: Users inspecting an aircraft on the globe see emergency alerts, navigation mode chips, and airspeed/Mach data in the detail panel, and globe icons bank visually when roll angle is available
+**Depends on**: Phase 38
+**Requirements**: UI-01, UI-02, UI-03, UI-04
+**Success Criteria** (what must be TRUE):
+  1. Clicking an aircraft with a non-"none" emergency value shows a visible alert badge in the detail panel; aircraft with emergency = "none" show no badge
+  2. Clicking an aircraft with active nav modes shows each mode as a labelled chip (e.g., AUTOPILOT, VNAV, LNAV, TCAS) in the detail panel
+  3. The detail panel shows IAS, TAS, and Mach fields when those values are present; the fields are absent (not blank) when the aircraft does not report them
+  4. Aircraft billboard icons on the globe are rotated around their heading axis by the `roll` field value when available; icons with no roll data are unaffected
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -146,3 +184,5 @@
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
+| 38. Backend Migration | v10.0 | 0/4 | Not started | - |
+| 39. Frontend Telemetry UI | v10.0 | 0/TBD | Not started | - |
