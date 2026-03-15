@@ -19,6 +19,7 @@ from app.db import get_db
 from app.freshness import stale_cutoff, is_stale
 from app.config import settings
 from app.models.aircraft import Aircraft
+from app.models.military_aircraft import MilitaryAircraft
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +52,13 @@ async def list_aircraft(
     if somehow received here, the BETWEEN clause would be a no-op — handled client-side.
     """
     cutoff = stale_cutoff(settings.AIRCRAFT_STALE_SECONDS)
+    mil_hexes = select(MilitaryAircraft.hex)
     stmt = select(Aircraft).where(
         Aircraft.is_active == True,
         Aircraft.latitude.is_not(None),
         Aircraft.longitude.is_not(None),
         Aircraft.fetched_at >= cutoff,
+        Aircraft.icao24.not_in(mil_hexes),
     )
     if all(v is not None for v in (min_lat, max_lat, min_lon, max_lon)):
         stmt = stmt.where(

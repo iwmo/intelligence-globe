@@ -110,6 +110,9 @@ def get_viewport_bbox() -> str | None:
         if len(parts) != 4:
             return None
         min_lat, min_lon, max_lat, max_lon = parts
+        # Skip box param for global/near-global viewports — ADSB.lol rejects them
+        if float(min_lat) <= -85 and float(max_lat) >= 85 and float(min_lon) <= -175 and float(max_lon) >= 175:
+            return None
         return f"box={min_lat},{max_lat},{min_lon},{max_lon}"
     except Exception:
         return None
@@ -137,8 +140,7 @@ async def ingest_commercial_aircraft() -> int:
         Number of aircraft rows upserted.
     """
     base_url = os.getenv("ADSBIO_BASE_URL", "https://re-api.adsb.lol")
-    box_param = get_viewport_bbox()
-    url = f"{base_url}/?all_with_pos" + (f"&{box_param}" if box_param else "")
+    url = f"{base_url}/?all_with_pos"
 
     logger.info("Fetching commercial aircraft from ADSB.lol: %s", url)
 
@@ -147,7 +149,7 @@ async def ingest_commercial_aircraft() -> int:
         resp.raise_for_status()
         data = resp.json()
 
-    raw_aircraft = data.get("ac") or []
+    raw_aircraft = data.get("aircraft") or data.get("ac") or []
     logger.info("Received %d raw aircraft from ADSB.lol", len(raw_aircraft))
 
     valid_records = [
@@ -244,7 +246,7 @@ async def ingest_commercial_aircraft() -> int:
         # Skip tombstoning when bbox is active — partial view must not mark
         # out-of-view aircraft as inactive.
         seen_icao24s = list({r["icao24"] for r in valid_records})
-        if seen_icao24s and box_param is None:
+        if seen_icao24s:
             tombstone_stmt = (
                 sa_update(Aircraft)
                 .where(Aircraft.icao24.not_in(seen_icao24s))
@@ -269,8 +271,8 @@ async def ingest_military_aircraft() -> int:
         Number of military aircraft rows upserted.
     """
     base_url = os.getenv("ADSBIO_BASE_URL", "https://re-api.adsb.lol")
-    box_param = get_viewport_bbox()
-    url = f"{base_url}/?all_with_pos&filter_mil" + (f"&{box_param}" if box_param else "")
+    box_param = None
+    url = f"{base_url}/?all_with_pos&filter_mil"
 
     logger.info("Fetching military aircraft from ADSB.lol: %s", url)
 
@@ -279,7 +281,7 @@ async def ingest_military_aircraft() -> int:
         resp.raise_for_status()
         data = resp.json()
 
-    raw_aircraft = data.get("ac") or []
+    raw_aircraft = data.get("aircraft") or data.get("ac") or []
     logger.info("Received %d raw military aircraft from ADSB.lol", len(raw_aircraft))
 
     valid_records = [
@@ -354,7 +356,7 @@ async def ingest_military_aircraft() -> int:
 
         # Tombstone sweep: only when fetching the global feed
         seen_hexes = list({r["icao24"] for r in valid_records})
-        if seen_hexes and box_param is None:
+        if seen_hexes:
             tombstone_stmt = (
                 sa_update(MilitaryAircraft)
                 .where(MilitaryAircraft.hex.not_in(seen_hexes))

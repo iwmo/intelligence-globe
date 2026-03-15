@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-SNAPSHOT_INTERVAL_SECONDS = 60
-RETENTION_DAYS = 7
+SNAPSHOT_INTERVAL_SECONDS = 300
+RETENTION_DAYS = 2
 
 
 # ---------------------------------------------------------------------------
