@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: planning
-stopped_at: ~
-last_updated: "2026-03-15"
-last_activity: 2026-03-15 — v10.0 milestone started, requirements defined
+status: in-progress
+stopped_at: "Completed 38-backend-migration plan 01 (38-01-PLAN.md)"
+last_updated: "2026-03-15T09:00:00Z"
+last_activity: 2026-03-15 — 38-01 ADSB.lol ingest test scaffold complete
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 4
+  completed_plans: 1
 ---
 
 # Project State
@@ -24,9 +24,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: Not started (defining roadmap)
-Status: Requirements defined — ready for roadmap creation
-Last activity: 2026-03-15 — v10.0 milestone started
+Phase: 38 — Backend Migration (in progress — plan 01/04 complete)
+Status: 38-01 TDD scaffold complete; 38-02 (schema migration) next
+Last activity: 2026-03-15 — 38-01 RED test scaffold created
+
+Progress: [----------] 0/2 phases complete (1/4 plans in phase 38)
 
 ## Accumulated Context
 
@@ -72,6 +74,12 @@ Phase 27 (SEC-01) removes the fallbacks from the compose file but does NOT purge
 
 Also: replace `<Author Name>` in LICENSE with real name before public release.
 
+### Decisions (Phase 38)
+
+- 38-01: Module-level import of ingest_adsbiol (not importorskip) — all 13 tests fail atomically at collection time, cleaner RED signal
+- 38-01: test_ingest_aircraft.py replaced with module-level pytest.skip to retire OpenSky ingest tests without collection errors
+- 38-01: test_no_opensky_references uses xfail+FileNotFoundError guard — transitions from xfail to real assertion in Plan 03
+
 ### Pending Todos
 
 None.
@@ -83,6 +91,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-15
-Stopped at: v10.0 milestone start — roadmap pending
+Stopped at: Completed 38-backend-migration plan 01 (38-01-PLAN.md)
 Resume file: None
-Next action: /gsd:plan-phase 38
+Next action: Execute plan 38-02 (schema migration)

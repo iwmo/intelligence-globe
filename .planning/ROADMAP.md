@@ -184,5 +184,5 @@ Plans:
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
-| 38. Backend Migration | v10.0 | 0/4 | Not started | - |
+| 38. Backend Migration | 1/4 | In Progress|  | - |
 | 39. Frontend Telemetry UI | v10.0 | 0/TBD | Not started | - |
