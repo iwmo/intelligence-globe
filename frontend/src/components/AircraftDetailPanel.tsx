@@ -11,6 +11,13 @@ interface AircraftDetail {
   velocity: number | null;
   true_track: number | null;
   trail: Array<{ lon: number; lat: number; alt: number | null; ts: number | null }>;
+  emergency: string | null;
+  nav_modes: string[] | null;
+  ias: number | null;
+  tas: number | null;
+  mach: number | null;
+  registration: string | null;
+  type_code: string | null;
 }
 
 interface Airport {
@@ -82,6 +89,26 @@ export function AircraftDetailPanel() {
             </span>
           </div>
 
+          {/* Emergency badge — absent for null or "none" */}
+          {data.emergency && data.emergency !== 'none' && (
+            <div
+              data-testid="emergency-badge"
+              style={{
+                display: 'inline-block',
+                background: '#7f1d1d',
+                border: '1px solid #ef4444',
+                color: '#fca5a5',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontWeight: 'bold',
+                fontSize: '11px',
+                letterSpacing: '0.08em',
+              }}
+            >
+              EMERGENCY: {data.emergency.toUpperCase()}
+            </div>
+          )}
+
           {/* Origin */}
           <div>
             <span style={{ color: '#888' }}>From: </span>
@@ -138,6 +165,56 @@ export function AircraftDetailPanel() {
             <span style={{ color: '#888' }}>Country: </span>
             <span>{data.origin_country ?? 'Unknown'}</span>
           </div>
+
+          {/* IAS — absent when null */}
+          {data.ias != null && (
+            <div data-testid="ias-row">
+              <span style={{ color: '#888' }}>IAS: </span>
+              <span>{data.ias.toFixed(1)} kts</span>
+            </div>
+          )}
+
+          {/* TAS — absent when null */}
+          {data.tas != null && (
+            <div data-testid="tas-row">
+              <span style={{ color: '#888' }}>TAS: </span>
+              <span>{data.tas.toFixed(1)} kts</span>
+            </div>
+          )}
+
+          {/* Mach — absent when null */}
+          {data.mach != null && (
+            <div data-testid="mach-row">
+              <span style={{ color: '#888' }}>Mach: </span>
+              <span>{data.mach.toFixed(3)}</span>
+            </div>
+          )}
+
+          {/* Nav modes chips — absent when null or empty */}
+          {data.nav_modes && data.nav_modes.length > 0 && (
+            <div data-testid="nav-modes-section">
+              <div style={{ color: '#888', marginBottom: '4px' }}>Nav Modes:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {data.nav_modes.map(mode => (
+                  <span
+                    key={mode}
+                    style={{
+                      background: 'rgba(255,140,0,0.15)',
+                      border: '1px solid rgba(255,140,0,0.4)',
+                      color: '#FF8C00',
+                      borderRadius: '3px',
+                      padding: '1px 6px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {mode.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
