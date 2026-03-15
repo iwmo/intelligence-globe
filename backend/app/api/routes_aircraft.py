@@ -180,4 +180,5 @@ async def get_aircraft(icao24: str, db: AsyncSession = Depends(get_db)):
         "mach": aircraft.mach,
         "registration": aircraft.registration,
         "type_code": aircraft.type_code,
+        "roll": aircraft.roll,
     }
