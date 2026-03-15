@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 42 — Fix Detail API Roll Field (complete)
-Status: Phase 42 complete; Phase 43 (Nyquist catch-up) is next
-Last activity: 2026-03-15 — Phase 42 complete: roll field added to detail endpoint return dict and AircraftDetail TypeScript interface
+Phase: 43 — Nyquist Validation Catchup (in progress)
+Status: Phase 43 plan 01 complete — Phase 38 VALIDATION.md nyquist_compliant: true
+Last activity: 2026-03-15 — Phase 43 plan 01 complete: Phase 38 VALIDATION.md updated to nyquist_compliant: true with all 13 task rows green and Sign-Off approved
 
-Progress: [███████████░░░░] 73% (11/15 plans across 6 phases)
+Progress: [██████████████] 100% (15/15 plans across 6 phases)
 
 ## Accumulated Context
 
@@ -91,6 +91,8 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 43-01: All 13 per-task rows in 38-VALIDATION.md flipped to green — evidence from 38-VERIFICATION.md (11/11 passed 2026-03-15)
 - 43-01: Wave 0 note added clarifying tests were created in plan 01 TDD RED phase, not pre-existing infrastructure
 - 43-01: Approval date set to 2026-03-15 matching 38-VERIFICATION.md verified timestamp
+- 43-02: wave_0_complete: true for Phase 39 VALIDATION.md — Vitest was installed in prior phases; no new test infrastructure was needed for phase 39
+- 43-02: All four tasks individually listed in per-task map (39-01-01, 39-01-02, 39-02-01, 39-02-02) — both tasks in each plan share test file and requirement IDs but are mapped separately for traceability
 - 43-04: Created Phase 41 VALIDATION.md retroactively from existing VERIFICATION.md and SUMMARY.md — both were complete and accurate, enabling exact field population
 - 43-04: Wave 0 documented as TDD RED commit 88708d1; tests added to pre-existing file (not new file); wave_0_complete: true
 
