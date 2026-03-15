@@ -1,5 +1,22 @@
 # Milestones
 
+## v10.0 ADSB.lol Migration (Shipped: 2026-03-15)
+
+**Phases completed:** 6 phases (38–43), 15 plans
+**Files modified:** 49 files, +4,124 / -967 lines
+**Codebase:** ~12,410 TypeScript LOC, ~3,141 Python LOC (backend/app)
+**Timeline:** 2026-03-15 (single-day sprint)
+
+**Key accomplishments:**
+- Replaced OpenSky OAuth2 + airplanes.live with single `ingest_adsbiol.py` task handling commercial (`?all_with_pos`) and military (`?all_with_pos&filter_mil`) aircraft; Alembic migration adds emergency, nav_modes, IAS/TAS/Mach, roll, registration, type_code columns; no OAuth2 or credit budget logic remains (INGEST-01–05, SCHEMA-01–06)
+- Emergency badge, nav modes chips, and IAS/TAS/Mach rows added to AircraftDetailPanel with conditional rendering and data-testid test coverage (UI-01–03)
+- Aircraft billboard icons visually bank during turns — `computeIconRotation(heading, roll)` exported pure helper applies roll as additive offset to heading rotation in Cesium screen-space (UI-04)
+- Dead OpenSky worker files deleted, useAircraft.ts poll interval fixed 90s→15s to match ADSB.lol cadence, LabelCollection added to Cesium mock to unblock pre-existing SatelliteLayer test failures (Phase 40 cleanup)
+- Registration and type code rendered as conditional rows in AircraftDetailPanel, closing SCHEMA-06-partial gap; `roll` added to detail endpoint return dict, closing list/detail field asymmetry (Phases 41–42)
+- Retroactive VALIDATION.md created for all 4 v10.0 phases lacking Nyquist compliance — milestone achieves full Nyquist sign-off across 6 phases (Phase 43)
+
+---
+
 ## v9.0 Entity Labels (Shipped: 2026-03-15)
 
 **Phases completed:** 1 phase (37), 5 plans

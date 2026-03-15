@@ -1,20 +1,8 @@
 # OpenSignal Globe
 
-## Current Milestone: v10.0 ADSB.lol Migration
+## Shipped: v10.0 ADSB.lol Migration
 
-**Goal:** Replace OpenSky Network and airplanes.live with ADSB.lol re-API as the single source for all aircraft data — unlocking richer fields, no credit limits, and faster refresh.
-
-**Target features:**
-- Single ADSB.lol ingest task for commercial + military aircraft (via `&filter_mil`)
-- Drop OpenSky OAuth2 credential handling and 4,000-credit/day budget logic
-- Schema additions: emergency, nav_modes, IAS/TAS/Mach, roll angle, registration, type
-- Altitude stored in feet natively (ADSB.lol native; remove OpenSky meters conversion)
-- Viewport bounding box via ADSB.lol `?box=` parameter
-- Frontend: emergency status alert, nav modes display, IAS/TAS/Mach in detail panel, aircraft icon roll banking
-
-## Shipped: v9.0 Entity Labels
-
-Floating text labels above every entity on the globe — toggleable via settings panel, persisted to localStorage, styled per entity type (cyan satellites, orange aircraft, red military, green ships). Gap closures ensured correct visibility on initial load and at globe altitude.
+Complete aircraft data source replacement — ADSB.lol unified commercial + military ingest, 9 new telemetry fields (emergency, nav_modes, IAS/TAS/Mach, roll, registration, type), richer detail panel UI with emergency badge and nav chips, aircraft billboard roll banking, and full Nyquist compliance across all 6 phases.
 
 ## What This Is
 
@@ -86,25 +74,13 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Entity label overlay toggle (persisted to localStorage via `useSettingsStore`) enables/disables all entity labels globally — v9.0
 - ✓ Satellite labels: `object_name` floating text in cyan (#00D4FF) above each PointPrimitive via separate LabelCollection; NearFarScalar(5e5, 1.2, 5e7, 0.0) for readability at all altitudes — v9.0
 - ✓ Aircraft labels: callsign/ICAO24 in orange (#FF8C00) above each billboard; military aircraft labels in red (#EF4444); ship labels (vessel_name/MMSI) in green (#22C55E) — v9.0
+- ✓ Aircraft ingest migrated from OpenSky + airplanes.live to single ADSB.lol `ingest_adsbiol.py` task; unified commercial + military pipeline via `?all_with_pos` and `?all_with_pos&filter_mil`; no OAuth2/credit logic — v10.0 (INGEST-01–04)
+- ✓ Viewport bounding box uses ADSB.lol `?box=` parameter; suppressed in replay mode (VPC-08 preserved) — v10.0 (INGEST-05)
+- ✓ Aircraft schema extended: altitude in feet natively, emergency VARCHAR, nav_modes JSONB, ias/tas/mach FLOATs, roll FLOAT, registration VARCHAR, type_code VARCHAR — v10.0 (SCHEMA-01–06)
+- ✓ Aircraft detail panel: emergency status badge (non-"none" values), nav modes chips (autopilot/VNAV/LNAV/TCAS), IAS/TAS/Mach rows, registration and type code rows — v10.0 (UI-01–03, SCHEMA-06)
+- ✓ Aircraft billboard icons bank visually using ADSB.lol roll field — `computeIconRotation(heading, roll)` pure helper applies roll as additive offset to Cesium screen-space rotation — v10.0 (UI-04)
 
 ### Active
-
-**v10.0 ADSB.lol Migration:**
-- [ ] INGEST-01: System ingests commercial aircraft from ADSB.lol replacing OpenSky
-- [ ] INGEST-02: System ingests military aircraft from ADSB.lol replacing airplanes.live
-- [ ] INGEST-03: ADSB.lol base URL configurable via env var; no API key or OAuth2
-- [ ] INGEST-04: OpenSky OAuth2 credential handling and credit budget logic removed
-- [ ] INGEST-05: Viewport bounding box uses ADSB.lol `?box=` parameter
-- [ ] SCHEMA-01: Aircraft altitude stored in feet natively (remove meters conversion)
-- [ ] SCHEMA-02: Aircraft record stores emergency status field
-- [ ] SCHEMA-03: Aircraft record stores nav_modes array
-- [ ] SCHEMA-04: Aircraft record stores IAS, TAS, Mach number
-- [ ] SCHEMA-05: Aircraft record stores roll angle
-- [ ] SCHEMA-06: Aircraft record stores registration and ICAO type code
-- [ ] UI-01: Aircraft detail panel shows emergency status with visual alert when non-none
-- [ ] UI-02: Aircraft detail panel shows active nav modes
-- [ ] UI-03: Aircraft detail panel shows IAS / TAS / Mach
-- [ ] UI-04: Aircraft billboard icon banks (rotates) using roll angle on the globe
 
 **Deferred to future milestones:**
 - [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness (FRESH-03, deferred from v4.0)
@@ -138,8 +114,9 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 **Shipped v7.0:** 2026-03-14 — Viewport Culling (camera-derived bbox filters all 3 live-data APIs to visible globe region; 217+102 tests passing)
 **Shipped v8.0:** 2026-03-14 — GDELT Integration (geopolitical event layer: 15-min ingest pipeline, globe markers, detail panel, OSINT bridge, 4D replay; 263 tests passing)
 **Shipped v9.0:** 2026-03-15 — Entity Labels (toggleable floating text identifiers above all entity types, per-type color coding, scaleByDistance readability, localStorage persistence)
+**Shipped v10.0:** 2026-03-15 — ADSB.lol Migration (single ingest pipeline, 9 new telemetry fields, emergency badge + nav chips + IAS/TAS/Mach + Reg/Type UI, roll banking billboards, Nyquist sign-off across all phases)
 **Stack:** CesiumJS + React + TypeScript + Vite (frontend), FastAPI + PostgreSQL + PostGIS + Redis + RQ (backend), Docker Compose, nginx
-**Codebase:** ~12,002 TypeScript LOC (frontend); 112 plans across 37 phases
+**Codebase:** ~12,410 TypeScript LOC (frontend); ~3,141 Python LOC (backend/app); 127 plans across 43 phases
 
 **Key learnings from v3.0:**
 - CSS sidebar collapse must use `grid-template-rows` (not `scrollHeight`) — scrollHeight forces synchronous layout reflow on CesiumJS render thread, halving FPS during animation
@@ -260,6 +237,12 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 | Aircraft label NearFarScalar minimum scale floor 0.3 (not 0.0) | Cesium culls labels when scale reaches 0.0; minimum floor 0.3 prevents culling at ~2893km globe altitude | ✓ Good — required for globe-altitude readability |
 | Label Effect 4 dep array includes `.data` for military and ships | Effect 2 populates label maps inside data effect; Effect 4 must list same dep to fire after population, not just on toggle change | ✓ Good — prevents stuck show:false on initial load |
 | No backend changes for entity labels | All 10 requirements are pure frontend; label text comes from fields already in each layer's React Query response (object_name, callsign, vessel_name) | ✓ Good — zero backend surface area |
+| Single `ingest_adsbiol.py` for commercial + military (not two separate tasks) | ADSB.lol provides both from same endpoint via `&filter_mil` flag; unified code reduces duplication and maintenance surface | ✓ Good — clean consolidation |
+| `os.getenv()` inside function body for `adsbio_base_url` (not Pydantic Settings import) | Settings singleton cannot reflect patched env in tests; `os.getenv()` reads fresh each call — required for test correctness | ✓ Good — testability requirement |
+| Tombstone sweep guarded by `box_param is None` in ADSB.lol ingest | Viewport bbox queries must not tombstone out-of-view aircraft — sweep only on unbounded fetches | ✓ Good — preserves VPC-08 correctness |
+| `computeIconRotation` extracted as named export (not inline) | Enables unit testing without Cesium mocks; roll + heading combined in Cesium screen-space `alignedAxis: Cartesian3.ZERO` | ✓ Good — testable pure function pattern |
+| Detail endpoint must mirror list endpoint field set | MISSING-01 audit gap: roll was in list response but missing from detail; all new ingest fields must be added to both endpoints | ✓ Good — enforced field parity rule |
+| Nyquist catch-up phase (Phase 43) after audit rather than inline | Validation gaps discovered at audit were non-blocking; batch catch-up is more efficient than retrofitting during active development | ✓ Good — clean separation of concerns |
 
 ---
-*Last updated: 2026-03-15 after v9.0 milestone*
+*Last updated: 2026-03-15 after v10.0 milestone*

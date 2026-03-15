@@ -11,7 +11,7 @@
 - ✅ **v7.0 Viewport Culling** — Phase 33 (shipped 2026-03-14) — [Archive](milestones/v7.0-ROADMAP.md)
 - ✅ **v8.0 GDELT Integration** — Phases 34-36 (shipped 2026-03-14) — [Archive](milestones/v8.0-ROADMAP.md)
 - ✅ **v9.0 Entity Labels** — Phase 37 (shipped 2026-03-15) — [Archive](milestones/v9.0-ROADMAP.md)
-- 🚧 **v10.0 ADSB.lol Migration** — Phases 38-43 (in progress)
+- ✅ **v10.0 ADSB.lol Migration** — Phases 38-43 (shipped 2026-03-15) — [Archive](milestones/v10.0-ROADMAP.md)
 
 ## Phases
 
@@ -106,103 +106,17 @@
 
 </details>
 
-### v10.0 ADSB.lol Migration (In Progress)
+<details>
+<summary>✅ v10.0 ADSB.lol Migration (Phases 38-43) — SHIPPED 2026-03-15</summary>
 
-**Milestone Goal:** Replace OpenSky Network and airplanes.live with ADSB.lol re-API as the single aircraft data source, unlocking richer telemetry fields, no credit limits, and a unified commercial + military ingest pipeline.
+- [x] Phase 38: Backend Migration (4/4 plans) — completed 2026-03-15
+- [x] Phase 39: Frontend Telemetry UI (2/2 plans) — completed 2026-03-15
+- [x] Phase 40: v10.0 Tech Debt Cleanup (3/3 plans) — completed 2026-03-15
+- [x] Phase 41: Aircraft Registration & Type Code Display (1/1 plan) — completed 2026-03-15
+- [x] Phase 42: Fix Detail API Roll Field (1/1 plan) — completed 2026-03-15
+- [x] Phase 43: Nyquist Validation Catch-up (4/4 plans) — completed 2026-03-15
 
-- [x] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=` (completed 2026-03-15)
-- [x] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer (completed 2026-03-15)
-- [x] **Phase 40: v10.0 Tech Debt Cleanup** — Delete dead OpenSky worker file, fix stale poll interval comment in useAircraft.ts, fix pre-existing SatelliteLayer Cesium mock test failures (completed 2026-03-15)
-- [x] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap (completed 2026-03-15)
-- [x] **Phase 42: Fix Detail API Roll Field** — Add `roll` to `get_aircraft()` return dict, closing MISSING-01 integration gap and BROKEN-01 flow gap from v10.0 audit (completed 2026-03-15)
-- [x] **Phase 43: Nyquist Validation Catch-up** — Add VALIDATION.md for phases 39, 40, 41 and resolve `nyquist_compliant: false` in phase 38, achieving Nyquist compliance across all v10.0 phases (completed 2026-03-15)
-
-## Phase Details
-
-### Phase 38: Backend Migration
-**Goal**: The system fetches all aircraft data exclusively from ADSB.lol with no OpenSky or airplanes.live dependency remaining, and persists the full set of new telemetry fields
-**Depends on**: Phase 37
-**Requirements**: INGEST-01, INGEST-02, INGEST-03, INGEST-04, INGEST-05, SCHEMA-01, SCHEMA-02, SCHEMA-03, SCHEMA-04, SCHEMA-05, SCHEMA-06
-**Success Criteria** (what must be TRUE):
-  1. Commercial and military aircraft positions appear on the globe sourced exclusively from ADSB.lol — no OpenSky or airplanes.live requests are made
-  2. The `ADSBIO_BASE_URL` env var controls the ingest endpoint; changing it and restarting the worker changes the source without code edits
-  3. The codebase contains no OAuth2 token fetch, no credit budget counter, and no rate-limit retry logic tied to OpenSky
-  4. Aircraft altitude values in the database are in feet with no metres-to-feet conversion step anywhere in the ingest path
-  5. Viewport bbox filtering uses the `?box=` query parameter; the `?box=` param is absent from ingest requests when in replay mode (VPC-08 preserved)
-**Plans**: 4 plans
-Plans:
-- [ ] 38-01-PLAN.md — TDD: ADSB.lol ingest test scaffold (RED tests for all INGEST-* + SCHEMA-* requirements)
-- [ ] 38-02-PLAN.md — Alembic migration + SQLAlchemy model updates for both tables
-- [ ] 38-03-PLAN.md — ingest_adsbiol.py unified worker + config.py adsbio_base_url
-- [ ] 38-04-PLAN.md — worker.py wiring, docker-compose.yml cleanup, delete retired ingest files
-
-### Phase 39: Frontend Telemetry UI
-**Goal**: Users inspecting an aircraft on the globe see emergency alerts, navigation mode chips, and airspeed/Mach data in the detail panel, and globe icons bank visually when roll angle is available
-**Depends on**: Phase 38
-**Requirements**: UI-01, UI-02, UI-03, UI-04
-**Success Criteria** (what must be TRUE):
-  1. Clicking an aircraft with a non-"none" emergency value shows a visible alert badge in the detail panel; aircraft with emergency = "none" show no badge
-  2. Clicking an aircraft with active nav modes shows each mode as a labelled chip (e.g., AUTOPILOT, VNAV, LNAV, TCAS) in the detail panel
-  3. The detail panel shows IAS, TAS, and Mach fields when those values are present; the fields are absent (not blank) when the aircraft does not report them
-  4. Aircraft billboard icons on the globe are rotated around their heading axis by the `roll` field value when available; icons with no roll data are unaffected
-**Plans**: 1 plan
-Plans:
-- [ ] 39-01-PLAN.md — Extend detail API + AircraftDetailPanel (emergency badge, nav chips, IAS/TAS/Mach)
-- [ ] 39-02-PLAN.md — Extend list API + AircraftLayer roll banking rotation
-
-### Phase 40: v10.0 Tech Debt Cleanup
-**Goal**: All dead code, stale comments, and broken pre-existing tests from the v10.0 migration are resolved so the codebase is clean for milestone completion
-**Depends on**: Phase 39
-**Gap Closure**: Tech debt from v10.0 audit (backend dead file, stale poll comment, Cesium mock test failures)
-**Success Criteria** (what must be TRUE):
-  1. `backend/app/workers/ingest_aircraft.py` is deleted — no dead OpenSky-era code remains in the workers directory
-  2. `useAircraft.ts` poll interval and `refetchInterval` are updated to align with the 15s ADSB.lol backend cadence, and the OpenSky comment is removed
-  3. `SatelliteLayer.cleanup.test.tsx` passes — `LabelCollection` is exported from the Cesium mock
-**Plans**: 3 plans
-Plans:
-- [ ] 40-01-PLAN.md — Delete backend/app/workers/ingest_aircraft.py dead file
-- [ ] 40-02-PLAN.md — Fix useAircraft.ts poll interval (90s → 15s) and update stale OpenSky comment
-- [ ] 40-03-PLAN.md — Fix SatelliteLayer.cleanup.test.tsx by adding LabelCollection to Cesium mock
-
-### Phase 41: Aircraft Registration & Type Code Display
-**Goal**: Users can see an aircraft's registration and type code in the detail panel, completing the data flow from DB through API to UI for these ADSB.lol-sourced fields
-**Depends on**: Phase 39
-**Gap Closure**: SCHEMA-06-partial integration gap — registration and type_code are stored, serialised, and typed but not rendered
-**Success Criteria** (what must be TRUE):
-  1. The aircraft detail panel shows a Registration row when `registration` is non-null; the row is absent when the field is null
-  2. The aircraft detail panel shows a Type row when `type_code` is non-null; the row is absent when the field is null
-  3. The display is consistent in style with existing detail rows (IAS, TAS, Mach, nav chips)
-**Plans**: 1 plan
-Plans:
-- [ ] 41-01-PLAN.md — Render registration and type_code in AircraftDetailPanel.tsx
-
-### Phase 42: Fix Detail API Roll Field
-**Goal**: The aircraft detail API response includes the `roll` field, eliminating the API surface asymmetry between the list and detail endpoints and ensuring `AircraftDetail.roll` is never undefined
-**Depends on**: Phase 41
-**Gap Closure**: Closes MISSING-01 (integration) and BROKEN-01 (flow) from v10.0 audit
-**Success Criteria** (what must be TRUE):
-  1. `GET /api/aircraft/{icao24}` response includes `"roll"` key (number or null)
-  2. `AircraftDetail` TypeScript interface receives a defined value for `roll` — never `undefined`
-  3. Existing tests pass; a test covers `roll` presence in the detail endpoint response
-**Plans**: 1 plan
-Plans:
-- [ ] 42-01-PLAN.md — Add `roll` to `get_aircraft()` return dict and update/add test coverage
-
-### Phase 43: Nyquist Validation Catch-up
-**Goal**: All v10.0 phases have complete, compliant VALIDATION.md files, achieving Nyquist compliance across the milestone before archiving
-**Depends on**: Phase 42
-**Gap Closure**: Closes Nyquist gaps from v10.0 audit — VALIDATION.md missing for phases 39-41, `nyquist_compliant: false` for phase 38
-**Success Criteria** (what must be TRUE):
-  1. Phase 38 VALIDATION.md updated to `nyquist_compliant: true` with wave status reflecting actual implementation
-  2. Phase 39 VALIDATION.md created and marked compliant
-  3. Phase 40 VALIDATION.md created and marked compliant
-  4. Phase 41 VALIDATION.md created and marked compliant
-**Plans**: 4 plans
-Plans:
-- [ ] 43-01-PLAN.md — Nyquist validation for Phase 38 (fix existing draft)
-- [ ] 43-02-PLAN.md — Nyquist validation for Phase 39
-- [ ] 43-03-PLAN.md — Nyquist validation for Phase 40
-- [ ] 43-04-PLAN.md — Nyquist validation for Phase 41
+</details>
 
 ## Progress
 
@@ -249,5 +163,5 @@ Plans:
 | 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
 | 40. v10.0 Tech Debt Cleanup | v10.0 | 3/3 | Complete | 2026-03-15 |
 | 41. Aircraft Registration & Type Code Display | v10.0 | 1/1 | Complete | 2026-03-15 |
-| 42. Fix Detail API Roll Field | 1/1 | Complete    | 2026-03-15 | — |
-| 43. Nyquist Validation Catch-up | 4/4 | Complete   | 2026-03-15 | — |
+| 42. Fix Detail API Roll Field | v10.0 | 1/1 | Complete | 2026-03-15 |
+| 43. Nyquist Validation Catch-up | v10.0 | 4/4 | Complete | 2026-03-15 |

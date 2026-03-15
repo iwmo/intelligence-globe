@@ -2,6 +2,54 @@
 
 ---
 
+## Milestone: v10.0 — ADSB.lol Migration
+
+**Shipped:** 2026-03-15
+**Phases:** 6 (38–43) | **Plans:** 15 | **Files:** 49 changed (+4,124 / -967 lines)
+
+### What Was Built
+
+- Unified ADSB.lol ingest pipeline replacing OpenSky OAuth2 and airplanes.live; single `ingest_adsbiol.py` handles commercial and military aircraft via `?all_with_pos` + `&filter_mil`
+- Alembic migration adding 9 new columns: emergency, nav_modes JSONB, ias/tas/mach, roll, registration, type_code; altitude in feet natively (no conversion)
+- Emergency status badge, nav modes chips, IAS/TAS/Mach rows, Registration and Type rows in AircraftDetailPanel — all conditional on field presence
+- Roll banking billboard rotation: `computeIconRotation(heading, roll)` pure exported helper; 6 vitest unit tests; applied at both billboard creation and update sites
+- Tech debt cleanup: dead OpenSky worker files deleted, poll interval corrected 90s→15s, LabelCollection added to Cesium mock to unblock pre-existing test failures
+- Retroactive Nyquist validation for all 4 phases lacking VALIDATION.md — Phase 43 batch catch-up achieves full milestone Nyquist compliance
+
+### What Worked
+
+- **Audit-first workflow** — v10.0 audit surfaced MISSING-01 (roll absent from detail API) and BROKEN-01 (E2E flow broken) before archiving; dedicated gap-closure phases (42, 43) resolved them cleanly
+- **TDD pattern consistency** — RED/GREEN commits maintained across all implementation phases; `computeIconRotation` extracted as a testable pure function specifically to enable unit testing without Cesium mocks
+- **`box_param is None` tombstone guard** — correctly preserving VPC-08 (viewport suppression in replay) across the ingest migration was caught during planning, not discovered later
+- **Batch Nyquist catch-up (Phase 43)** — addressing all validation gaps in a dedicated phase was more efficient than retrofitting inline; 4 plans in ~30 min
+- **Field parity rule established** — list/detail endpoint asymmetry (MISSING-01) led to a documented architectural rule: all new ingest fields must appear in both endpoints
+
+### What Was Inefficient
+
+- **POLL_INTERVAL_MS stale constant** — Phase 40 fixed `useAircraft.ts` poll to 15s but missed `AircraftLayer.tsx:26`; lerp interpolation denominator remains 6× too large; carried forward as tech debt
+- **SUMMARY.md frontmatter gap (Phase 39)** — UI-01..04 not listed in `requirements-completed` frontmatter; administrative gap that required audit comment to clarify; simple to prevent with a frontmatter checklist at plan completion
+- **Settings.adsbio_base_url dead field** — `config.py` Settings class populated from env but `ingest_adsbiol.py` uses `os.getenv()` directly; architectural inconsistency left for future cleanup
+
+### Patterns Established
+
+- **Detail endpoint field parity rule**: every new ingest field must be added to both list and detail endpoints in the same phase — not deferred
+- **`computeIconRotation` pattern**: pure helper extracted above component for Cesium rotation logic enables unit testing without mocking Cesium — apply to any future billboard transform logic
+- **Retroactive Nyquist batch phase**: when audit reveals multiple VALIDATION.md gaps, a single batch catch-up phase is more efficient than individual hotfixes
+
+### Key Lessons
+
+- ADSB.lol `os.getenv()` must be called inside function body (not at Settings singleton scope) — settings instance cannot reflect test-patched env; this is a general rule for env-dependent values in test-covered code
+- Tombstone sweep must be guarded by bbox context — ingesting with a viewport filter must not tombstone out-of-view aircraft as "gone"; always check VPC-08 equivalents on new ingest paths
+- Roll applied as additive offset to heading in Cesium screen-space (`alignedAxis: Cartesian3.ZERO`) — this is the correct 2D top-down visual banking plane; positive roll = right bank matches standard aviation convention
+
+### Cost Observations
+
+- Model mix: balanced profile (Sonnet 4.6) throughout
+- Sessions: single-day sprint
+- Notable: 6 phases including 2 audit gap-closure phases (42, 43) completed in one session; batch validation catch-up was high-efficiency
+
+---
+
 ## Milestone: v1.0 — MVP
 
 **Shipped:** 2026-03-11
