@@ -112,6 +112,8 @@
 
 - [x] **Phase 38: Backend Migration** — Replace ingest tasks, migrate schema with new ADSB.lol fields, remove OpenSky OAuth2 logic, wire bbox via `?box=` (completed 2026-03-15)
 - [x] **Phase 39: Frontend Telemetry UI** — Surface emergency badge, nav modes chips, IAS/TAS/Mach fields, and roll-banking icon transform in the aircraft detail panel and globe layer (completed 2026-03-15)
+- [ ] **Phase 40: v10.0 Tech Debt Cleanup** — Delete dead OpenSky worker file, fix stale poll interval comment in useAircraft.ts, fix pre-existing SatelliteLayer Cesium mock test failures
+- [ ] **Phase 41: Aircraft Registration & Type Code Display** — Render registration and type_code fields in AircraftDetailPanel, closing SCHEMA-06-partial integration gap
 
 ## Phase Details
 
@@ -145,6 +147,32 @@ Plans:
 Plans:
 - [ ] 39-01-PLAN.md — Extend detail API + AircraftDetailPanel (emergency badge, nav chips, IAS/TAS/Mach)
 - [ ] 39-02-PLAN.md — Extend list API + AircraftLayer roll banking rotation
+
+### Phase 40: v10.0 Tech Debt Cleanup
+**Goal**: All dead code, stale comments, and broken pre-existing tests from the v10.0 migration are resolved so the codebase is clean for milestone completion
+**Depends on**: Phase 39
+**Gap Closure**: Tech debt from v10.0 audit (backend dead file, stale poll comment, Cesium mock test failures)
+**Success Criteria** (what must be TRUE):
+  1. `backend/app/workers/ingest_aircraft.py` is deleted — no dead OpenSky-era code remains in the workers directory
+  2. `useAircraft.ts` poll interval and `refetchInterval` are updated to align with the 15s ADSB.lol backend cadence, and the OpenSky comment is removed
+  3. `SatelliteLayer.cleanup.test.tsx` passes — `LabelCollection` is exported from the Cesium mock
+**Plans**: 3 plans
+Plans:
+- [ ] 40-01-PLAN.md — Delete backend/app/workers/ingest_aircraft.py dead file
+- [ ] 40-02-PLAN.md — Fix useAircraft.ts poll interval (90s → 15s) and update stale OpenSky comment
+- [ ] 40-03-PLAN.md — Fix SatelliteLayer.cleanup.test.tsx by adding LabelCollection to Cesium mock
+
+### Phase 41: Aircraft Registration & Type Code Display
+**Goal**: Users can see an aircraft's registration and type code in the detail panel, completing the data flow from DB through API to UI for these ADSB.lol-sourced fields
+**Depends on**: Phase 39
+**Gap Closure**: SCHEMA-06-partial integration gap — registration and type_code are stored, serialised, and typed but not rendered
+**Success Criteria** (what must be TRUE):
+  1. The aircraft detail panel shows a Registration row when `registration` is non-null; the row is absent when the field is null
+  2. The aircraft detail panel shows a Type row when `type_code` is non-null; the row is absent when the field is null
+  3. The display is consistent in style with existing detail rows (IAS, TAS, Mach, nav chips)
+**Plans**: 2 plans
+Plans:
+- [ ] 41-01-PLAN.md — Render registration and type_code in AircraftDetailPanel.tsx
 
 ## Progress
 
@@ -188,4 +216,6 @@ Plans:
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
 | 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
-| 39. Frontend Telemetry UI | 2/2 | Complete   | 2026-03-15 | - |
+| 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
+| 40. v10.0 Tech Debt Cleanup | v10.0 | 0/3 | Pending | — |
+| 41. Aircraft Registration & Type Code Display | v10.0 | 0/1 | Pending | — |
