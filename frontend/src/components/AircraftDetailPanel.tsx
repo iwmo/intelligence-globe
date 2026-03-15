@@ -18,6 +18,7 @@ interface AircraftDetail {
   mach: number | null;
   registration: string | null;
   type_code: string | null;
+  roll: number | null;
 }
 
 interface Airport {
