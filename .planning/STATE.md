@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: planning
-stopped_at: Completed 40-03-PLAN.md
-last_updated: "2026-03-15T10:03:38.703Z"
-last_activity: 2026-03-15 — gap closure phases 40 and 41 added to roadmap
+status: completed
+stopped_at: Completed 40-01-PLAN.md
+last_updated: "2026-03-15T10:04:33.544Z"
+last_activity: 2026-03-15 — Phase 40 plan 03 executed; all 11 satellite cleanup tests pass
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 60
+  completed_plans: 9
+  percent: 99
 ---
 
 # Project State
@@ -86,6 +86,8 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 
 ### Decisions (Phase 40)
 
+- 40-01: ingest_aircraft.py was never committed to git (untracked on disk) — git rm deleted from filesystem; --allow-empty commit recorded the event; file confirmed deleted
+- 40-01: ingest_adsbiol.py lives at backend/app/tasks/ingest_adsbiol.py (not workers/) — plan artifact path was inaccurate but objective (delete dead OpenSky worker) was correct and achieved
 - 40-03: Added length and get to MockLabelCollection beyond plan spec — SatelliteLayer.tsx accesses labelColl.length and labelColl.get(i) in LOADED/POSITIONS handlers; required for render-time correctness
 - 40-03: Cesium mock completeness rule established — every symbol in the component's cesium import block must appear in vi.mock('cesium') or the import resolves to undefined and crashes at module-scope instantiation
 
@@ -112,7 +114,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:03:38.701Z
-Stopped at: Completed 40-03-PLAN.md
+Last session: 2026-03-15T10:04:33.541Z
+Stopped at: Completed 40-01-PLAN.md
 Resume file: None
 Next action: Plan and execute Phase 40 (tech debt cleanup), then Phase 41 (registration/type display)
