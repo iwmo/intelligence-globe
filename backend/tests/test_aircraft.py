@@ -95,6 +95,8 @@ async def test_aircraft_detail():
         assert "velocity" in body
         assert "true_track" in body
         assert "origin_country" in body
+        assert "roll" in body, "roll must be present in detail response"
+        assert body["roll"] is None  # seeded row has no roll value
 
         # 404 for unknown
         async with AsyncClient(
