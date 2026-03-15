@@ -94,6 +94,20 @@ const labelsByIcao24 = new Map<string, any>(); // Label reference — mirrors bi
 let lastUpdateTime = Date.now();
 const scratchLerp = new Cartesian3(); // reused every frame — zero GC pressure
 
+// ---------------------------------------------------------------------------
+// Pure rotation helper — exported for unit tests (UI-04)
+// ---------------------------------------------------------------------------
+
+/** Combine heading and roll into a single Cesium billboard rotation (radians).
+ *  Heading points the nose; roll banks the wings in screen-space top-down view.
+ *  Positive roll = right bank (tilts right wing down). */
+export function computeIconRotation(
+  trueTrack: number | null,
+  roll: number | null,
+): number {
+  return CesiumMath.toRadians(-(trueTrack ?? 0) + (roll ?? 0));
+}
+
 export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const aircraft = useAircraft();
   const collectionRef = useRef<BillboardCollection | null>(null);
@@ -264,7 +278,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           image: AIRCRAFT_ICON,
           width: 24,
           height: 24,
-          rotation: CesiumMath.toRadians(-(ac.true_track ?? 0)),
+          rotation: computeIconRotation(ac.true_track, ac.roll),
           alignedAxis: Cartesian3.ZERO,
           id: ac.icao24,         // bare icao24 — no prefix — click handler unchanged
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
@@ -291,7 +305,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       } else {
         // Update heading for existing aircraft
         const existingBb = billboardsByIcao24.get(ac.icao24);
-        if (existingBb) existingBb.rotation = CesiumMath.toRadians(-(ac.true_track ?? 0));
+        if (existingBb) existingBb.rotation = computeIconRotation(ac.true_track, ac.roll);
       }
     }
 
