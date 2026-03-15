@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
-stopped_at: Completed 38-backend-migration plan 02 (38-02-PLAN.md)
-last_updated: "2026-03-15T09:03:52.746Z"
-last_activity: 2026-03-15 — 38-01 RED test scaffold created
+stopped_at: Completed 38-backend-migration plan 03 (38-03-PLAN.md)
+last_updated: "2026-03-15T09:05:11.682Z"
+last_activity: 2026-03-15 — 38-02 Alembic migration + model updates complete
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -24,11 +24,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 38 — Backend Migration (in progress — plan 02/04 complete)
-Status: 38-02 schema migration complete; 38-03 (ingest worker) next
-Last activity: 2026-03-15 — 38-02 Alembic migration + model updates complete
+Phase: 38 — Backend Migration (in progress — plan 03/04 complete)
+Status: 38-03 ingest worker complete; 38-04 (wiring/cleanup) next
+Last activity: 2026-03-15 — 38-03 ingest_adsbiol.py worker created; all 13 tests GREEN
 
-Progress: [----------] 0/2 phases complete (2/4 plans in phase 38)
+Progress: [----------] 0/2 phases complete (3/4 plans in phase 38)
 
 ## Accumulated Context
 
@@ -82,6 +82,9 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 38-02: Hand-written migration only — position_snapshots is range-partitioned, autogenerate would corrupt it
 - 38-02: MilitaryAircraft registration and aircraft_type left unchanged — already exist in original schema
 - 38-02: nav_modes stored as JSONB (list of mode strings) matching ADSB.lol field shape
+- 38-03: Synchronous redis_client at module level — test mock contract requires MagicMock, not aioredis AsyncMock
+- 38-03: os.getenv() inside function body for adsbio_base_url — settings singleton cannot reflect patched env; getenv reads fresh each call
+- 38-03: Tombstone sweep guarded by box_param is None — viewport bbox queries must not tombstone out-of-view aircraft
 
 ### Pending Todos
 
@@ -93,7 +96,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:03:52.743Z
-Stopped at: Completed 38-backend-migration plan 02 (38-02-PLAN.md)
+Last session: 2026-03-15T09:05:11.680Z
+Stopped at: Completed 38-backend-migration plan 03 (38-03-PLAN.md)
 Resume file: None
-Next action: Execute plan 38-03 (ingest_adsbiol.py worker)
+Next action: Execute plan 38-04 (wiring, cleanup, retire old ingest files)
