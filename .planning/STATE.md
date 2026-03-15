@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: completed
-stopped_at: Completed 39-frontend-telemetry-ui plan 02 (39-02-PLAN.md) — v10.0 milestone complete
-last_updated: "2026-03-15T09:38:40.629Z"
-last_activity: 2026-03-15 — 39-02 roll banking rotation complete; phase 39 and v10.0 milestone done
+status: planning
+stopped_at: Completed 40-03-PLAN.md
+last_updated: "2026-03-15T10:03:38.703Z"
+last_activity: 2026-03-15 — gap closure phases 40 and 41 added to roadmap
 progress:
-  total_phases: 2
+  total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 9
+  completed_plans: 8
+  percent: 60
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 39 — Frontend Telemetry UI (complete — 2/2 plans done)
-Status: 39-02 complete; roll banking rotation with computeIconRotation helper; v10.0 ADSB.lol Migration milestone complete
-Last activity: 2026-03-15 — 39-02 roll banking rotation complete; phase 39 and v10.0 milestone done
+Phase: 40 — v10.0 Tech Debt Cleanup (plan 03 complete)
+Status: Phase 40 plan 03 complete — SatelliteLayer.cleanup.test.tsx now fully passing
+Last activity: 2026-03-15 — Phase 40 plan 03 executed; all 11 satellite cleanup tests pass
 
-Progress: [██████████] 100% (2/2 plans in phase 39 — milestone complete)
+Progress: [██████████] 99% (8/9 plans across 4 phases)
 
 ## Accumulated Context
 
@@ -84,6 +84,11 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 39-02: computeIconRotation extracted as named export from AircraftLayer.tsx — enables unit testing without Cesium mocks; roll applied as additive offset to heading: toRadians(-(trueTrack ?? 0) + (roll ?? 0))
 - 39-02: ac.roll passed directly (typed number | null from AircraftRecord) — no ?? null needed since type already nullable
 
+### Decisions (Phase 40)
+
+- 40-03: Added length and get to MockLabelCollection beyond plan spec — SatelliteLayer.tsx accesses labelColl.length and labelColl.get(i) in LOADED/POSITIONS handlers; required for render-time correctness
+- 40-03: Cesium mock completeness rule established — every symbol in the component's cesium import block must appear in vi.mock('cesium') or the import resolves to undefined and crashes at module-scope instantiation
+
 ### Decisions (Phase 38)
 
 - 38-01: Module-level import of ingest_adsbiol (not importorskip) — all 13 tests fail atomically at collection time, cleaner RED signal
@@ -107,7 +112,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:33:53Z
-Stopped at: Completed 39-frontend-telemetry-ui plan 02 (39-02-PLAN.md) — v10.0 milestone complete
+Last session: 2026-03-15T10:03:38.701Z
+Stopped at: Completed 40-03-PLAN.md
 Resume file: None
-Next action: v10.0 ADSB.lol Migration milestone complete — all 6 plans across 2 phases done
+Next action: Plan and execute Phase 40 (tech debt cleanup), then Phase 41 (registration/type display)
