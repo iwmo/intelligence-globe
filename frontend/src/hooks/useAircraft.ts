@@ -47,8 +47,8 @@ export function useAircraft() {
         clearTimeout(timeoutId);
       }
     },
-    staleTime: 90_000,         // 90 seconds — matches OpenSky poll interval
-    refetchInterval: replayMode === 'live' ? 90_000 : false,
+    staleTime: 15_000,         // 15 seconds — matches ADSB.lol backend cadence
+    refetchInterval: replayMode === 'live' ? 15_000 : false,
     retry: 3,
     retryDelay: 5_000,
   });
