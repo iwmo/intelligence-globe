@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/opensignal"
     redis_url: str = "redis://localhost:6379/0"
+    adsbio_base_url: str = "https://re-api.adsb.lol"
     frontend_origin: str = "http://localhost:3000"
     version: str = "0.1.0"
     api_key: str = ""  # loaded from API_KEY env var; empty = fail-secure (all POSTs rejected)
