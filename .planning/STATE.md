@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
-status: in-progress
-stopped_at: "Completed 38-backend-migration plan 01 (38-01-PLAN.md)"
-last_updated: "2026-03-15T09:00:00Z"
-last_activity: 2026-03-15 — 38-01 ADSB.lol ingest test scaffold complete
+status: completed
+stopped_at: Completed 38-backend-migration plan 02 (38-02-PLAN.md)
+last_updated: "2026-03-15T09:03:52.746Z"
+last_activity: 2026-03-15 — 38-01 RED test scaffold created
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,11 +24,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 38 — Backend Migration (in progress — plan 01/04 complete)
-Status: 38-01 TDD scaffold complete; 38-02 (schema migration) next
-Last activity: 2026-03-15 — 38-01 RED test scaffold created
+Phase: 38 — Backend Migration (in progress — plan 02/04 complete)
+Status: 38-02 schema migration complete; 38-03 (ingest worker) next
+Last activity: 2026-03-15 — 38-02 Alembic migration + model updates complete
 
-Progress: [----------] 0/2 phases complete (1/4 plans in phase 38)
+Progress: [----------] 0/2 phases complete (2/4 plans in phase 38)
 
 ## Accumulated Context
 
@@ -79,6 +79,9 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 38-01: Module-level import of ingest_adsbiol (not importorskip) — all 13 tests fail atomically at collection time, cleaner RED signal
 - 38-01: test_ingest_aircraft.py replaced with module-level pytest.skip to retire OpenSky ingest tests without collection errors
 - 38-01: test_no_opensky_references uses xfail+FileNotFoundError guard — transitions from xfail to real assertion in Plan 03
+- 38-02: Hand-written migration only — position_snapshots is range-partitioned, autogenerate would corrupt it
+- 38-02: MilitaryAircraft registration and aircraft_type left unchanged — already exist in original schema
+- 38-02: nav_modes stored as JSONB (list of mode strings) matching ADSB.lol field shape
 
 ### Pending Todos
 
@@ -90,7 +93,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15
-Stopped at: Completed 38-backend-migration plan 01 (38-01-PLAN.md)
+Last session: 2026-03-15T09:03:52.743Z
+Stopped at: Completed 38-backend-migration plan 02 (38-02-PLAN.md)
 Resume file: None
-Next action: Execute plan 38-02 (schema migration)
+Next action: Execute plan 38-03 (ingest_adsbiol.py worker)
