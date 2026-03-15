@@ -82,6 +82,7 @@ async def list_aircraft(
             "geo_altitude": r.geo_altitude,
             "vertical_rate": r.vertical_rate,
             "position_source": r.position_source,
+            "roll": r.roll,
         }
         for r in rows
     ]

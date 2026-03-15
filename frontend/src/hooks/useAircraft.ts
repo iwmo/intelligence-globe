@@ -13,6 +13,8 @@ export interface AircraftRecord {
   trail: Array<{ lon: number; lat: number; alt: number | null; ts: number | null }>;
   // v4.0 freshness — serialised by backend routes_aircraft.py
   is_stale: boolean;
+  // v10.0 ADSB.lol — roll angle in degrees; positive = right bank, negative = left bank; null when not reported
+  roll: number | null;
 }
 
 export function useAircraft() {
