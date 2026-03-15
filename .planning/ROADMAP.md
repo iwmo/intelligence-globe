@@ -188,4 +188,4 @@ Plans:
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
 | 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
-| 39. Frontend Telemetry UI | v10.0 | 0/2 | Not started | - |
+| 39. Frontend Telemetry UI | 1/2 | In Progress|  | - |

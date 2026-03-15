@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
-stopped_at: Completed 38-backend-migration plan 04 (38-04-PLAN.md)
-last_updated: "2026-03-15T09:14:00.363Z"
+stopped_at: Completed 39-frontend-telemetry-ui plan 01 (39-01-PLAN.md)
+last_updated: "2026-03-15T09:30:53.443Z"
 last_activity: 2026-03-15 — 38-04 worker wiring and OpenSky cutover complete
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 100
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 38 — Backend Migration (complete — all 4/4 plans done)
-Status: 38-04 complete; all OpenSky modules removed, ADSB.lol wired end-to-end
-Last activity: 2026-03-15 — 38-04 worker wiring and OpenSky cutover complete
+Phase: 39 — Frontend Telemetry UI (in progress — 1/2 plans done)
+Status: 39-01 complete; telemetry fields wired through API and into AircraftDetailPanel
+Last activity: 2026-03-15 — 39-01 emergency badge, nav chips, airspeed rows complete
 
-Progress: [██████████] 100% (4/4 plans in phase 38)
+Progress: [██████████] 99% (1/2 plans in phase 39)
 
 ## Accumulated Context
 
@@ -75,6 +75,13 @@ Phase 27 (SEC-01) removes the fallbacks from the compose file but does NOT purge
 
 Also: replace `<Author Name>` in LICENSE with real name before public release.
 
+### Decisions (Phase 39)
+
+- 39-01: Used data-testid attributes for emergency-badge, nav-modes-section, ias-row, tas-row, mach-row — precise test targeting without relying on text content
+- 39-01: Nav modes and airspeed rows placed after the existing divider — keeps new telemetry alongside altitude/speed/heading block
+- 39-01: Emergency badge placed immediately after the Flight callsign header row — highest-urgency information surfaces first
+- 39-01: SatelliteLayer.cleanup.test.tsx 2 pre-existing failures confirmed via git stash — out of scope, deferred
+
 ### Decisions (Phase 38)
 
 - 38-01: Module-level import of ingest_adsbiol (not importorskip) — all 13 tests fail atomically at collection time, cleaner RED signal
@@ -98,7 +105,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:10:08.108Z
-Stopped at: Completed 38-backend-migration plan 04 (38-04-PLAN.md)
+Last session: 2026-03-15T09:30:53.441Z
+Stopped at: Completed 39-frontend-telemetry-ui plan 01 (39-01-PLAN.md)
 Resume file: None
-Next action: Phase 38 complete — run alembic upgrade head to apply Plan 38-02 schema migrations to local DB
+Next action: Execute 39-02 (next plan in phase 39-frontend-telemetry-ui)
