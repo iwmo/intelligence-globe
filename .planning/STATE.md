@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
-stopped_at: Completed 39-frontend-telemetry-ui plan 01 (39-01-PLAN.md)
-last_updated: "2026-03-15T09:30:53.443Z"
-last_activity: 2026-03-15 — 38-04 worker wiring and OpenSky cutover complete
+stopped_at: Completed 39-frontend-telemetry-ui plan 02 (39-02-PLAN.md)
+last_updated: "2026-03-15T09:33:53Z"
+last_activity: 2026-03-15 — 39-02 roll banking rotation with computeIconRotation helper complete
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 100
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 ## Current Position
 
-Phase: 39 — Frontend Telemetry UI (in progress — 1/2 plans done)
-Status: 39-01 complete; telemetry fields wired through API and into AircraftDetailPanel
-Last activity: 2026-03-15 — 39-01 emergency badge, nav chips, airspeed rows complete
+Phase: 39 — Frontend Telemetry UI (complete — 2/2 plans done)
+Status: 39-02 complete; roll banking rotation with computeIconRotation helper; v10.0 ADSB.lol Migration milestone complete
+Last activity: 2026-03-15 — 39-02 roll banking rotation complete; phase 39 and v10.0 milestone done
 
-Progress: [██████████] 99% (1/2 plans in phase 39)
+Progress: [██████████] 100% (2/2 plans in phase 39 — milestone complete)
 
 ## Accumulated Context
 
@@ -81,6 +81,8 @@ Also: replace `<Author Name>` in LICENSE with real name before public release.
 - 39-01: Nav modes and airspeed rows placed after the existing divider — keeps new telemetry alongside altitude/speed/heading block
 - 39-01: Emergency badge placed immediately after the Flight callsign header row — highest-urgency information surfaces first
 - 39-01: SatelliteLayer.cleanup.test.tsx 2 pre-existing failures confirmed via git stash — out of scope, deferred
+- 39-02: computeIconRotation extracted as named export from AircraftLayer.tsx — enables unit testing without Cesium mocks; roll applied as additive offset to heading: toRadians(-(trueTrack ?? 0) + (roll ?? 0))
+- 39-02: ac.roll passed directly (typed number | null from AircraftRecord) — no ?? null needed since type already nullable
 
 ### Decisions (Phase 38)
 
@@ -105,7 +107,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:30:53.441Z
-Stopped at: Completed 39-frontend-telemetry-ui plan 01 (39-01-PLAN.md)
+Last session: 2026-03-15T09:33:53Z
+Stopped at: Completed 39-frontend-telemetry-ui plan 02 (39-02-PLAN.md) — v10.0 milestone complete
 Resume file: None
-Next action: Execute 39-02 (next plan in phase 39-frontend-telemetry-ui)
+Next action: v10.0 ADSB.lol Migration milestone complete — all 6 plans across 2 phases done

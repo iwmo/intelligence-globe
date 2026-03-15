@@ -29,7 +29,7 @@ Replace OpenSky Network + airplanes.live with ADSB.lol re-API as the single airc
 - [x] **UI-01**: Aircraft detail panel displays emergency status; shows a visible alert badge when value is not "none"
 - [x] **UI-02**: Aircraft detail panel displays active nav modes as chips (autopilot, VNAV, LNAV, TCAS, etc.)
 - [x] **UI-03**: Aircraft detail panel displays IAS, TAS, and Mach number when available
-- [ ] **UI-04**: Aircraft globe billboard icon applies a rotation (roll) transform using the `roll` field when available
+- [x] **UI-04**: Aircraft globe billboard icon applies a rotation (roll) transform using the `roll` field when available
 
 ## Future Requirements
 
@@ -70,7 +70,7 @@ Replace OpenSky Network + airplanes.live with ADSB.lol re-API as the single airc
 | UI-01 | Phase 39 | Complete |
 | UI-02 | Phase 39 | Complete |
 | UI-03 | Phase 39 | Complete |
-| UI-04 | Phase 39 | Pending |
+| UI-04 | Phase 39 | Complete |
 
 **Coverage:**
 - v10.0 requirements: 15 total
