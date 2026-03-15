@@ -1,7 +1,7 @@
 """
 Aircraft SQLAlchemy model.
 
-Stores live OpenSky state-vector data with a JSONB trail column for
+Stores live ADSB.lol aircraft data with a JSONB trail column for
 rendering polylines on the frontend without a second round-trip.
 
 icao24 is the primary key directly (ICAO 24-bit address, hex string).
@@ -42,6 +42,16 @@ class Aircraft(Base):
 
     # Trail: list of {lon, lat, alt, ts} dicts, newest last, max 20 entries
     trail: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # ADSB.lol telemetry columns (SCHEMA-01)
+    emergency: Mapped[str | None] = mapped_column(String, nullable=True)
+    nav_modes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    ias: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tas: Mapped[float | None] = mapped_column(Float, nullable=True)
+    mach: Mapped[float | None] = mapped_column(Float, nullable=True)
+    roll: Mapped[float | None] = mapped_column(Float, nullable=True)
+    registration: Mapped[str | None] = mapped_column(String, nullable=True)
+    type_code: Mapped[str | None] = mapped_column(String, nullable=True)
 
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
