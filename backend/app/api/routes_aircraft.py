@@ -172,4 +172,11 @@ async def get_aircraft(icao24: str, db: AsyncSession = Depends(get_db)):
         "last_contact": aircraft.last_contact,
         "trail": aircraft.trail,
         "updated_at": aircraft.updated_at.isoformat() if aircraft.updated_at else None,
+        "emergency": aircraft.emergency,
+        "nav_modes": aircraft.nav_modes,
+        "ias": aircraft.ias,
+        "tas": aircraft.tas,
+        "mach": aircraft.mach,
+        "registration": aircraft.registration,
+        "type_code": aircraft.type_code,
     }

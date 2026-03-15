@@ -4,13 +4,14 @@ milestone: v10.0
 milestone_name: ADSB.lol Migration
 status: completed
 stopped_at: Completed 38-backend-migration plan 04 (38-04-PLAN.md)
-last_updated: "2026-03-15T09:10:08.111Z"
-last_activity: 2026-03-15 — 38-03 ingest_adsbiol.py worker created; all 13 tests GREEN
+last_updated: "2026-03-15T09:14:00.363Z"
+last_activity: 2026-03-15 — 38-04 worker wiring and OpenSky cutover complete
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 4
   completed_plans: 4
+  percent: 100
 ---
 
 # Project State

@@ -141,7 +141,10 @@ Plans:
   2. Clicking an aircraft with active nav modes shows each mode as a labelled chip (e.g., AUTOPILOT, VNAV, LNAV, TCAS) in the detail panel
   3. The detail panel shows IAS, TAS, and Mach fields when those values are present; the fields are absent (not blank) when the aircraft does not report them
   4. Aircraft billboard icons on the globe are rotated around their heading axis by the `roll` field value when available; icons with no roll data are unaffected
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 39-01-PLAN.md — Extend detail API + AircraftDetailPanel (emergency badge, nav chips, IAS/TAS/Mach)
+- [ ] 39-02-PLAN.md — Extend list API + AircraftLayer roll banking rotation
 
 ## Progress
 
@@ -184,5 +187,5 @@ Plans:
 | 35. Frontend Layer | v8.0 | 5/5 | Complete | 2026-03-14 |
 | 36. Replay and Freshness | v8.0 | 2/2 | Complete | 2026-03-14 |
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
-| 38. Backend Migration | 4/4 | Complete   | 2026-03-15 | - |
-| 39. Frontend Telemetry UI | v10.0 | 0/TBD | Not started | - |
+| 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
+| 39. Frontend Telemetry UI | v10.0 | 0/2 | Not started | - |
