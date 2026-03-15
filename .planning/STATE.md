@@ -1,93 +1,56 @@
 ---
 gsd_state_version: 1.0
-milestone: v9.0
-milestone_name: Entity Labels
-status: archived
-stopped_at: v9.0 milestone archived
+milestone: v10.0
+milestone_name: ADSB.lol Migration
+status: planning
+stopped_at: ~
 last_updated: "2026-03-15"
-last_activity: 2026-03-15 — v9.0 Entity Labels milestone archived
+last_activity: 2026-03-15 — v10.0 milestone started, requirements defined
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-15 after v9.0 milestone)
+See: .planning/PROJECT.md (updated 2026-03-15 after v10.0 milestone start)
 
 **Core value:** A unified, visually impressive intelligence picture — satellites orbiting, aircraft moving, anomalies surfacing — all rendered on one polished 3D globe that feels operational and modern.
-**Current focus:** Planning next milestone
+**Current focus:** v10.0 ADSB.lol Migration — replacing OpenSky + airplanes.live with ADSB.lol
 
 ## Current Position
 
-Phase: 37 (Entity Labels) — complete, archived
-Status: v9.0 milestone archived — ready for next milestone planning
-Last activity: 2026-03-15 — v9.0 milestone archived, git tagged
-
-```
-v9.0 Progress: [##########] 100% (Phase 37: 3/3 plans complete)
-Phase 37 ██████████
-```
-
-## Performance Metrics
-
-| Metric | v9.0 Target | Current |
-|--------|-------------|---------|
-| Requirements covered | 10/10 | 10/10 (roadmap) |
-| Phases planned | 1 | 1 |
-| Plans complete | TBD | 0 |
-| Phase 37-entity-labels P01 | 3 | 2 tasks | 2 files |
-| Phase 37 P03 | 2m | 2 tasks | 2 files |
-| Phase 37-entity-labels P05 | 5 | 2 tasks | 2 files |
-| Phase 37-entity-labels P04 | 1m | 2 tasks | 2 files |
+Phase: Not started (defining roadmap)
+Status: Requirements defined — ready for roadmap creation
+Last activity: 2026-03-15 — v10.0 milestone started
 
 ## Accumulated Context
 
-### Roadmap Evolution
+### ADSB.lol API (verified live)
 
-- Phase 37 added: v9.0 Entity Labels (all 10 LBL requirements in single phase)
+- Base URL: `https://re-api.adsb.lol`
+- Access: feeder-only, IP-restricted (user is an active ADSB.lol feeder — confirmed)
+- Auth: none (IP-based)
+- Key endpoints: `/?all_with_pos` (all aircraft with position), `/?all_with_pos&filter_mil` (military only), `/?box=<lat_s>,<lat_n>,<lon_w>,<lon_e>` (bounding box)
+- Response tested live: 4,717 aircraft with position; 25 military aircraft
+- Data freshness: `seen` field in seconds — aircraft update sub-second vs OpenSky's 90s poll
+- All fields in feet (alt_baro, alt_geom) — same as airplanes.live, different from OpenSky (metres)
+- Rich fields available: `emergency`, `nav_modes`, `ias`, `tas`, `mach`, `roll`, `r` (registration), `t` (type), `desc`
 
-### Key Decisions (v9.0 — Plan 37-04)
+### Architecture Impact
 
-- Apply showEntityLabels in LOADED handler after label creation + remove early-return length guard from label visibility effect — fixes satellite labels silently absent on initial load when toggle persisted true in localStorage
-- Aircraft label scaleByDistance: far bound 5e6→2e6, minimum scale 0.0→0.3 — prevents Cesium culling at ~2893km globe-view altitude
+- `ingest_aircraft.py` and `ingest_military.py` → replaced by single `ingest_adsbiol.py`
+- `aircraft` table: altitude already in feet (airplanes.live was also feet; OpenSky was metres → need to verify current state)
+- `military_aircraft` table: same schema update path
+- Remove: OPENSKY_CLIENT_ID, OPENSKY_CLIENT_SECRET env vars; OAuth2 token fetch loop; credit budget logic
+- Add: ADSBIO_BASE_URL env var (default: `https://re-api.adsb.lol`)
+- Polling interval: can be reduced from 90s to ~15s (no credit cap)
 
-### Key Decisions (v9.0 — Plan 37-02)
-
-- Labels are a separate LabelCollection primitive, not embedded in PointPrimitiveCollection/BillboardCollection — Cesium GPU architecture requires this
-- labelsByIcao24 at module scope mirrors billboardsByIcao24 pattern — same lifecycle, cleared on unmount
-- Label show state cross-references entity show state: hidden satellites/aircraft never get visible labels even when toggle is on
-- scaleByDistance satellites: NearFarScalar(5e5, 1.2, 5e7, 0.0) — vanish at global altitude, matching point scale range
-- scaleByDistance aircraft: NearFarScalar(1e4, 1.4, 5e6, 0.0) — vanish at global altitude, matching billboard scale range
-
-### Key Decisions (v9.0 — Plan 37-01)
-
-- showEntityLabels defaults to false — labels are opt-in, not forced on first load
-- DISPLAY section placed above Default Layers in SettingsPanel for global rendering preferences distinct from per-layer toggles
-- Field placed inside persist() so value is serialised to globe-settings localStorage key alongside all other settings
-
-### Key Decisions (v9.0 — Roadmap)
-
-- All 10 requirements fit in one phase — toggle infrastructure (LBL-01, LBL-02) and all four label implementations (LBL-03 through LBL-10) are tightly coupled; splitting would create a useless half-state where the toggle exists but no labels are wired
-- LabelCollection alongside existing primitives — satellites use PointPrimitiveCollection (GPU budget constraint), billboards for aircraft/military/ships; labels are a parallel LabelCollection per layer, not a new entity type
-- Toggle in useSettingsStore (not useAppStore) — label visibility is a persisted preference, not transient runtime state; consistent with existing showLabels-style settings pattern
-- No backend changes — all 10 requirements are pure frontend; label text comes from fields already in each layer's React Query response (object_name, callsign, vessel_name, etc.)
-- scaleByDistance required for all label collections — labels must remain readable at global altitude without obscuring the globe at close zoom; same approach as NearFarScalar on entity icons
-
-### Phase Dependency Map
-
-```
-Phase 16 (Persistent Settings Panel — useSettingsStore)
-  └─► Phase 37 (Entity Labels)
-Phase 14 (Entity Icons — BillboardCollections)
-  └─► Phase 37 (Entity Labels)
-```
-
-### Preserved from v8.0
+### Preserved from v9.0
 
 - `useAppStore.getState()` inside rAF/postUpdate callbacks required — selectors captured at render time go stale
 - Hand-written Alembic migrations only — never autogenerate (position_snapshots is range-partitioned)
@@ -115,11 +78,11 @@ None.
 
 ### Blockers/Concerns
 
-None. Phase 37 is fully self-contained frontend work with no backend dependencies.
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-14T21:44:49.884Z
-Stopped at: Completed 37-04-PLAN.md
+Last session: 2026-03-15
+Stopped at: v10.0 milestone start — roadmap pending
 Resume file: None
-Next action: None — all plans complete including gap closure
+Next action: /gsd:plan-phase 38

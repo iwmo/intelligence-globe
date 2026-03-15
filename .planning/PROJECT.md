@@ -1,5 +1,17 @@
 # OpenSignal Globe
 
+## Current Milestone: v10.0 ADSB.lol Migration
+
+**Goal:** Replace OpenSky Network and airplanes.live with ADSB.lol re-API as the single source for all aircraft data — unlocking richer fields, no credit limits, and faster refresh.
+
+**Target features:**
+- Single ADSB.lol ingest task for commercial + military aircraft (via `&filter_mil`)
+- Drop OpenSky OAuth2 credential handling and 4,000-credit/day budget logic
+- Schema additions: emergency, nav_modes, IAS/TAS/Mach, roll angle, registration, type
+- Altitude stored in feet natively (ADSB.lol native; remove OpenSky meters conversion)
+- Viewport bounding box via ADSB.lol `?box=` parameter
+- Frontend: emergency status alert, nav modes display, IAS/TAS/Mach in detail panel, aircraft icon roll banking
+
 ## Shipped: v9.0 Entity Labels
 
 Floating text labels above every entity on the globe — toggleable via settings panel, persisted to localStorage, styled per entity type (cyan satellites, orange aircraft, red military, green ships). Gap closures ensured correct visibility on initial load and at globe altitude.
@@ -76,6 +88,23 @@ A unified, visually impressive intelligence picture — satellites orbiting, air
 - ✓ Aircraft labels: callsign/ICAO24 in orange (#FF8C00) above each billboard; military aircraft labels in red (#EF4444); ship labels (vessel_name/MMSI) in green (#22C55E) — v9.0
 
 ### Active
+
+**v10.0 ADSB.lol Migration:**
+- [ ] INGEST-01: System ingests commercial aircraft from ADSB.lol replacing OpenSky
+- [ ] INGEST-02: System ingests military aircraft from ADSB.lol replacing airplanes.live
+- [ ] INGEST-03: ADSB.lol base URL configurable via env var; no API key or OAuth2
+- [ ] INGEST-04: OpenSky OAuth2 credential handling and credit budget logic removed
+- [ ] INGEST-05: Viewport bounding box uses ADSB.lol `?box=` parameter
+- [ ] SCHEMA-01: Aircraft altitude stored in feet natively (remove meters conversion)
+- [ ] SCHEMA-02: Aircraft record stores emergency status field
+- [ ] SCHEMA-03: Aircraft record stores nav_modes array
+- [ ] SCHEMA-04: Aircraft record stores IAS, TAS, Mach number
+- [ ] SCHEMA-05: Aircraft record stores roll angle
+- [ ] SCHEMA-06: Aircraft record stores registration and ICAO type code
+- [ ] UI-01: Aircraft detail panel shows emergency status with visual alert when non-none
+- [ ] UI-02: Aircraft detail panel shows active nav modes
+- [ ] UI-03: Aircraft detail panel shows IAS / TAS / Mach
+- [ ] UI-04: Aircraft billboard icon banks (rotates) using roll angle on the globe
 
 **Deferred to future milestones:**
 - [ ] Dedicated freshness endpoints: /api/military/freshness and /api/ships/freshness (FRESH-03, deferred from v4.0)
