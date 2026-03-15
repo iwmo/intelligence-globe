@@ -143,7 +143,7 @@ Plans:
   2. Clicking an aircraft with active nav modes shows each mode as a labelled chip (e.g., AUTOPILOT, VNAV, LNAV, TCAS) in the detail panel
   3. The detail panel shows IAS, TAS, and Mach fields when those values are present; the fields are absent (not blank) when the aircraft does not report them
   4. Aircraft billboard icons on the globe are rotated around their heading axis by the `roll` field value when available; icons with no roll data are unaffected
-**Plans**: 2 plans
+**Plans**: 1 plan
 Plans:
 - [ ] 39-01-PLAN.md — Extend detail API + AircraftDetailPanel (emergency badge, nav chips, IAS/TAS/Mach)
 - [ ] 39-02-PLAN.md — Extend list API + AircraftLayer roll banking rotation
@@ -170,7 +170,7 @@ Plans:
   1. The aircraft detail panel shows a Registration row when `registration` is non-null; the row is absent when the field is null
   2. The aircraft detail panel shows a Type row when `type_code` is non-null; the row is absent when the field is null
   3. The display is consistent in style with existing detail rows (IAS, TAS, Mach, nav chips)
-**Plans**: 2 plans
+**Plans**: 1 plan
 Plans:
 - [ ] 41-01-PLAN.md — Render registration and type_code in AircraftDetailPanel.tsx
 
@@ -217,5 +217,5 @@ Plans:
 | 37. Entity Labels | v9.0 | 5/5 | Complete | 2026-03-15 |
 | 38. Backend Migration | v10.0 | 4/4 | Complete | 2026-03-15 |
 | 39. Frontend Telemetry UI | v10.0 | 2/2 | Complete | 2026-03-15 |
-| 40. v10.0 Tech Debt Cleanup | 3/3 | Complete   | 2026-03-15 | — |
+| 40. v10.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-03-15 | — |
 | 41. Aircraft Registration & Type Code Display | v10.0 | 0/1 | Pending | — |
