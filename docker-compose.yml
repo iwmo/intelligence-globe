@@ -39,8 +39,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
       VERSION: ${VERSION:-0.1.0}
-      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:?Set OPENSKY_CLIENT_ID in .env}
-      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:?Set OPENSKY_CLIENT_SECRET in .env}
+      ADSBIO_BASE_URL: ${ADSBIO_BASE_URL:-https://re-api.adsb.lol}
       API_KEY: ${API_KEY:?Set API_KEY in .env}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
@@ -62,8 +61,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-opensignal}
       REDIS_URL: redis://redis:6379/0
-      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:?Set OPENSKY_CLIENT_ID in .env}
-      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:?Set OPENSKY_CLIENT_SECRET in .env}
+      ADSBIO_BASE_URL: ${ADSBIO_BASE_URL:-https://re-api.adsb.lol}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import redis, os; redis.Redis.from_url(os.environ.get('REDIS_URL','redis://redis:6379/0')).ping()\""]
       interval: 30s
