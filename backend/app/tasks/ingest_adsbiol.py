@@ -216,32 +216,37 @@ async def ingest_commercial_aircraft() -> int:
                 is_active=True,
             ))
 
-        stmt = pg_insert(Aircraft).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["icao24"],
-            set_=dict(
-                callsign=stmt.excluded.callsign,
-                latitude=stmt.excluded.latitude,
-                longitude=stmt.excluded.longitude,
-                baro_altitude=stmt.excluded.baro_altitude,
-                velocity=stmt.excluded.velocity,
-                true_track=stmt.excluded.true_track,
-                vertical_rate=stmt.excluded.vertical_rate,
-                registration=stmt.excluded.registration,
-                type_code=stmt.excluded.type_code,
-                emergency=stmt.excluded.emergency,
-                nav_modes=stmt.excluded.nav_modes,
-                ias=stmt.excluded.ias,
-                tas=stmt.excluded.tas,
-                mach=stmt.excluded.mach,
-                roll=stmt.excluded.roll,
-                trail=stmt.excluded.trail,
-                fetched_at=stmt.excluded.fetched_at,
-                last_seen_at=stmt.excluded.last_seen_at,
-                is_active=stmt.excluded.is_active,
-            ),
-        )
-        await session.execute(stmt)
+        # asyncpg caps bind parameters at 32767; with 21 columns per row
+        # that allows at most 1560 rows per statement — batch to stay safe.
+        BATCH_SIZE = 1000
+        for i in range(0, len(rows), BATCH_SIZE):
+            batch = rows[i:i + BATCH_SIZE]
+            stmt = pg_insert(Aircraft).values(batch)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["icao24"],
+                set_=dict(
+                    callsign=stmt.excluded.callsign,
+                    latitude=stmt.excluded.latitude,
+                    longitude=stmt.excluded.longitude,
+                    baro_altitude=stmt.excluded.baro_altitude,
+                    velocity=stmt.excluded.velocity,
+                    true_track=stmt.excluded.true_track,
+                    vertical_rate=stmt.excluded.vertical_rate,
+                    registration=stmt.excluded.registration,
+                    type_code=stmt.excluded.type_code,
+                    emergency=stmt.excluded.emergency,
+                    nav_modes=stmt.excluded.nav_modes,
+                    ias=stmt.excluded.ias,
+                    tas=stmt.excluded.tas,
+                    mach=stmt.excluded.mach,
+                    roll=stmt.excluded.roll,
+                    trail=stmt.excluded.trail,
+                    fetched_at=stmt.excluded.fetched_at,
+                    last_seen_at=stmt.excluded.last_seen_at,
+                    is_active=stmt.excluded.is_active,
+                ),
+            )
+            await session.execute(stmt)
 
         # Tombstone sweep: only when fetching the global feed (no bbox filter active).
         # Skip tombstoning when bbox is active — partial view must not mark
