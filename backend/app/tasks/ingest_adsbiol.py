@@ -58,6 +58,8 @@ def parse_adsbiol_aircraft(ac: dict) -> dict | None:
     Returns:
         Dict of normalised fields ready for upsert, or None to skip.
     """
+    if not (ac.get("hex") or "").strip():
+        return None
     if ac.get("lat") is None or ac.get("lon") is None:
         return None
 
@@ -180,6 +182,7 @@ async def ingest_commercial_aircraft() -> int:
             row.icao24: (row.trail or []) for row in existing_result
         }
 
+        rows = []
         for record in valid_records:
             icao24 = record["icao24"]
             new_point = {
@@ -190,57 +193,55 @@ async def ingest_commercial_aircraft() -> int:
             }
             existing_trail = trail_map.get(icao24) or []
             trail = existing_trail[-(TRAIL_MAX_LEN - 1):] + [new_point]
+            rows.append(dict(
+                icao24=icao24,
+                callsign=record["callsign"],
+                latitude=record["latitude"],
+                longitude=record["longitude"],
+                baro_altitude=record["baro_altitude"],
+                velocity=record["velocity"],
+                true_track=record["true_track"],
+                vertical_rate=record["vertical_rate"],
+                registration=record["registration"],
+                type_code=record["type_code"],
+                emergency=record["emergency"],
+                nav_modes=record["nav_modes"],
+                ias=record["ias"],
+                tas=record["tas"],
+                mach=record["mach"],
+                roll=record["roll"],
+                trail=trail,
+                fetched_at=fetched_at,
+                last_seen_at=last_seen_at,
+                is_active=True,
+            ))
 
-            stmt = (
-                pg_insert(Aircraft)
-                .values(
-                    icao24=icao24,
-                    callsign=record["callsign"],
-                    latitude=record["latitude"],
-                    longitude=record["longitude"],
-                    baro_altitude=record["baro_altitude"],
-                    velocity=record["velocity"],
-                    true_track=record["true_track"],
-                    vertical_rate=record["vertical_rate"],
-                    registration=record["registration"],
-                    type_code=record["type_code"],
-                    emergency=record["emergency"],
-                    nav_modes=record["nav_modes"],
-                    ias=record["ias"],
-                    tas=record["tas"],
-                    mach=record["mach"],
-                    roll=record["roll"],
-                    trail=trail,
-                    fetched_at=fetched_at,
-                    last_seen_at=last_seen_at,
-                    is_active=True,
-                )
-                .on_conflict_do_update(
-                    index_elements=["icao24"],
-                    set_=dict(
-                        callsign=record["callsign"],
-                        latitude=record["latitude"],
-                        longitude=record["longitude"],
-                        baro_altitude=record["baro_altitude"],
-                        velocity=record["velocity"],
-                        true_track=record["true_track"],
-                        vertical_rate=record["vertical_rate"],
-                        registration=record["registration"],
-                        type_code=record["type_code"],
-                        emergency=record["emergency"],
-                        nav_modes=record["nav_modes"],
-                        ias=record["ias"],
-                        tas=record["tas"],
-                        mach=record["mach"],
-                        roll=record["roll"],
-                        trail=trail,
-                        fetched_at=fetched_at,
-                        last_seen_at=last_seen_at,
-                        is_active=True,
-                    ),
-                )
-            )
-            await session.execute(stmt)
+        stmt = pg_insert(Aircraft).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            constraint="aircraft_pkey",
+            set_=dict(
+                callsign=stmt.excluded.callsign,
+                latitude=stmt.excluded.latitude,
+                longitude=stmt.excluded.longitude,
+                baro_altitude=stmt.excluded.baro_altitude,
+                velocity=stmt.excluded.velocity,
+                true_track=stmt.excluded.true_track,
+                vertical_rate=stmt.excluded.vertical_rate,
+                registration=stmt.excluded.registration,
+                type_code=stmt.excluded.type_code,
+                emergency=stmt.excluded.emergency,
+                nav_modes=stmt.excluded.nav_modes,
+                ias=stmt.excluded.ias,
+                tas=stmt.excluded.tas,
+                mach=stmt.excluded.mach,
+                roll=stmt.excluded.roll,
+                trail=stmt.excluded.trail,
+                fetched_at=stmt.excluded.fetched_at,
+                last_seen_at=stmt.excluded.last_seen_at,
+                is_active=stmt.excluded.is_active,
+            ),
+        )
+        await session.execute(stmt)
 
         # Tombstone sweep: only when fetching the global feed (no bbox filter active).
         # Skip tombstoning when bbox is active — partial view must not mark
