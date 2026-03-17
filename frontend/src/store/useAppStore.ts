@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
+export type MapType = 'satellite' | 'hybrid' | 'roadmap' | 'contour' | 'bing_aerial' | 'bing_road' | 'google_3d';
 
 export interface ViewportBbox {
   minLat: number;
@@ -101,6 +102,9 @@ interface AppState {
   setSelectedGdeltEventId: (id: string | null) => void;
   gdeltOsintPrefill: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null;
   setGdeltOsintPrefill: (v: { lat: number; lon: number; ts: string; sourceUrl: string | null } | null) => void;
+
+  mapType: MapType;
+  setMapType: (t: MapType) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -201,4 +205,7 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedGdeltEventId: (id) => set({ selectedGdeltEventId: id }),
   gdeltOsintPrefill: null,
   setGdeltOsintPrefill: (v) => set({ gdeltOsintPrefill: v }),
+
+  mapType: 'satellite',
+  setMapType: (t) => set({ mapType: t }),
 }));

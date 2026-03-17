@@ -11,6 +11,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
 - **GPS jamming heatmap** — visualise reported jamming events overlaid on the globe
 - **OSINT event correlation** — surface related open-source intelligence events alongside sensor data
 - **Time-travel replay engine** — scrub through historical snapshots of the intelligence picture
+- **Base map selector** — switch between 7 Cesium Ion-backed map layers via the right sidebar: Google Maps Satellite, Google Maps Hybrid (satellite + labels), Google Maps Roadmap, Google Maps Contour, Bing Maps Aerial, Bing Maps Road, and Google Photorealistic 3D Tiles
 
 ## Prerequisites
 
@@ -60,7 +61,7 @@ All key types listed below are required. The stack will not start if `VITE_CESIU
 |-------------|---------|-----------|-------------------|
 | *(none)* | ADSB.lol (live aircraft positions) | Yes — feeder-based, IP-authenticated | https://adsb.lol/ |
 | `AISSTREAM_API_KEY` | AISStream.io (maritime AIS data) | Yes | https://aisstream.io/ |
-| `VITE_CESIUM_ION_TOKEN` | Cesium Ion (3D globe rendering) | Yes | https://ion.cesium.com/tokens |
+| `VITE_CESIUM_ION_TOKEN` | Cesium Ion (3D globe rendering + base map layers) | Yes — requires Google Maps Platform access for Google imagery assets | https://ion.cesium.com/tokens |
 | `API_KEY` | Internal write-endpoint authentication | N/A — set any secret string | — |
 | `VITE_API_KEY` | Frontend header for OSINT event submission — must match `API_KEY` | N/A — set any secret string | — |
 

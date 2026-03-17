@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAppStore } from '../store/useAppStore';
+import { swapMapType } from '../lib/viewerRegistry';
 import {
   Ion,
   Viewer,
   Color,
   EllipsoidTerrainProvider,
-  UrlTemplateImageryProvider,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Cartesian2,
@@ -25,6 +26,12 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const mapType = useAppStore(s => s.mapType);
+
+  // Swap imagery when user changes map type (viewer ready check is inside swapMapType)
+  useEffect(() => {
+    swapMapType(mapType);
+  }, [mapType]);
 
   useEffect(() => {
     if (!containerRef.current || viewerRef.current) return;
@@ -37,15 +44,6 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
 
     async function initViewer() {
       try {
-        if (!containerRef.current || viewerRef.current) return;
-
-        // ESRI World Imagery — high-resolution satellite photos, free, no token
-        const imageryProvider = new UrlTemplateImageryProvider({
-          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          maximumLevel: 19,
-          credit: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
-        });
-
         if (!containerRef.current || viewerRef.current) return;
 
         const viewer = new Viewer(containerRef.current, {
@@ -65,9 +63,6 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
           baseLayer: false, // we'll add imagery ourselves below
         });
 
-        // Add the bundled imagery layer
-        viewer.imageryLayers.addImageryProvider(imageryProvider);
-
         // Cinematic settings
         viewer.scene.globe.enableLighting = true;
         viewer.scene.globe.dynamicAtmosphereLighting = true;
@@ -82,7 +77,9 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
         });
 
         viewerRef.current = viewer;
-        onViewerReady?.(viewer);
+        onViewerReady?.(viewer); // registers viewer in registry
+        // Load the selected base map (ion token must be set in .env)
+        swapMapType(useAppStore.getState().mapType);
 
         // NAV-01: Remove CesiumJS built-in entity-tracking double-click BEFORE
         // registering custom handler. Without this, two conflicting camera flights

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Compass, Settings } from 'lucide-react';
+import { Compass, Settings, Map } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
@@ -8,9 +8,10 @@ import { ShipDetailPanel } from './ShipDetailPanel';
 import { CameraControlWidget } from './CameraControlWidget';
 import { SettingsPanel } from './SettingsPanel';
 import { GdeltDetailPanel } from './GdeltDetailPanel';
+import { MapTypePanel } from './MapTypePanel';
 import { zoomStep } from '../lib/viewerRegistry';
 
-type RightTab = 'camera' | 'settings' | null;
+type RightTab = 'camera' | 'settings' | 'map' | null;
 
 const ENTITY_COLORS: Record<string, string> = {
   'SATELLITE':   '#00D4FF',
@@ -74,7 +75,8 @@ export function RightSidebar() {
 
   const headerTitle = entityType ?? (
     activeRightTab === 'camera'   ? 'CAMERA'   :
-    activeRightTab === 'settings' ? 'SETTINGS' : ''
+    activeRightTab === 'settings' ? 'SETTINGS' :
+    activeRightTab === 'map'      ? 'MAP LAYER' : ''
   );
   const headerColor = ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)';
 
@@ -140,6 +142,14 @@ export function RightSidebar() {
           activeTab={hasEntity ? null : activeRightTab}
           onTabClick={handleRightTabClick}
           tooltip="Settings (,)"
+          disabled={hasEntity}
+        />
+        <RightTabIcon
+          id="map"
+          icon={<Map size={16} />}
+          activeTab={hasEntity ? null : activeRightTab}
+          onTabClick={handleRightTabClick}
+          tooltip="Map Layer"
           disabled={hasEntity}
         />
 
@@ -229,6 +239,7 @@ export function RightSidebar() {
           {selectedGdeltEventId !== null && <GdeltDetailPanel />}
           {!hasEntity && activeRightTab === 'camera'   && <CameraControlWidget />}
           {!hasEntity && activeRightTab === 'settings' && <SettingsPanel />}
+          {!hasEntity && activeRightTab === 'map'      && <MapTypePanel />}
         </div>
 
         {/* Resize handle */}

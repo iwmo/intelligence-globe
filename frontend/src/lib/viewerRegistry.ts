@@ -1,5 +1,58 @@
-import { Cartesian3, Cartographic, Math as CesiumMath } from 'cesium';
+import { Cartesian3, Cartographic, Math as CesiumMath, IonImageryProvider, Cesium3DTileset } from 'cesium';
 import type { Viewer } from 'cesium';
+import type { MapType } from '../store/useAppStore';
+
+// Cesium ion asset IDs for 2D imagery layers
+const MAP_ION_ASSETS: Record<Exclude<MapType, 'google_3d'>, number> = {
+  satellite:   3830182, // Google Maps 2D Satellite
+  hybrid:      3830183, // Google Maps 2D Satellite with Labels
+  roadmap:     3830184, // Google Maps 2D Roadmap
+  contour:     3830186, // Google Maps 2D Contour
+  bing_aerial: 2,       // Bing Maps Aerial
+  bing_road:   4,       // Bing Maps Road
+};
+
+// Tracks the active Google Photorealistic 3D Tiles instance so we can remove it on swap
+let _google3dTileset: Cesium3DTileset | null = null;
+
+function clearGoogle3D(viewer: Viewer): void {
+  if (_google3dTileset) {
+    viewer.scene.primitives.remove(_google3dTileset);
+    _google3dTileset = null;
+  }
+  // Restore the globe surface when leaving 3D mode
+  viewer.scene.globe.show = true;
+}
+
+export async function swapMapType(mapType: MapType): Promise<void> {
+  if (!_viewer || _viewer.isDestroyed()) return;
+
+  if (mapType === 'google_3d') {
+    try {
+      const tileset = await Cesium3DTileset.fromIonAssetId(2275207);
+      if (!_viewer || _viewer.isDestroyed()) return;
+      clearGoogle3D(_viewer); // remove any previous 3D tileset first
+      _viewer.imageryLayers.removeAll();
+      _viewer.scene.primitives.add(tileset);
+      _google3dTileset = tileset;
+      // Hide the Cesium globe mesh — the 3D tiles provide the full surface
+      _viewer.scene.globe.show = false;
+    } catch (err) {
+      console.error('[MapType] Failed to load Google 3D tiles:', err);
+    }
+  } else {
+    // Leaving 3D mode: tear down tileset and restore globe
+    clearGoogle3D(_viewer);
+    try {
+      const provider = await IonImageryProvider.fromAssetId(MAP_ION_ASSETS[mapType]);
+      if (!_viewer || _viewer.isDestroyed()) return;
+      _viewer.imageryLayers.removeAll();
+      _viewer.imageryLayers.addImageryProvider(provider);
+    } catch (err) {
+      console.error('[MapType] Failed to load ion imagery:', err);
+    }
+  }
+}
 
 let _viewer: Viewer | null = null;
 
