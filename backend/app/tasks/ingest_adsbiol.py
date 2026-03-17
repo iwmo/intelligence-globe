@@ -218,7 +218,7 @@ async def ingest_commercial_aircraft() -> int:
 
         stmt = pg_insert(Aircraft).values(rows)
         stmt = stmt.on_conflict_do_update(
-            constraint="aircraft_pkey",
+            index_elements=["icao24"],
             set_=dict(
                 callsign=stmt.excluded.callsign,
                 latitude=stmt.excluded.latitude,
