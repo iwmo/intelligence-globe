@@ -4,7 +4,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
 
 ## Features
 
-- **Live aircraft tracking** via OpenSky Network — real-time positions, altitude, speed, and ICAO callsigns
+- **Live aircraft tracking** via ADSB.lol — real-time positions, altitude, speed, callsigns, and rich telemetry (registration, type, emergency status, nav modes, IAS/TAS/Mach, roll). Polled every 15 seconds over an IP-authenticated feeder connection; no API key required
 - **Maritime AIS data** via AISStream.io — vessel positions, vessel type, MMSI, and route history
 - **Military aircraft identification** — flag known military ICAO hex codes with distinctive icons
 - **Satellite orbits** via CesiumJS — live orbital paths for tracked satellites
@@ -58,7 +58,7 @@ All key types listed below are required. The stack will not start if `VITE_CESIU
 
 | Variable(s) | Service | Free Tier | Where to Register |
 |-------------|---------|-----------|-------------------|
-| `OPENSKY_CLIENT_ID` + `OPENSKY_CLIENT_SECRET` | OpenSky Network (live aircraft positions) | Yes | https://opensky-network.org/ |
+| *(none)* | ADSB.lol (live aircraft positions) | Yes — feeder-based, IP-authenticated | https://adsb.lol/ |
 | `AISSTREAM_API_KEY` | AISStream.io (maritime AIS data) | Yes | https://aisstream.io/ |
 | `VITE_CESIUM_ION_TOKEN` | Cesium Ion (3D globe rendering) | Yes | https://ion.cesium.com/tokens |
 | `API_KEY` | Internal write-endpoint authentication | N/A — set any secret string | — |
