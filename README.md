@@ -25,7 +25,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/<your-username>/opensignal-globe.git
+   git clone https://github.com/iwmo/opensignal-globe.git
    cd opensignal-globe
    ```
 
