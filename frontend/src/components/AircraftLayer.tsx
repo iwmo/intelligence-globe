@@ -350,7 +350,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
     const byIcao = new Map(aircraft.data?.map(a => [a.icao24, a]) ?? []);
     for (const [icao24, bb] of billboardsByIcao24) {
       const ac = byIcao.get(icao24);
-      if (!ac) continue;
+      if (!ac) { bb.show = false; continue; }
       bb.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
     }
   }, [aircraftFilter, aircraft.data, layerVisible]);

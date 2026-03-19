@@ -19,6 +19,14 @@ interface GpsJammingLayerProps {
   viewer: Viewer | null;
 }
 
+// Severity-based fill colours for GPS jamming cells (matches backend thresholds:
+// red >= 0.3 bad ratio, yellow >= 0.1, green < 0.1).
+const SEVERITY_COLORS: Record<string, Color> = {
+  red: Color.RED.withAlpha(0.55),
+  yellow: Color.YELLOW.withAlpha(0.5),
+  green: Color.GREEN.withAlpha(0.35),
+};
+
 // GroundPrimitive drapes geometry onto the terrain surface using Cesium's shadow-volume
 // technique, which correctly handles depth testing against the globe without z-fighting.
 // EllipsoidTerrainProvider IS supported by GroundPrimitive (the ellipsoid IS the terrain).
@@ -34,8 +42,7 @@ function buildHexPrimitive(cells: GpsJammingCell[]): GroundPrimitive | null {
       const positions = Cartesian3.fromDegreesArray(
         boundary.flatMap(([lat, lng]) => [lng, lat])
       );
-      void severity;
-      const color = Color.RED.withAlpha(0.6);
+      const color = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.green;
       instances.push(new GeometryInstance({
         geometry: new PolygonGeometry({
           polygonHierarchy: new PolygonHierarchy(positions),

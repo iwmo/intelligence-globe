@@ -42,24 +42,29 @@ async def list_aircraft(
     max_lat: Optional[float] = Query(default=None),
     min_lon: Optional[float] = Query(default=None),
     max_lon: Optional[float] = Query(default=None),
+    include_stale: Optional[bool] = Query(default=False, description="If true, return aircraft even when older than AIRCRAFT_STALE_SECONDS so the map can show last-known positions (frontend should grey them using is_stale)."),
 ):
-    """Return fresh, active aircraft with valid positions and freshness metadata.
+    """Return active aircraft with valid positions and freshness metadata.
 
     Optional bbox params (all four required for filtering to activate):
       min_lat, max_lat, min_lon, max_lon (degrees, float).
     When absent or incomplete, the full global dataset is returned.
+    By default only aircraft updated within AIRCRAFT_STALE_SECONDS are returned;
+    use include_stale=true so the map can display last-known positions (stale ones
+    will have is_stale=true for visual dimming).
     IDL crossing (min_lon > max_lon) is detected by the frontend before calling;
     if somehow received here, the BETWEEN clause would be a no-op — handled client-side.
     """
-    cutoff = stale_cutoff(settings.AIRCRAFT_STALE_SECONDS)
     mil_hexes = select(MilitaryAircraft.hex)
     stmt = select(Aircraft).where(
         Aircraft.is_active == True,
         Aircraft.latitude.is_not(None),
         Aircraft.longitude.is_not(None),
-        Aircraft.fetched_at >= cutoff,
         Aircraft.icao24.not_in(mil_hexes),
     )
+    if not include_stale:
+        cutoff = stale_cutoff(settings.AIRCRAFT_STALE_SECONDS)
+        stmt = stmt.where(Aircraft.fetched_at >= cutoff)
     if all(v is not None for v in (min_lat, max_lat, min_lon, max_lon)):
         stmt = stmt.where(
             Aircraft.latitude.between(min_lat, max_lat),

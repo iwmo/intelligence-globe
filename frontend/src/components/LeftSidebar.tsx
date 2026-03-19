@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
 import { Layers, Search, SlidersHorizontal, Monitor } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { useGpsJamming } from '../hooks/useGpsJamming';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { PostProcessPanel } from './PostProcessPanel';
@@ -213,6 +214,8 @@ function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
 
 function LayersTabContent() {
   const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass } = useAppStore();
+  const gpsJamming = useGpsJamming();
+  const hasJamCells = (gpsJamming.data?.cells?.length ?? 0) > 0;
 
   const LAYER_BUTTONS = [
     { key: 'satellites'      as const, label: 'SAT',  icon: '◉' },
@@ -258,6 +261,33 @@ function LayersTabContent() {
           </button>
         );
       })}
+
+      {layers.gpsJamming && hasJamCells && (
+        <div style={{
+          marginTop: 2,
+          padding: '5px 8px',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 3,
+          fontFamily: 'monospace',
+          fontSize: 9,
+          color: 'rgba(255,255,255,0.5)',
+        }}>
+          <div style={{ marginBottom: 4, letterSpacing: '0.05em' }}>NIC/NACp SEVERITY</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ width: 8, height: 8, background: 'rgba(255,0,0,0.7)', borderRadius: 1, flexShrink: 0 }} />
+            High (≥30% bad)
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ width: 8, height: 8, background: 'rgba(255,255,0,0.7)', borderRadius: 1, flexShrink: 0 }} />
+            Moderate (≥10%)
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, background: 'rgba(0,255,0,0.55)', borderRadius: 1, flexShrink: 0 }} />
+            Low / none
+          </div>
+        </div>
+      )}
 
       {layers.gdelt && (
         <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 5 }}>

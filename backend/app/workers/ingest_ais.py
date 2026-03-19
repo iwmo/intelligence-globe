@@ -110,6 +110,10 @@ async def batch_flush_ships_to_pg(redis_client, session_factory) -> int:
         if not mmsi:
             continue
 
+        # last_seen_at: prefer AIS time_utc; if missing/unparseable use now so row is visible in API
+        seen_at = parse_time_utc(decoded.get("time_utc"))
+        if seen_at is None:
+            seen_at = datetime.now(timezone.utc)
         row = {
             "mmsi": str(mmsi),
             "vessel_name": decoded.get("ship_name") or None,
@@ -121,7 +125,7 @@ async def batch_flush_ships_to_pg(redis_client, session_factory) -> int:
             "true_heading": float(decoded["true_heading"]) if decoded.get("true_heading") not in (None, "None", "") else None,
             "nav_status": int(decoded["nav_status"]) if decoded.get("nav_status") not in (None, "None", "") else None,
             "last_update": decoded.get("time_utc"),
-            "last_seen_at": parse_time_utc(decoded.get("time_utc")),
+            "last_seen_at": seen_at,
         }
         rows.append(row)
         seen_mmsis.append(str(mmsi))
@@ -129,9 +133,10 @@ async def batch_flush_ships_to_pg(redis_client, session_factory) -> int:
     if not rows:
         return 0
 
-    # asyncpg caps at 32,767 bind parameters per query; Ship has 10 value columns
-    # so chunk at 3,000 rows (3000 × 10 = 30,000 — safely under the limit)
-    CHUNK_SIZE = 3_000
+    # asyncpg caps at 32,767 bind parameters per query; Ship row has 11 value columns
+    # (mmsi, vessel_name, vessel_type, lat, lon, sog, cog, true_heading, nav_status, last_update, last_seen_at)
+    # 32767 / 11 ≈ 2978 — use 2900 to stay safely under the limit
+    CHUNK_SIZE = 2_900
     async with session_factory() as session:
         for i in range(0, len(rows), CHUNK_SIZE):
             chunk = rows[i:i + CHUNK_SIZE]

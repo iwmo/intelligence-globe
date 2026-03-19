@@ -207,6 +207,30 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
             lbl2.position = new Cartesian3(x, y, z);
           }
         }
+
+        // Follow selected satellite: re-center camera each tick while a satellite is selected
+        const followId = useAppStore.getState().selectedSatelliteId;
+        if (followId !== null && viewer && !viewer.isDestroyed()) {
+          const satIdx = indexMapRef.current.get(followId);
+          if (satIdx !== undefined) {
+            const pt = collection.get(satIdx);
+            if (pt && pt.position && !Cartesian3.equals(pt.position, Cartesian3.ZERO)) {
+              const carto = Ellipsoid.WGS84.cartesianToCartographic(pt.position);
+              viewer.camera.setView({
+                destination: Cartesian3.fromDegrees(
+                  CesiumMath.toDegrees(carto.longitude),
+                  CesiumMath.toDegrees(carto.latitude),
+                  viewer.camera.positionCartographic.height,
+                ),
+                orientation: {
+                  heading: viewer.camera.heading,
+                  pitch:   viewer.camera.pitch,
+                  roll:    0,
+                },
+              });
+            }
+          }
+        }
       }
 
       if (msg.type === 'POSITION_RESULT') {

@@ -30,16 +30,15 @@ export function useAircraft() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s — aircraft payload can be large
       try {
-        let url = '/api/aircraft/';
+        const params = new URLSearchParams();
+        params.set('include_stale', 'true'); // so map shows last-known positions when ingest is delayed; is_stale flags grey them
         if (effectiveBbox) {
-          const params = new URLSearchParams({
-            min_lat: String(effectiveBbox.minLat),
-            max_lat: String(effectiveBbox.maxLat),
-            min_lon: String(effectiveBbox.minLon),
-            max_lon: String(effectiveBbox.maxLon),
-          });
-          url = `/api/aircraft/?${params}`;
+          params.set('min_lat', String(effectiveBbox.minLat));
+          params.set('max_lat', String(effectiveBbox.maxLat));
+          params.set('min_lon', String(effectiveBbox.minLon));
+          params.set('max_lon', String(effectiveBbox.maxLon));
         }
+        const url = `/api/aircraft/?${params}`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`Aircraft fetch failed: ${res.status}`);
         return res.json() as Promise<AircraftRecord[]>;
