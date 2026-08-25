@@ -17,6 +17,8 @@ import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
+import { setEntityPosition } from '../lib/entityPositions';
+import { worldAlignedAxis } from '../lib/worldHeading';
 
 // ---------------------------------------------------------------------------
 // SVG-derived canvas icon — pre-rendered once at module scope.
@@ -124,11 +126,13 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         ? ship.heading
         : (ship.cog ?? 0);
 
+      setEntityPosition('ship', ship.mmsi, pos);
       if (shipBillboardsByMmsi.has(ship.mmsi)) {
         // Direct position and heading update — no lerp needed for slow-moving ships
         const bb = shipBillboardsByMmsi.get(ship.mmsi);
         bb.position = pos;
         bb.rotation = CesiumMath.toRadians(-rot);
+        bb.alignedAxis = Cartesian3.clone(worldAlignedAxis(pos));
         // Update label position on data refresh
         const lbl = shipLabelsByMmsi.get(ship.mmsi);
         if (lbl) lbl.position = pos;
@@ -139,7 +143,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
           width: 20,
           height: 20,
           rotation: CesiumMath.toRadians(-rot),
-          alignedAxis: Cartesian3.ZERO,
+          alignedAxis: Cartesian3.clone(worldAlignedAxis(pos)),
           id: `mmsi:${ship.mmsi}`,
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
           show: layerVisible,

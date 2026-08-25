@@ -1,6 +1,8 @@
 import { Cartesian3, Cartographic, Math as CesiumMath, IonImageryProvider, Cesium3DTileset } from 'cesium';
 import type { Viewer } from 'cesium';
 import type { MapType } from '../store/useAppStore';
+import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 // Cesium ion asset IDs for 2D imagery layers
 const MAP_ION_ASSETS: Record<Exclude<MapType, 'google_3d'>, number> = {
@@ -12,8 +14,20 @@ const MAP_ION_ASSETS: Record<Exclude<MapType, 'google_3d'>, number> = {
   bing_road:   4,       // Bing Maps Road
 };
 
+const HOME_VIEW: LandmarkTarget = {
+  lon: 0,
+  lat: 20,
+  altMeters: 18_000_000,
+  pitch: -90,
+};
+
 // Tracks the active Google Photorealistic 3D Tiles instance so we can remove it on swap
 let _google3dTileset: Cesium3DTileset | null = null;
+
+function setIonCreditsVisible(visible: boolean): void {
+  if (typeof document === 'undefined') return;
+  document.body.classList.toggle('ion-credits-on', visible);
+}
 
 function clearGoogle3D(viewer: Viewer): void {
   if (_google3dTileset) {
@@ -22,6 +36,21 @@ function clearGoogle3D(viewer: Viewer): void {
   }
   // Restore the globe surface when leaving 3D mode
   viewer.scene.globe.show = true;
+}
+
+async function loadIonImagery(mapType: Exclude<MapType, 'google_3d'>): Promise<boolean> {
+  if (!_viewer || _viewer.isDestroyed()) return false;
+  try {
+    const provider = await IonImageryProvider.fromAssetId(MAP_ION_ASSETS[mapType]);
+    if (!_viewer || _viewer.isDestroyed()) return false;
+    _viewer.imageryLayers.removeAll();
+    _viewer.imageryLayers.addImageryProvider(provider);
+    setIonCreditsVisible(true);
+    return true;
+  } catch (err) {
+    console.error('[MapType] Failed to load ion imagery:', err);
+    return false;
+  }
 }
 
 export async function swapMapType(mapType: MapType): Promise<void> {
@@ -37,21 +66,24 @@ export async function swapMapType(mapType: MapType): Promise<void> {
       _google3dTileset = tileset;
       // Hide the Cesium globe mesh — the 3D tiles provide the full surface
       _viewer.scene.globe.show = false;
+      setIonCreditsVisible(true);
     } catch (err) {
-      console.error('[MapType] Failed to load Google 3D tiles:', err);
+      console.error('[MapType] Failed to load Google 3D tiles, falling back to satellite:', err);
+      if (useAppStore.getState().mapType === 'google_3d') {
+        useAppStore.getState().setMapType('satellite');
+      }
     }
   } else {
     // Leaving 3D mode: tear down tileset and restore globe
     clearGoogle3D(_viewer);
-    try {
-      const provider = await IonImageryProvider.fromAssetId(MAP_ION_ASSETS[mapType]);
-      if (!_viewer || _viewer.isDestroyed()) return;
-      _viewer.imageryLayers.removeAll();
-      _viewer.imageryLayers.addImageryProvider(provider);
-    } catch (err) {
-      console.error('[MapType] Failed to load ion imagery:', err);
-    }
+    await loadIonImagery(mapType);
   }
+}
+
+/** Fly home: saved default camera, or a wide Earth view. */
+export function resetGlobe(): void {
+  const saved = useSettingsStore.getState().defaultCamera;
+  flyToLandmark(saved ?? HOME_VIEW);
 }
 
 let _viewer: Viewer | null = null;

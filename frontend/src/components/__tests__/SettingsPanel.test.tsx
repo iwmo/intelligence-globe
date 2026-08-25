@@ -22,6 +22,7 @@ vi.mock('../../lib/viewerRegistry', () => ({
 // Mock useSettingsStore
 const mockSetDefaultLayers = vi.fn();
 const mockSetDefaultPreset = vi.fn();
+const mockSetDefaultMapType = vi.fn();
 const mockSetDefaultCamera = vi.fn();
 const mockSetDefaultMode = vi.fn();
 
@@ -35,12 +36,24 @@ const defaultStoreState = {
     streetTraffic: false,
   },
   defaultPreset: 'normal' as const,
+  defaultMapType: 'google_3d' as const,
   defaultCamera: null as null | { lon: number; lat: number; altMeters: number; pitch: number },
   defaultMode: 'live' as 'live' | 'playback',
+  showSatelliteLabels: false,
+  showAircraftLabels: false,
+  showMilitaryLabels: false,
+  showShipLabels: false,
+  showClassificationBanner: false,
   setDefaultLayers: mockSetDefaultLayers,
   setDefaultPreset: mockSetDefaultPreset,
+  setDefaultMapType: mockSetDefaultMapType,
   setDefaultCamera: mockSetDefaultCamera,
   setDefaultMode: mockSetDefaultMode,
+  setShowSatelliteLabels: vi.fn(),
+  setShowAircraftLabels: vi.fn(),
+  setShowMilitaryLabels: vi.fn(),
+  setShowShipLabels: vi.fn(),
+  setShowClassificationBanner: vi.fn(),
 };
 
 let storeState = { ...defaultStoreState };
@@ -58,15 +71,14 @@ beforeEach(() => {
 });
 
 describe('SettingsPanel', () => {
-  it('Test 1: renders inside a DraggablePanel with title SETTINGS', () => {
-    render(<SettingsPanel onClose={vi.fn()} />);
-    const panel = screen.getByTestId('draggable-panel');
-    expect(panel).toBeTruthy();
-    expect(screen.getByText('SETTINGS')).toBeTruthy();
+  it('Test 1: renders default-layer and map-type controls', () => {
+    render(<SettingsPanel />);
+    expect(screen.getByText('Default Layers')).toBeTruthy();
+    expect(screen.getByText(/Photoreal 3D uses Cesium ion/)).toBeTruthy();
   });
 
   it('Test 2: all 6 layer checkboxes are present; satellites is checked by default', () => {
-    render(<SettingsPanel onClose={vi.fn()} />);
+    render(<SettingsPanel />);
     const satellitesCheckbox = screen.getByRole('checkbox', { name: 'Satellites' });
     const aircraftCheckbox = screen.getByRole('checkbox', { name: 'Aircraft' });
     const militaryCheckbox = screen.getByRole('checkbox', { name: 'Military Aircraft' });
@@ -86,7 +98,7 @@ describe('SettingsPanel', () => {
   });
 
   it('Test 3: toggling a layer checkbox calls setDefaultLayers with the updated layers object', () => {
-    render(<SettingsPanel onClose={vi.fn()} />);
+    render(<SettingsPanel />);
     const shipsCheckbox = screen.getByRole('checkbox', { name: 'Ships' });
     fireEvent.click(shipsCheckbox);
     expect(mockSetDefaultLayers).toHaveBeenCalledOnce();
@@ -96,8 +108,8 @@ describe('SettingsPanel', () => {
   });
 
   it('Test 4: preset selector shows all 5 options; selecting one calls setDefaultPreset', () => {
-    render(<SettingsPanel onClose={vi.fn()} />);
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    render(<SettingsPanel />);
+    const select = screen.getByLabelText('Default preset') as HTMLSelectElement;
     expect(select).toBeTruthy();
     const options = Array.from(select.options).map(o => o.value);
     expect(options).toContain('normal');
@@ -120,7 +132,7 @@ describe('SettingsPanel', () => {
     };
     vi.mocked(getViewer).mockReturnValue(fakeViewer as any);
 
-    render(<SettingsPanel onClose={vi.fn()} />);
+    render(<SettingsPanel />);
     const saveBtn = screen.getByRole('button', { name: /save current view/i });
     fireEvent.click(saveBtn);
 
@@ -133,7 +145,7 @@ describe('SettingsPanel', () => {
   });
 
   it('Test 6: start-mode toggle shows LIVE and PLAYBACK options; clicking PLAYBACK calls setDefaultMode', () => {
-    render(<SettingsPanel onClose={vi.fn()} />);
+    render(<SettingsPanel />);
     const liveBtn = screen.getByRole('button', { name: /^live$/i });
     const playbackBtn = screen.getByRole('button', { name: /^playback$/i });
     expect(liveBtn).toBeTruthy();
@@ -144,7 +156,7 @@ describe('SettingsPanel', () => {
 
   it('Test 7: getViewer() returning null means "Save current view" does nothing', () => {
     vi.mocked(getViewer).mockReturnValue(null);
-    render(<SettingsPanel onClose={vi.fn()} />);
+    render(<SettingsPanel />);
     const saveBtn = screen.getByRole('button', { name: /save current view/i });
     expect(() => fireEvent.click(saveBtn)).not.toThrow();
     expect(mockSetDefaultCamera).not.toHaveBeenCalled();

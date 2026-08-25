@@ -10,9 +10,15 @@
   pointer-events: auto !important;
 }
 
-/* Hide credit container (personal/homelab use only) */
+/* Provider credits — required when ion / Google 3D imagery is active.
+   Hidden only when the body does not have .ion-credits-on (no-imagery path). */
 .cesium-viewer-bottom {
-  display: none !important;
+  display: none;
+}
+
+body.ion-credits-on .cesium-viewer-bottom {
+  display: block !important;
+  pointer-events: auto;
 }
 
 /* Fullscreen globe */

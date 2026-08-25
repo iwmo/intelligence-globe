@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Compass, Settings, Map } from 'lucide-react';
+import { Compass, Settings, Map, Users } from 'lucide-react';
+import { ContactsRoster } from './ContactsRoster';
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
@@ -11,7 +12,7 @@ import { GdeltDetailPanel } from './GdeltDetailPanel';
 import { MapTypePanel } from './MapTypePanel';
 import { zoomStep } from '../lib/viewerRegistry';
 
-type RightTab = 'camera' | 'settings' | 'map' | null;
+type RightTab = 'camera' | 'settings' | 'map' | 'contacts' | null;
 
 const ENTITY_COLORS: Record<string, string> = {
   'SATELLITE':   '#00D4FF',
@@ -41,11 +42,7 @@ export function RightSidebar() {
   const selectedMilitaryId   = useAppStore(s => s.selectedMilitaryId);
   const selectedShipId       = useAppStore(s => s.selectedShipId);
   const selectedGdeltEventId = useAppStore(s => s.selectedGdeltEventId);
-  const setSelectedSatelliteId  = useAppStore(s => s.setSelectedSatelliteId);
-  const setSelectedAircraftId   = useAppStore(s => s.setSelectedAircraftId);
-  const setSelectedMilitaryId   = useAppStore(s => s.setSelectedMilitaryId);
-  const setSelectedShipId       = useAppStore(s => s.setSelectedShipId);
-  const setSelectedGdeltEventId = useAppStore(s => s.setSelectedGdeltEventId);
+  const clearSelection = useAppStore(s => s.clearSelection);
 
   // Keyboard shortcut: , for settings
   useEffect(() => {
@@ -64,7 +61,10 @@ export function RightSidebar() {
     selectedShipId       !== null ||
     selectedGdeltEventId !== null;
 
+  const [railHover, setRailHover] = useState(false);
   const panelOpen = hasEntity || activeRightTab !== null;
+  const railExpanded = railHover || panelOpen;
+  const railWidth = railExpanded ? 40 : 8;
 
   const entityType =
     selectedSatelliteId  !== null ? 'SATELLITE'    :
@@ -76,21 +76,17 @@ export function RightSidebar() {
   const headerTitle = entityType ?? (
     activeRightTab === 'camera'   ? 'CAMERA'   :
     activeRightTab === 'settings' ? 'SETTINGS' :
-    activeRightTab === 'map'      ? 'MAP LAYER' : ''
+    activeRightTab === 'map'      ? 'MAP LAYER' :
+    activeRightTab === 'contacts' ? 'CONTACTS'  : ''
   );
   const headerColor = ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)';
 
   function handleClose() {
-    setSelectedSatelliteId(null);
-    setSelectedAircraftId(null);
-    setSelectedMilitaryId(null);
-    setSelectedShipId(null);
-    setSelectedGdeltEventId(null);
+    clearSelection();
     setActiveRightTab(null);
   }
 
   function handleRightTabClick(tab: NonNullable<RightTab>) {
-    if (hasEntity) return;
     setActiveRightTab(prev => prev === tab ? null : tab);
   }
 
@@ -112,45 +108,54 @@ export function RightSidebar() {
 
   return (
     <>
-      {/* Right icon rail */}
-      <div style={{
+      {/* Right icon rail — collapsed to an 8px hit edge until hover or a panel is open */}
+      <div
+        onMouseEnter={() => setRailHover(true)}
+        onMouseLeave={() => setRailHover(false)}
+        style={{
         position: 'fixed',
         right: 0,
-        top: 26,
-        bottom: 28,
-        width: 40,
+        top: 0,
+        bottom: 0,
+        width: railWidth,
         zIndex: 200,
-        background: 'rgba(0,0,0,0.92)',
-        borderLeft: '1px solid rgba(0,212,255,0.15)',
+        background: railExpanded ? 'rgba(0,0,0,0.92)' : 'rgba(0,0,0,0.25)',
+        borderLeft: railExpanded ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: 8,
         gap: 2,
+        overflow: 'hidden',
+        transition: 'width 0.16s ease',
       }}>
         <RightTabIcon
           id="camera"
           icon={<Compass size={16} />}
-          activeTab={hasEntity ? null : activeRightTab}
+          activeTab={activeRightTab}
           onTabClick={handleRightTabClick}
           tooltip="Camera"
-          disabled={hasEntity}
         />
         <RightTabIcon
           id="settings"
           icon={<Settings size={16} />}
-          activeTab={hasEntity ? null : activeRightTab}
+          activeTab={activeRightTab}
           onTabClick={handleRightTabClick}
           tooltip="Settings (,)"
-          disabled={hasEntity}
         />
         <RightTabIcon
           id="map"
           icon={<Map size={16} />}
-          activeTab={hasEntity ? null : activeRightTab}
+          activeTab={activeRightTab}
           onTabClick={handleRightTabClick}
           tooltip="Map Layer"
-          disabled={hasEntity}
+        />
+        <RightTabIcon
+          id="contacts"
+          icon={<Users size={16} />}
+          activeTab={activeRightTab}
+          onTabClick={handleRightTabClick}
+          tooltip="Contacts"
         />
 
         <div style={{ flex: 1 }} />
@@ -175,9 +180,9 @@ export function RightSidebar() {
       {/* Context panel */}
       <div style={{
         position: 'fixed',
-        right: 40,
-        top: 62,
-        bottom: 28,
+        right: railWidth,
+        top: 36,
+        bottom: 48,
         width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
@@ -232,14 +237,15 @@ export function RightSidebar() {
 
         {/* Scrollable content */}
         <div className="intel-panel-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          {selectedSatelliteId  !== null && <SatelliteDetailPanel />}
-          {selectedAircraftId   !== null && <AircraftDetailPanel />}
-          {selectedMilitaryId   !== null && <MilitaryDetailPanel />}
-          {selectedShipId       !== null && <ShipDetailPanel />}
-          {selectedGdeltEventId !== null && <GdeltDetailPanel />}
-          {!hasEntity && activeRightTab === 'camera'   && <CameraControlWidget />}
-          {!hasEntity && activeRightTab === 'settings' && <SettingsPanel />}
-          {!hasEntity && activeRightTab === 'map'      && <MapTypePanel />}
+          {activeRightTab === 'camera'   && <CameraControlWidget />}
+          {activeRightTab === 'settings' && <SettingsPanel />}
+          {activeRightTab === 'map'      && <MapTypePanel />}
+          {activeRightTab === 'contacts' && <ContactsRoster />}
+          {activeRightTab === null && selectedSatelliteId  !== null && <SatelliteDetailPanel />}
+          {activeRightTab === null && selectedAircraftId   !== null && <AircraftDetailPanel />}
+          {activeRightTab === null && selectedMilitaryId   !== null && <MilitaryDetailPanel />}
+          {activeRightTab === null && selectedShipId       !== null && <ShipDetailPanel />}
+          {activeRightTab === null && selectedGdeltEventId !== null && <GdeltDetailPanel />}
         </div>
 
         {/* Resize handle */}

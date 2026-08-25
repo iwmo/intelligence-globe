@@ -12,7 +12,8 @@ vi.mock('cesium', () => ({
   },
 }));
 
-import { registerViewer, zoomStep, setPitchPreset } from '../viewerRegistry';
+import { registerViewer, zoomStep, setPitchPreset, resetGlobe } from '../viewerRegistry';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 function makeMockViewer(altitude = 100_000) {
   return {
@@ -109,5 +110,29 @@ describe('setPitchPreset', () => {
     expect(() => setPitchPreset(-90)).not.toThrow();
     expect(destroyedViewer.camera.cancelFlight).not.toHaveBeenCalled();
     expect(destroyedViewer.camera.setView).not.toHaveBeenCalled();
+  });
+});
+
+describe('resetGlobe', () => {
+  let mockViewer: ReturnType<typeof makeMockViewer>;
+
+  beforeEach(() => {
+    mockViewer = makeMockViewer(100_000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    registerViewer(mockViewer as any);
+    useSettingsStore.setState({ defaultCamera: null });
+  });
+
+  it('flies to the home view when no default camera is saved', () => {
+    resetGlobe();
+    expect(mockViewer.camera.flyTo).toHaveBeenCalled();
+  });
+
+  it('flies to the saved default camera when present', () => {
+    useSettingsStore.setState({
+      defaultCamera: { lon: 51.5, lat: 25.3, altMeters: 80_000, pitch: -45 },
+    });
+    resetGlobe();
+    expect(mockViewer.camera.flyTo).toHaveBeenCalled();
   });
 });

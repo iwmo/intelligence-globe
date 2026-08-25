@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
+import { ContactCard } from './ContactCard';
+import { metersToFeet, msToKnots } from '../lib/hudContact';
 
 interface AircraftDetail {
   icao24: string;
@@ -48,7 +50,6 @@ export function AircraftDetailPanel() {
     staleTime: 60_000,
   });
 
-  // Route fetch: per-selection, cached for 5 minutes.
   const { data: routeData, isLoading: routeLoading } = useQuery<AircraftRoute>({
     queryKey: ['aircraft-route', selectedId],
     queryFn: async () => {
@@ -63,22 +64,23 @@ export function AircraftDetailPanel() {
 
   if (!selectedId) return null;
 
+  const title = data?.callsign?.trim() || selectedId;
+  const altitude = data?.baro_altitude != null ? `${Math.round(metersToFeet(data.baro_altitude))} ft` : '--';
+  const speed = data?.velocity != null ? `${Math.round(msToKnots(data.velocity))} kts` : '--';
+
   return (
-    <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-
-      {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
-      {isError && <div style={{ color: '#ff4444' }}>Failed to load aircraft data</div>}
-
+    <>
+      {isLoading && <div style={{ padding: 12, color: '#888', fontFamily: 'monospace', fontSize: 12 }}>Loading...</div>}
+      {isError && <div style={{ padding: 12, color: '#ff4444', fontFamily: 'monospace', fontSize: 12 }}>Failed to load aircraft data</div>}
       {data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div>
-            <span style={{ color: '#888' }}>Flight: </span>
-            <span style={{ fontWeight: 'bold', letterSpacing: '0.05em' }}>
-              {data.callsign ? data.callsign.trim() : 'Unknown'}
-            </span>
-          </div>
-
-          {/* Emergency badge — absent for null or "none" */}
+        <ContactCard
+          kind="aircraft"
+          id={data.icao24}
+          title={title.toUpperCase()}
+          altitude={altitude}
+          speed={speed}
+          accent="#FF8C00"
+        >
           {data.emergency && data.emergency !== 'none' && (
             <div
               data-testid="emergency-badge"
@@ -87,141 +89,128 @@ export function AircraftDetailPanel() {
                 background: '#7f1d1d',
                 border: '1px solid #ef4444',
                 color: '#fca5a5',
-                borderRadius: '4px',
+                borderRadius: 4,
                 padding: '2px 8px',
                 fontWeight: 'bold',
-                fontSize: '11px',
+                fontSize: 11,
                 letterSpacing: '0.08em',
+                marginBottom: 8,
               }}
             >
               EMERGENCY: {data.emergency.toUpperCase()}
             </div>
           )}
-
-          {/* Origin */}
-          <div>
-            <span style={{ color: '#888' }}>From: </span>
-            {routeLoading ? (
-              <span style={{ color: '#666' }}>...</span>
-            ) : routeData?.origin ? (
-              <span>
-                <span style={{ color: '#FF8C00' }}>{routeData.origin.iata ?? routeData.origin.icao}</span>
-                {routeData.origin.name && (
-                  <span style={{ color: '#aaa' }}> · {routeData.origin.name}</span>
-                )}
-              </span>
-            ) : (
-              <span style={{ color: '#555' }}>Unavailable</span>
-            )}
-          </div>
-
-          {/* Destination */}
-          <div>
-            <span style={{ color: '#888' }}>To: </span>
-            {routeLoading ? (
-              <span style={{ color: '#666' }}>...</span>
-            ) : routeData?.destination ? (
-              <span>
-                <span style={{ color: '#FF8C00' }}>{routeData.destination.iata ?? routeData.destination.icao}</span>
-                {routeData.destination.name && (
-                  <span style={{ color: '#aaa' }}> · {routeData.destination.name}</span>
-                )}
-              </span>
-            ) : (
-              <span style={{ color: '#555' }}>Unavailable</span>
-            )}
-          </div>
-
-          <div style={{ borderTop: '1px solid rgba(255,140,0,0.15)', paddingTop: '0.5rem', marginTop: '0.25rem' }} />
-
-          <div>
-            <span style={{ color: '#888' }}>ICAO24: </span>
-            <span style={{ color: '#FF8C00' }}>{data.icao24}</span>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Altitude: </span>
-            <span>{data.baro_altitude != null ? `${Math.round(data.baro_altitude)} m` : 'Unknown'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Speed: </span>
-            <span>{data.velocity != null ? `${data.velocity.toFixed(1)} m/s` : 'Unknown'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Heading: </span>
-            <span>{data.true_track != null ? `${data.true_track.toFixed(1)}\u00b0` : 'Unknown'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#888' }}>Country: </span>
-            <span>{data.origin_country ?? 'Unknown'}</span>
-          </div>
-
-          {/* IAS — absent when null */}
-          {data.ias != null && (
-            <div data-testid="ias-row">
-              <span style={{ color: '#888' }}>IAS: </span>
-              <span>{data.ias.toFixed(1)} kts</span>
-            </div>
-          )}
-
-          {/* TAS — absent when null */}
-          {data.tas != null && (
-            <div data-testid="tas-row">
-              <span style={{ color: '#888' }}>TAS: </span>
-              <span>{data.tas.toFixed(1)} kts</span>
-            </div>
-          )}
-
-          {/* Mach — absent when null */}
-          {data.mach != null && (
-            <div data-testid="mach-row">
-              <span style={{ color: '#888' }}>Mach: </span>
-              <span>{data.mach.toFixed(3)}</span>
-            </div>
-          )}
-
-          {/* Registration — absent when null */}
-          {data.registration != null && (
-            <div data-testid="registration-row">
-              <span style={{ color: '#888' }}>Reg: </span>
-              <span>{data.registration}</span>
-            </div>
-          )}
-
-          {/* Type — absent when null */}
-          {data.type_code != null && (
-            <div data-testid="type-row">
-              <span style={{ color: '#888' }}>Type: </span>
-              <span>{data.type_code}</span>
-            </div>
-          )}
-
-          {/* Nav modes chips — absent when null or empty */}
-          {data.nav_modes && data.nav_modes.length > 0 && (
-            <div data-testid="nav-modes-section">
-              <div style={{ color: '#888', marginBottom: '4px' }}>Nav Modes:</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {data.nav_modes.map(mode => (
-                  <span
-                    key={mode}
-                    style={{
-                      background: 'rgba(255,140,0,0.15)',
-                      border: '1px solid rgba(255,140,0,0.4)',
-                      color: '#FF8C00',
-                      borderRadius: '3px',
-                      padding: '1px 6px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    {mode.toUpperCase()}
+          <details open>
+            <summary style={{ cursor: 'pointer', color: '#888', marginBottom: 8 }}>Details</summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div>
+                <span style={{ color: '#888' }}>From: </span>
+                {routeLoading ? (
+                  <span style={{ color: '#666' }}>...</span>
+                ) : routeData?.origin ? (
+                  <span>
+                    <span style={{ color: '#FF8C00' }}>{routeData.origin.iata ?? routeData.origin.icao}</span>
+                    {routeData.origin.name && (
+                      <span style={{ color: '#aaa' }}> · {routeData.origin.name}</span>
+                    )}
                   </span>
-                ))}
+                ) : (
+                  <span style={{ color: '#555' }}>Unavailable</span>
+                )}
               </div>
+              <div>
+                <span style={{ color: '#888' }}>To: </span>
+                {routeLoading ? (
+                  <span style={{ color: '#666' }}>...</span>
+                ) : routeData?.destination ? (
+                  <span>
+                    <span style={{ color: '#FF8C00' }}>{routeData.destination.iata ?? routeData.destination.icao}</span>
+                    {routeData.destination.name && (
+                      <span style={{ color: '#aaa' }}> · {routeData.destination.name}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span style={{ color: '#555' }}>Unavailable</span>
+                )}
+              </div>
+              <div>
+                <span style={{ color: '#888' }}>ICAO24: </span>
+                <span style={{ color: '#FF8C00' }}>{data.icao24}</span>
+              </div>
+              <div>
+                <span style={{ color: '#888' }}>Altitude: </span>
+                <span>{data.baro_altitude != null ? `${Math.round(data.baro_altitude)} m` : 'Unknown'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#888' }}>Speed: </span>
+                <span>{data.velocity != null ? `${data.velocity.toFixed(1)} m/s` : 'Unknown'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#888' }}>Heading: </span>
+                <span>{data.true_track != null ? `${data.true_track.toFixed(1)}\u00b0` : 'Unknown'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#888' }}>Country: </span>
+                <span>{data.origin_country ?? 'Unknown'}</span>
+              </div>
+              {data.ias != null && (
+                <div data-testid="ias-row">
+                  <span style={{ color: '#888' }}>IAS: </span>
+                  <span>{data.ias.toFixed(1)} kts</span>
+                </div>
+              )}
+              {data.tas != null && (
+                <div data-testid="tas-row">
+                  <span style={{ color: '#888' }}>TAS: </span>
+                  <span>{data.tas.toFixed(1)} kts</span>
+                </div>
+              )}
+              {data.mach != null && (
+                <div data-testid="mach-row">
+                  <span style={{ color: '#888' }}>Mach: </span>
+                  <span>{data.mach.toFixed(3)}</span>
+                </div>
+              )}
+              {data.registration != null && (
+                <div data-testid="registration-row">
+                  <span style={{ color: '#888' }}>Reg: </span>
+                  <span>{data.registration}</span>
+                </div>
+              )}
+              {data.type_code != null && (
+                <div data-testid="type-row">
+                  <span style={{ color: '#888' }}>Type: </span>
+                  <span>{data.type_code}</span>
+                </div>
+              )}
+              {data.nav_modes && data.nav_modes.length > 0 && (
+                <div data-testid="nav-modes-section">
+                  <div style={{ color: '#888', marginBottom: 4 }}>Nav Modes:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {data.nav_modes.map(mode => (
+                      <span
+                        key={mode}
+                        style={{
+                          background: 'rgba(255,140,0,0.15)',
+                          border: '1px solid rgba(255,140,0,0.4)',
+                          color: '#FF8C00',
+                          borderRadius: 3,
+                          padding: '1px 6px',
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        {mode.toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </details>
+        </ContactCard>
       )}
-    </div>
+    </>
   );
 }

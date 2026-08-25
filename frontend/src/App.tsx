@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import type { Viewer } from 'cesium';
 import { GlobeView } from './components/GlobeView';
 import { LeftSidebar } from './components/LeftSidebar';
-import { BottomStatusBar } from './components/BottomStatusBar';
 import { RightSidebar } from './components/RightSidebar';
 import { SatelliteLayer } from './components/SatelliteLayer';
 import { AircraftLayer } from './components/AircraftLayer';
@@ -15,8 +14,15 @@ import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
 import { CinematicHUD } from './components/CinematicHUD';
-import { LandmarkNav } from './components/LandmarkNav';
+import { TrackContact } from './components/TrackContact';
 import { PlaybackBar } from './components/PlaybackBar';
+import { CommandDock } from './components/CommandDock';
+import { StyleChip } from './components/StyleChip';
+import { GlobeToolbar } from './components/GlobeToolbar';
+import { BootSplash } from './components/BootSplash';
+import { FirstRunCard } from './components/FirstRunCard';
+import { DisplayChips } from './components/DisplayChips';
+import { parseShareHash, applyShareView, writeShareHash } from './lib/shareView';
 import { OsintEventPanel } from './components/OsintEventPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useViewerClock } from './hooks/useViewerClock';
@@ -58,6 +64,11 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    const id = window.setInterval(() => writeShareHash(), 4000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
       <GlobeView onViewerReady={(v) => {
@@ -69,8 +80,14 @@ export default function App() {
           appStore.setLayerVisible(layer as keyof typeof s.defaultLayers, visible);
         });
         appStore.setVisualPreset(s.defaultPreset);
+        appStore.setMapType(s.defaultMapType ?? 'google_3d');
         appStore.setReplayMode(s.defaultMode);
-        if (s.defaultCamera) flyToLandmark(s.defaultCamera);
+        const shared = parseShareHash();
+        if (shared) {
+          applyShareView(shared);
+        } else if (s.defaultCamera) {
+          flyToLandmark(s.defaultCamera);
+        }
       }} />
 
       <SatelliteLayer viewer={cesiumViewer} onWorkerReady={setSatWorker} />
@@ -82,19 +99,24 @@ export default function App() {
       <GdeltLayer viewer={cesiumViewer} />
 
       <PostProcessEngine viewer={cesiumViewer} />
+      <TrackContact viewer={cesiumViewer} />
       <CinematicHUD viewer={cesiumViewer} />
 
       <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />
+      <BootSplash />
+      <StyleChip />
+      <DisplayChips />
+      <GlobeToolbar />
+      {!cleanUI && <FirstRunCard />}
+      {!cleanUI && <CommandDock />}
 
       <OsintEventPanel open={osintPanelOpen} onClose={() => {
         setOsintPanelOpen(false);
         useAppStore.getState().setGdeltOsintPrefill(null);
       }} />
 
-      {!cleanUI && <LandmarkNav viewer={cesiumViewer} />}
       {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}
       {!cleanUI && <RightSidebar />}
-      {!cleanUI && <BottomStatusBar />}
     </div>
   );
 }

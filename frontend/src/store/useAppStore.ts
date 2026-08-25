@@ -2,6 +2,13 @@ import { create } from 'zustand';
 
 export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
 export type MapType = 'satellite' | 'hybrid' | 'roadmap' | 'contour' | 'bing_aerial' | 'bing_road' | 'google_3d';
+export type TrackableKind = 'aircraft' | 'military' | 'ship' | 'satellite';
+export type SelectableKind = TrackableKind | 'gdelt';
+
+export interface TrackedEntity {
+  kind: TrackableKind;
+  id: string | number;
+}
 
 export interface ViewportBbox {
   minLat: number;
@@ -105,6 +112,15 @@ interface AppState {
 
   mapType: MapType;
   setMapType: (t: MapType) => void;
+
+  trackedEntity: TrackedEntity | null;
+  setTrackedEntity: (e: TrackedEntity | null) => void;
+  clearTrackedEntity: () => void;
+  clearSelection: () => void;
+  selectContact: (kind: SelectableKind, id: string | number) => void;
+
+  hudVisible: boolean;
+  setHudVisible: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -206,6 +222,44 @@ export const useAppStore = create<AppState>((set) => ({
   gdeltOsintPrefill: null,
   setGdeltOsintPrefill: (v) => set({ gdeltOsintPrefill: v }),
 
-  mapType: 'satellite',
+  mapType: 'google_3d',
   setMapType: (t) => set({ mapType: t }),
+
+  trackedEntity: null,
+  setTrackedEntity: (e) => set({ trackedEntity: e }),
+  clearTrackedEntity: () => set({ trackedEntity: null }),
+  clearSelection: () => set({
+    selectedSatelliteId: null,
+    selectedAircraftId: null,
+    selectedMilitaryId: null,
+    selectedShipId: null,
+    selectedGdeltEventId: null,
+    trackedEntity: null,
+  }),
+  selectContact: (kind, id) => set(() => {
+    const cleared = {
+      selectedSatelliteId: null as number | null,
+      selectedAircraftId: null as string | null,
+      selectedMilitaryId: null as string | null,
+      selectedShipId: null as string | null,
+      selectedGdeltEventId: null as string | null,
+      trackedEntity: null as TrackedEntity | null,
+    };
+    if (kind === 'aircraft') {
+      return { ...cleared, selectedAircraftId: String(id), trackedEntity: { kind, id: String(id) } };
+    }
+    if (kind === 'military') {
+      return { ...cleared, selectedMilitaryId: String(id), trackedEntity: { kind, id: String(id) } };
+    }
+    if (kind === 'ship') {
+      return { ...cleared, selectedShipId: String(id), trackedEntity: { kind, id: String(id) } };
+    }
+    if (kind === 'satellite') {
+      return { ...cleared, selectedSatelliteId: Number(id), trackedEntity: { kind, id: Number(id) } };
+    }
+    return { ...cleared, selectedGdeltEventId: String(id) };
+  }),
+
+  hudVisible: true,
+  setHudVisible: (v) => set({ hudVisible: v }),
 }));

@@ -6,6 +6,7 @@ import {
   Viewer,
   Color,
   EllipsoidTerrainProvider,
+  CesiumTerrainProvider,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Cartesian2,
@@ -58,10 +59,19 @@ export function GlobeView({ onViewerReady }: GlobeViewProps) {
           timeline: false,
           navigationHelpButton: false,
           useDefaultRenderLoop: true,
-          // Flat ellipsoid terrain — no ion token required
+          // Start on ellipsoid; World Terrain is swapped in below (fails open).
           terrainProvider: new EllipsoidTerrainProvider(),
           baseLayer: false, // we'll add imagery ourselves below
         });
+
+        try {
+          const terrain = await CesiumTerrainProvider.fromIonAssetId(1);
+          if (!viewer.isDestroyed()) {
+            viewer.terrainProvider = terrain;
+          }
+        } catch (err) {
+          console.warn('[Globe] Cesium World Terrain failed, keeping ellipsoid:', err);
+        }
 
         // Cinematic settings
         viewer.scene.globe.enableLighting = true;

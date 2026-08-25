@@ -9,6 +9,8 @@ vi.mock('../../store/useAppStore', () => {
   const storeState = {
     selectedAircraftId: null as string | null,
     setSelectedAircraftId: vi.fn(),
+    trackedEntity: null,
+    setTrackedEntity: vi.fn(),
   };
   const useAppStore = Object.assign(
     vi.fn((selector: (s: typeof storeState) => unknown) => selector(storeState)),

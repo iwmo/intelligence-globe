@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import type { ShipRecord } from '../hooks/useShips';
+import { ContactCard } from './ContactCard';
 
 function formatLastUpdate(lastUpdate: string | null): string {
   if (!lastUpdate) return 'Unknown';
@@ -43,6 +44,14 @@ export function ShipDetailPanel() {
       {isError && <div style={{ color: '#ff4444' }}>Failed to load vessel data</div>}
 
       {data && (
+        <ContactCard
+          kind="ship"
+          id={data.mmsi}
+          title={(data.vessel_name ?? data.mmsi).toUpperCase()}
+          altitude="SEA"
+          speed={data.sog != null ? `${data.sog.toFixed(1)} kts` : '--'}
+          accent="#06B6D4"
+        >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
             <span style={{ color: '#888' }}>Name: </span>
@@ -82,6 +91,7 @@ export function ShipDetailPanel() {
             </span>
           </div>
         </div>
+        </ContactCard>
       )}
     </div>
   );

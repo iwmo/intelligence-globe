@@ -5,7 +5,25 @@ vi.mock('../../lib/viewerRegistry', () => ({
   flyToLandmark: vi.fn(),
 }));
 
+vi.mock('../../store/useAppStore', () => {
+  const setVisualPreset = vi.fn();
+  const setHudVisible = vi.fn();
+  const clearSelection = vi.fn();
+  const state = {
+    hudVisible: true,
+    setHudVisible,
+    setVisualPreset,
+    clearSelection,
+  };
+  const useAppStore = Object.assign(
+    (selector?: (s: typeof state) => unknown) => (selector ? selector(state) : state),
+    { getState: () => state },
+  );
+  return { useAppStore };
+});
+
 import { flyToLandmark } from '../../lib/viewerRegistry';
+import { useAppStore } from '../../store/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 const mockFlyToLandmark = flyToLandmark as ReturnType<typeof vi.fn>;
@@ -41,5 +59,17 @@ describe('useKeyboardShortcuts — keyboard shortcut dispatch', () => {
     // After unmount, firing a keydown should NOT call flyToLandmark
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
     expect(mockFlyToLandmark).not.toHaveBeenCalled();
+  });
+
+  it('Escape clears selection and track', () => {
+    renderHook(() => useKeyboardShortcuts());
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(useAppStore.getState().clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('digit 2 sets the NVG preset', () => {
+    renderHook(() => useKeyboardShortcuts());
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2' }));
+    expect(useAppStore.getState().setVisualPreset).toHaveBeenCalledWith('nvg');
   });
 });

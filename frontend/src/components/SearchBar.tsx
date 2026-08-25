@@ -18,8 +18,7 @@ export function SearchBar({ workerRef }: SearchBarProps) {
   const satellites = useSatellites();
   const aircraft = useAircraft();
 
-  const setSelectedSatelliteId = useAppStore(s => s.setSelectedSatelliteId);
-  const setSelectedAircraftId = useAppStore(s => s.setSelectedAircraftId);
+  const selectContact = useAppStore(s => s.selectContact);
 
   const handleSearch = useCallback((rawQuery: string) => {
     const q = rawQuery.trim().toLowerCase();
@@ -32,8 +31,7 @@ export function SearchBar({ workerRef }: SearchBarProps) {
       (ac.callsign?.trim().toLowerCase() ?? '').includes(q)
     );
     if (acMatch && acMatch.latitude != null && acMatch.longitude != null) {
-      setSelectedAircraftId(acMatch.icao24);
-      setSelectedSatelliteId(null);
+      selectContact('aircraft', acMatch.icao24);
       flyToPosition(acMatch.longitude, acMatch.latitude, acMatch.baro_altitude ?? 10_000);
       setStatus(`Aircraft: ${acMatch.callsign?.trim() || acMatch.icao24}`);
       return;
@@ -45,8 +43,7 @@ export function SearchBar({ workerRef }: SearchBarProps) {
       ((s.omm as Record<string, string>).OBJECT_NAME?.toLowerCase().includes(q) ?? false)
     );
     if (satMatch) {
-      setSelectedSatelliteId(satMatch.norad_cat_id);
-      setSelectedAircraftId(null);
+      selectContact('satellite', satMatch.norad_cat_id);
       // Request ECEF position from worker; fly-to handled by POSITION_RESULT
       if (workerRef.current) {
         setStatus(`Satellite: ${(satMatch.omm as Record<string, string>).OBJECT_NAME ?? satMatch.norad_cat_id}`);
@@ -65,7 +62,7 @@ export function SearchBar({ workerRef }: SearchBarProps) {
     }
 
     setStatus('No match');
-  }, [aircraft.data, satellites.data, setSelectedAircraftId, setSelectedSatelliteId, workerRef]);
+  }, [aircraft.data, satellites.data, selectContact, workerRef]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;

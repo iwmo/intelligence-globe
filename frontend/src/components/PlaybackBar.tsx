@@ -132,7 +132,7 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
 
   return (
     <div style={{
-      position: 'fixed', top: '26px', left: 40, right: 40,
+      position: 'fixed', top: 0, left: 8, right: 8,
       zIndex: 79,
       background: 'rgba(0,0,0,0.80)',
       backdropFilter: 'blur(6px)',

@@ -123,13 +123,14 @@ describe('useGdeltEvents — GDELT-10 replay window', () => {
     const opts = mockUseQuery.mock.calls[0][0] as { queryKey: unknown[] };
     expect(opts.queryKey[0]).toBe('gdelt-events');
     expect(opts.queryKey[1]).toBeNull(); // effectiveBbox
-    expect(opts.queryKey[2]).toBe(new Date(T1).toISOString());
-    expect(opts.queryKey[3]).toBe(new Date(T2).toISOString());
+    expect(opts.queryKey[2]).toBeNull(); // liveSince is unused in playback
+    expect(opts.queryKey[3]).toBe(new Date(T1).toISOString());
+    expect(opts.queryKey[4]).toBe(new Date(T2).toISOString());
     // replayTs must NOT be in queryKey
     expect(opts.queryKey).not.toContain(T1 + 1000);
   });
 
-  it('Test C: queryKey is [gdelt-events, null, null, null] when replayMode=playback and replayWindowStart=null', () => {
+  it('Test C: queryKey is [gdelt-events, null, null, null, null] when replayMode=playback and replayWindowStart=null', () => {
     mockUseAppStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) =>
       selector({
         replayMode: 'playback',
@@ -142,10 +143,10 @@ describe('useGdeltEvents — GDELT-10 replay window', () => {
     useGdeltEvents();
 
     const opts = mockUseQuery.mock.calls[0][0] as { queryKey: unknown[] };
-    expect(opts.queryKey).toEqual(['gdelt-events', null, null, null]);
+    expect(opts.queryKey).toEqual(['gdelt-events', null, null, null, null]);
   });
 
-  it('Test D: queryKey is [gdelt-events, viewportBbox, null, null] when replayMode=live', () => {
+  it('Test D: queryKey is [gdelt-events, viewportBbox, liveSince, null, null] when replayMode=live', () => {
     const bbox = { minLat: 10, maxLat: 20, minLon: 30, maxLon: 40 };
     mockUseAppStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) =>
       selector({
@@ -159,6 +160,10 @@ describe('useGdeltEvents — GDELT-10 replay window', () => {
     useGdeltEvents();
 
     const opts = mockUseQuery.mock.calls[0][0] as { queryKey: unknown[] };
-    expect(opts.queryKey).toEqual(['gdelt-events', bbox, null, null]);
+    expect(opts.queryKey[0]).toBe('gdelt-events');
+    expect(opts.queryKey[1]).toEqual(bbox);
+    expect(typeof opts.queryKey[2]).toBe('string');
+    expect(opts.queryKey[3]).toBeNull();
+    expect(opts.queryKey[4]).toBeNull();
   });
 });
