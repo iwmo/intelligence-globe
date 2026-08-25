@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import type { MilitaryAircraftRecord } from '../hooks/useMilitaryAircraft';
+import { ContactCard } from './ContactCard';
 
 export function MilitaryDetailPanel() {
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
@@ -25,7 +26,15 @@ export function MilitaryDetailPanel() {
       {isError && <div style={{ color: '#ff4444' }}>Failed to load military aircraft data</div>}
 
       {data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <ContactCard
+          kind="military"
+          id={data.hex}
+          title={(data.flight?.trim() || data.hex).toUpperCase()}
+          altitude={data.alt_baro != null ? `${Math.round(data.alt_baro).toLocaleString()} ft` : 'Ground'}
+          speed={data.gs != null ? `${Math.round(data.gs)} kts` : '--'}
+          accent="#F59E0B"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
             <span style={{ color: '#888' }}>Callsign: </span>
             <span style={{ fontWeight: 'bold', letterSpacing: '0.05em' }}>
@@ -62,6 +71,7 @@ export function MilitaryDetailPanel() {
             </div>
           )}
         </div>
+        </ContactCard>
       )}
     </div>
   );

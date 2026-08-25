@@ -24,8 +24,9 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 import { applyGlobePick } from '../lib/applyGlobePick';
 import { setEntityPosition } from '../lib/entityPositions';
+import { worldAlignedAxis } from '../lib/worldHeading';
 
-const POLL_INTERVAL_MS = 90_000;
+const POLL_INTERVAL_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // SVG-derived canvas icon — pre-rendered once at module scope.
@@ -246,7 +247,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           width: 24,
           height: 24,
           rotation: computeIconRotation(ac.true_track, ac.roll),
-          alignedAxis: Cartesian3.ZERO,
+          alignedAxis: Cartesian3.clone(worldAlignedAxis(nextPos)),
           id: ac.icao24,         // bare icao24 — no prefix — click handler unchanged
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
           show: layers.aircraft && matchesAircraftFilter(ac, currentFilter),
@@ -273,7 +274,10 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       } else {
         // Update heading for existing aircraft
         const existingBb = billboardsByIcao24.get(ac.icao24);
-        if (existingBb) existingBb.rotation = computeIconRotation(ac.true_track, ac.roll);
+        if (existingBb) {
+          existingBb.rotation = computeIconRotation(ac.true_track, ac.roll);
+          existingBb.alignedAxis = Cartesian3.clone(worldAlignedAxis(nextPos));
+        }
       }
     }
 

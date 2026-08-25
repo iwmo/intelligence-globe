@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
+import { ContactCard } from './ContactCard';
 
 interface SatelliteDetail {
   norad_cat_id: number;
@@ -36,6 +37,14 @@ export function SatelliteDetailPanel() {
       {isError && <div style={{ color: '#ff4444' }}>Failed to load satellite data</div>}
 
       {data && (
+        <ContactCard
+          kind="satellite"
+          id={data.norad_cat_id}
+          title={data.object_name.toUpperCase()}
+          altitude={`${data.altitude_km} km`}
+          speed={`${data.velocity_km_s} km/s`}
+          accent="#00D4FF"
+        >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
             <span style={{ color: '#888' }}>Name: </span>
@@ -66,6 +75,7 @@ export function SatelliteDetailPanel() {
             <span>{data.epoch}</span>
           </div>
         </div>
+        </ContactCard>
       )}
     </div>
   );

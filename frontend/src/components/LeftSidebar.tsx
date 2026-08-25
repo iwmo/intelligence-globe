@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { Layers, Search, SlidersHorizontal, Monitor } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useGpsJamming } from '../hooks/useGpsJamming';
+import { layerHonesty } from '../lib/layerFreshness';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { PostProcessPanel } from './PostProcessPanel';
@@ -62,25 +63,33 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
     document.addEventListener('mouseup', onUp);
   }
 
+  const [railHover, setRailHover] = useState(false);
   const panelOpen = activeTab !== null;
+  const railExpanded = railHover || panelOpen;
+  const railWidth = railExpanded ? 40 : 8;
 
   return (
     <>
-      {/* Left icon rail — always visible when !cleanUI */}
-      <div style={{
+      {/* Left icon rail — collapsed to an 8px hit edge until hover or a tab is open */}
+      <div
+        onMouseEnter={() => setRailHover(true)}
+        onMouseLeave={() => setRailHover(false)}
+        style={{
         position: 'fixed',
         left: 0,
-        top: 26,
-        bottom: 28,
-        width: 40,
+        top: 0,
+        bottom: 0,
+        width: railWidth,
         zIndex: 200,
-        background: 'rgba(0,0,0,0.92)',
-        borderRight: '1px solid rgba(0,212,255,0.15)',
+        background: railExpanded ? 'rgba(0,0,0,0.92)' : 'rgba(0,0,0,0.25)',
+        borderRight: railExpanded ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: 8,
         gap: 2,
+        overflow: 'hidden',
+        transition: 'width 0.16s ease',
       }}>
         <TabIcon id="layers"  icon={<Layers size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Layers" />
         <TabIcon id="search"  icon={<Search size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Search" />
@@ -91,9 +100,9 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
       {/* Sliding left panel */}
       <div style={{
         position: 'fixed',
-        left: 40,
-        top: 26,
-        bottom: 28,
+        left: railWidth,
+        top: 36,
+        bottom: 48,
         width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
@@ -213,24 +222,29 @@ function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
 }
 
 function LayersTabContent() {
-  const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass } = useAppStore();
+  const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass, aircraftLastUpdated, tleLastUpdated } = useAppStore();
   const gpsJamming = useGpsJamming();
   const hasJamCells = (gpsJamming.data?.cells?.length ?? 0) > 0;
 
   const LAYER_BUTTONS = [
-    { key: 'satellites'      as const, label: 'SAT',  icon: '◉' },
-    { key: 'aircraft'        as const, label: 'AIR',  icon: '✈' },
-    { key: 'militaryAircraft'as const, label: 'MIL',  icon: '⚔' },
-    { key: 'ships'           as const, label: 'SHIP', icon: '⚓' },
-    { key: 'gpsJamming'      as const, label: 'JAM',  icon: '⚡' },
-    { key: 'streetTraffic'   as const, label: 'TFC',  icon: '🚗' },
-    { key: 'gdelt'           as const, label: 'GEO',  icon: '⬡' },
+    { key: 'satellites'      as const, label: 'SATELLITES', lastUpdated: tleLastUpdated },
+    { key: 'aircraft'        as const, label: 'AIRCRAFT', lastUpdated: aircraftLastUpdated },
+    { key: 'militaryAircraft'as const, label: 'MILITARY' },
+    { key: 'ships'           as const, label: 'SHIPS' },
+    { key: 'gpsJamming'      as const, label: 'GPS JAMMING', hasData: hasJamCells ? true : undefined },
+    { key: 'streetTraffic'   as const, label: 'TRAFFIC' },
+    { key: 'gdelt'           as const, label: 'GDELT' },
   ] as const;
 
   return (
     <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-      {LAYER_BUTTONS.map(({ key, label }) => {
+      {LAYER_BUTTONS.map(({ key, label, ...rest }) => {
         const active = layers[key];
+        const honesty = layerHonesty({
+          visible: active,
+          lastUpdated: 'lastUpdated' in rest ? rest.lastUpdated : undefined,
+          hasData: 'hasData' in rest ? rest.hasData : undefined,
+        });
         return (
           <button
             key={key}
@@ -257,7 +271,8 @@ function LayersTabContent() {
             <span style={{ fontSize: 10, opacity: 0.7 }}>
               {active ? '●' : '○'}
             </span>
-            {label}
+            <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+            <span style={{ fontSize: 9, letterSpacing: '0.08em', opacity: 0.7 }}>{honesty}</span>
           </button>
         );
       })}

@@ -18,6 +18,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
 import { setEntityPosition } from '../lib/entityPositions';
+import { worldAlignedAxis } from '../lib/worldHeading';
 
 // ---------------------------------------------------------------------------
 // SVG-derived canvas icon — pre-rendered once at module scope.
@@ -123,6 +124,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       if (existing) {
         existing.position = pos;
         existing.rotation = CesiumMath.toRadians(-rot);
+        existing.alignedAxis = Cartesian3.clone(worldAlignedAxis(pos));
         // Update label position on data refresh
         const lbl = militaryLabelsByHex.get(ac.hex);
         if (lbl) lbl.position = pos;
@@ -133,7 +135,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
           width: 24,
           height: 24,
           rotation: CesiumMath.toRadians(-rot),
-          alignedAxis: Cartesian3.ZERO,
+          alignedAxis: Cartesian3.clone(worldAlignedAxis(pos)),
           id: `mil:${ac.hex}`,
           scaleByDistance: new NearFarScalar(1e4, 1.5, 5e6, 0.4),
           show: layerVisible,

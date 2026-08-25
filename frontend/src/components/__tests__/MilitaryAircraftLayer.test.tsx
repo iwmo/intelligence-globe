@@ -3,9 +3,15 @@ import { render } from '@testing-library/react';
 
 vi.mock('cesium', () => ({
   PointPrimitiveCollection: class { add = vi.fn(); isDestroyed = vi.fn(() => false); },
-  Cartesian3: { fromDegrees: vi.fn(() => ({})) },
+  Cartesian3: Object.assign(function Cartesian3() { return {}; }, {
+    fromDegrees: vi.fn(() => ({})),
+    clone: vi.fn((v) => v),
+    ZERO: {},
+  }),
+  Ellipsoid: { WGS84: { geodeticSurfaceNormal: vi.fn(() => ({})) } },
   Color: { fromCssColorString: vi.fn(() => ({})) },
   BlendOption: { OPAQUE: 'OPAQUE' },
+  Math: { toRadians: (d: number) => d },
   ScreenSpaceEventHandler: class { setInputAction = vi.fn(); destroy = vi.fn(); },
   ScreenSpaceEventType: { LEFT_CLICK: 'LEFT_CLICK' },
 }));

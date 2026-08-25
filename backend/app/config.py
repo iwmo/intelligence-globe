@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     version: str = "0.1.0"
     api_key: str = ""  # loaded from API_KEY env var; empty = fail-secure (all POSTs rejected)
+    openai_api_key: str = ""  # OPENAI_API_KEY — server-side only, never VITE_
+    voice_model: str = "gpt-realtime-2.1-mini"
+    voice_session_cap_usd: float = 3.0
 
     # Freshness thresholds (FRESH-02) — overridable via environment variables
     AIRCRAFT_STALE_SECONDS: int = 120

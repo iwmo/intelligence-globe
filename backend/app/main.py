@@ -13,6 +13,7 @@ from app.api.routes_replay import router as replay_router
 from app.api.routes_osint import router as osint_router
 from app.api.routes_gdelt import router as gdelt_router
 from app.api.routes_viewport import router as viewport_router
+from app.api.routes_voice import router as voice_router
 
 
 @asynccontextmanager
@@ -40,3 +41,4 @@ app.include_router(replay_router, prefix="/api/replay")
 app.include_router(osint_router, prefix="/api/osint-events")
 app.include_router(gdelt_router, prefix="/api/gdelt-events")
 app.include_router(viewport_router, prefix="/api")
+app.include_router(voice_router, prefix="/api/voice")
