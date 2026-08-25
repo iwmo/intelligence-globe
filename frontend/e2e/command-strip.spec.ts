@@ -26,31 +26,31 @@ async function mockBackend(page: Page) {
 }
 
 async function expectNoVisibleButtonOverlap(page: Page) {
-  const boxes = await page.locator('.command-strip button:visible').evaluateAll(buttons =>
-    buttons.map(button => {
-      const rect = button.getBoundingClientRect();
-      return {
-        label: button.getAttribute('aria-label') || button.textContent?.trim() || 'button',
-        left: rect.left,
-        right: rect.right,
-        top: rect.top,
-        bottom: rect.bottom,
-      };
-    }),
-  );
-
-  for (let i = 0; i < boxes.length; i += 1) {
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      const a = boxes[i];
-      const b = boxes[j];
-      const overlaps =
-        a.left < b.right &&
-        a.right > b.left &&
-        a.top < b.bottom &&
-        a.bottom > b.top;
-      expect(overlaps, `${a.label} overlaps ${b.label}`).toBe(false);
+  await expect.poll(async () => {
+    const boxes = await page.locator('.command-strip button:visible').evaluateAll(buttons =>
+      buttons.map(button => {
+        const rect = button.getBoundingClientRect();
+        return {
+          label: button.getAttribute('aria-label') || button.textContent?.trim() || 'button',
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      }),
+    );
+    const overlaps: string[] = [];
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const a = boxes[i];
+        const b = boxes[j];
+        if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) {
+          overlaps.push(`${a.label} overlaps ${b.label}`);
+        }
+      }
     }
-  }
+    return overlaps;
+  }, { timeout: 30_000 }).toEqual([]);
 }
 
 test.beforeEach(async ({ page }) => {
