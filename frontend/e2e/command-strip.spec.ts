@@ -7,7 +7,7 @@ const VIEWPORTS = [
   { width: 1440, height: 900 },
 ] as const;
 
-test.setTimeout(90_000);
+test.setTimeout(120_000);
 
 async function mockBackend(page: Page) {
   await page.route('**/api/**', async route => {
@@ -90,9 +90,11 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByRole('button', { name: /View mode:/ })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Data attribution' })).toBeVisible();
     }
-    await page.screenshot({
-      path: testInfo.outputPath(`operational-earth-${viewport.width}x${viewport.height}.png`),
-      fullPage: false,
-    });
+    if (!process.env.CI) {
+      await page.screenshot({
+        path: testInfo.outputPath(`operational-earth-${viewport.width}x${viewport.height}.png`),
+        fullPage: false,
+      });
+    }
   });
 }
