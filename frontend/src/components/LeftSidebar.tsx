@@ -7,6 +7,7 @@ import { useEarthquakes } from '../hooks/useEarthquakes';
 import { useFires } from '../hooks/useFires';
 import { useLaunches } from '../hooks/useLaunches';
 import { layerHonesty } from '../lib/layerFreshness';
+import { DEFAULT_LEFT_PANEL_WIDTH, clampPanelWidth, loadStoredPanelWidth } from '../lib/panelWidth';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { PostProcessPanel } from './PostProcessPanel';
@@ -26,8 +27,7 @@ function loadTab(): LeftTab {
 }
 
 function loadPanelWidth(): number {
-  try { return parseInt(localStorage.getItem('left-panel-width') ?? '260') || 260; }
-  catch { return 260; }
+  return loadStoredPanelWidth('left-panel-width', DEFAULT_LEFT_PANEL_WIDTH);
 }
 
 interface LeftSidebarProps {
@@ -44,6 +44,14 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
     try { localStorage.setItem('left-panel-width', String(panelWidth)); } catch {}
   }, [panelWidth]);
 
+  useEffect(() => {
+    const onResize = () => {
+      setPanelWidth(w => clampPanelWidth(w, DEFAULT_LEFT_PANEL_WIDTH, window.innerWidth));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   function handleTabClick(tab: NonNullable<LeftTab>) {
     const next: LeftTab = activeTab === tab ? null : tab;
     setActiveTab(next);
@@ -55,7 +63,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
     const startX = e.clientX;
     const startW = panelWidthRef.current;
     function onMove(ev: MouseEvent) {
-      const newW = Math.max(180, Math.min(520, startW + ev.clientX - startX));
+      const newW = clampPanelWidth(startW + ev.clientX - startX, DEFAULT_LEFT_PANEL_WIDTH, window.innerWidth);
       setPanelWidth(newW);
     }
     function onUp() {
@@ -111,6 +119,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         background: 'rgba(0,0,0,0.90)',
         borderRight: panelOpen ? '1px solid rgba(0,212,255,0.15)' : 'none',
         overflow: 'hidden',
+        boxSizing: 'border-box',
         transition: panelOpen ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex',
         flexDirection: 'column',
@@ -247,7 +256,7 @@ function LayersTabContent() {
   ] as const;
 
   return (
-    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
       {LAYER_BUTTONS.map(({ key, label, ...rest }) => {
         const active = layers[key];
         const honesty = layerHonesty({
@@ -263,8 +272,8 @@ function LayersTabContent() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '6px 10px',
+              gap: 8,
+              padding: '8px 12px',
               background: active ? 'rgba(0,212,255,0.15)' : 'rgba(0,0,0,0.5)',
               border: `1px solid ${active ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.12)'}`,
               borderRadius: 3,

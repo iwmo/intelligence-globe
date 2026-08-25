@@ -9,7 +9,7 @@ export function LaunchesRoster() {
   const clearTrackedEntity = useAppStore(s => s.clearTrackedEntity);
 
   return (
-    <div style={{ padding: 10, fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
+    <div style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
       <div style={{ fontSize: 9, letterSpacing: '0.12em', opacity: 0.5, marginBottom: 8 }}>
         LAUNCHES · LL2
       </div>
