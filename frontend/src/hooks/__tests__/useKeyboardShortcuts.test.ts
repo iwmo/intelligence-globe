@@ -8,10 +8,13 @@ vi.mock('../../lib/viewerRegistry', () => ({
 vi.mock('../../store/useAppStore', () => {
   const setVisualPreset = vi.fn();
   const setHudVisible = vi.fn();
+  const setDetectOverlayEnabled = vi.fn();
   const clearSelection = vi.fn();
   const state = {
     hudVisible: true,
     setHudVisible,
+    detectOverlayEnabled: false,
+    setDetectOverlayEnabled,
     setVisualPreset,
     clearSelection,
   };
@@ -71,5 +74,11 @@ describe('useKeyboardShortcuts — keyboard shortcut dispatch', () => {
     renderHook(() => useKeyboardShortcuts());
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '2' }));
     expect(useAppStore.getState().setVisualPreset).toHaveBeenCalledWith('nvg');
+  });
+
+  it('keydown d toggles the detection overlay', () => {
+    renderHook(() => useKeyboardShortcuts());
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
+    expect(useAppStore.getState().setDetectOverlayEnabled).toHaveBeenCalledWith(true);
   });
 });

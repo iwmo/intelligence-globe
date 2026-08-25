@@ -243,6 +243,7 @@ function LayersTabContent() {
     { key: 'earthquakes'     as const, label: 'EARTHQUAKES', hasData: (earthquakes.data?.events.length ?? 0) > 0 ? true : undefined },
     { key: 'fires'           as const, label: 'FIRES', hasData: fires.data?.available === false ? false : ((fires.data?.cells.length ?? 0) > 0 ? true : undefined) },
     { key: 'launches'        as const, label: 'LAUNCHES', hasData: (launches.data?.launches.length ?? 0) > 0 ? true : undefined },
+    { key: 'installations'   as const, label: 'INSTALLATIONS' },
   ] as const;
 
   return (

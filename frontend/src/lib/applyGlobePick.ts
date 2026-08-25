@@ -12,7 +12,12 @@ export function applyGlobePick(resolvedId: string | number | null): void {
       store.selectContact('gdelt', resolvedId.slice(6));
       return;
     }
-    if (resolvedId.startsWith('quake:') || resolvedId.startsWith('fire:') || resolvedId.startsWith('launch:')) {
+    if (
+      resolvedId.startsWith('quake:')
+      || resolvedId.startsWith('fire:')
+      || resolvedId.startsWith('launch:')
+      || resolvedId.startsWith('osm:')
+    ) {
       return;
     }
     if (resolvedId.startsWith('mmsi:')) {

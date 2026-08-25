@@ -28,7 +28,7 @@ export interface PostProcessUniforms {
 interface AppState {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean; gpsJamming: boolean; streetTraffic: boolean; gdelt: boolean; earthquakes: boolean; fires: boolean; launches: boolean };
+  layers: { satellites: boolean; aircraft: boolean; militaryAircraft: boolean; ships: boolean; gpsJamming: boolean; streetTraffic: boolean; gdelt: boolean; earthquakes: boolean; fires: boolean; launches: boolean; installations: boolean };
   setLayerVisible: (layer: keyof AppState['layers'], visible: boolean) => void;
   selectedSatelliteId: number | null;
   setSelectedSatelliteId: (id: number | null) => void;
@@ -121,12 +121,16 @@ interface AppState {
 
   hudVisible: boolean;
   setHudVisible: (v: boolean) => void;
+  detectOverlayEnabled: boolean;
+  setDetectOverlayEnabled: (v: boolean) => void;
+  hideTrackedBillboard: boolean;
+  setHideTrackedBillboard: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false, earthquakes: false, fires: false, launches: false },
+  layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false, earthquakes: false, fires: false, launches: false, installations: false },
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
@@ -262,4 +266,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   hudVisible: true,
   setHudVisible: (v) => set({ hudVisible: v }),
+  detectOverlayEnabled: false,
+  setDetectOverlayEnabled: (v) => set({ detectOverlayEnabled: v }),
+  hideTrackedBillboard: false,
+  setHideTrackedBillboard: (v) => set({ hideTrackedBillboard: v }),
 }));

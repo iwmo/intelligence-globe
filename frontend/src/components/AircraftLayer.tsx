@@ -236,7 +236,10 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const existing = currPositions.get(ac.icao24);
       prevPositions.set(ac.icao24, existing ?? nextPos);
       currPositions.set(ac.icao24, nextPos);
-      setEntityPosition('aircraft', ac.icao24, existing ?? nextPos);
+      setEntityPosition('aircraft', ac.icao24, existing ?? nextPos, {
+        headingDeg: ac.true_track,
+        label: ac.callsign?.trim() || ac.icao24,
+      });
 
       // Add new billboard if not yet in collection
       if (!billboardsByIcao24.has(ac.icao24)) {
@@ -317,14 +320,17 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
   // Single effect setting bb.show — avoids conflict between two effects both writing show
   const aircraftFilter = useAppStore(s => s.aircraftFilter);
   const layerVisible = useAppStore(s => s.layers.aircraft);
+  const hideTrackedBillboard = useAppStore(s => s.hideTrackedBillboard);
+  const trackedEntity = useAppStore(s => s.trackedEntity);
   useEffect(() => {
     const byIcao = new Map(aircraft.data?.map(a => [a.icao24, a]) ?? []);
     for (const [icao24, bb] of billboardsByIcao24) {
       const ac = byIcao.get(icao24);
       if (!ac) { bb.show = false; continue; }
-      bb.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter);
+      const hideForModel = hideTrackedBillboard && trackedEntity?.kind === 'aircraft' && String(trackedEntity.id) === icao24;
+      bb.show = layerVisible && matchesAircraftFilter(ac, aircraftFilter) && !hideForModel;
     }
-  }, [aircraftFilter, aircraft.data, layerVisible]);
+  }, [aircraftFilter, aircraft.data, layerVisible, hideTrackedBillboard, trackedEntity]);
 
   // Label visibility effect: sync LabelCollection show state with showAircraftLabels toggle
   const showEntityLabels = useSettingsStore(s => s.showAircraftLabels);

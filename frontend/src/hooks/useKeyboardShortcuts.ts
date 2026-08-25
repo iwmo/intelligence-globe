@@ -12,7 +12,7 @@ const PRESET_KEYS: Record<string, VisualPreset> = {
 };
 
 /**
- * Global shortcuts: Q/W/E/R/T landmarks, 1–5 presets, H HUD, Esc stop track.
+ * Global shortcuts: Q/W/E/R/T landmarks, 1–5 presets, H HUD, D detect, Esc stop track.
  * Ignored while typing in an input or textarea.
  */
 export function useKeyboardShortcuts(): void {
@@ -36,6 +36,11 @@ export function useKeyboardShortcuts(): void {
       if (e.key === 'h' || e.key === 'H') {
         const { hudVisible, setHudVisible } = useAppStore.getState();
         setHudVisible(!hudVisible);
+        return;
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        const { detectOverlayEnabled, setDetectOverlayEnabled } = useAppStore.getState();
+        setDetectOverlayEnabled(!detectOverlayEnabled);
         return;
       }
       const preset = PRESET_KEYS[e.key];

@@ -58,6 +58,8 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
 
   const layerVisible = useAppStore(s => s.layers.militaryAircraft);
+  const hideTrackedBillboard = useAppStore(s => s.hideTrackedBillboard);
+  const trackedEntity = useAppStore(s => s.trackedEntity);
   const showEntityLabels = useSettingsStore(s => s.showMilitaryLabels);
 
   // Replay state — read by playback interpolation effect
@@ -119,7 +121,10 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       // Military heading from track field (degrees clockwise from north)
       const rot = ac.track ?? 0;
 
-      setEntityPosition('military', ac.hex, pos);
+      setEntityPosition('military', ac.hex, pos, {
+        headingDeg: ac.track,
+        label: ac.flight?.trim() || ac.hex,
+      });
       const existing = militaryBillboardsByHex.get(ac.hex);
       if (existing) {
         existing.position = pos;
@@ -164,10 +169,11 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
 
   // Effect 3: Visibility toggle
   useEffect(() => {
-    for (const [, bb] of militaryBillboardsByHex) {
-      bb.show = layerVisible;
+    for (const [hex, bb] of militaryBillboardsByHex) {
+      const hideForModel = hideTrackedBillboard && trackedEntity?.kind === 'military' && String(trackedEntity.id) === hex;
+      bb.show = layerVisible && !hideForModel;
     }
-  }, [layerVisible]);
+  }, [layerVisible, hideTrackedBillboard, trackedEntity]);
 
   // Effect 4: Label visibility toggle
   useEffect(() => {

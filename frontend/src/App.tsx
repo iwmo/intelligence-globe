@@ -13,6 +13,9 @@ import { GdeltLayer } from './components/GdeltLayer';
 import { EarthquakeLayer } from './components/EarthquakeLayer';
 import { FireLayer } from './components/FireLayer';
 import { LaunchLayer } from './components/LaunchLayer';
+import { InstallationLayer } from './components/InstallationLayer';
+import { DetectionOverlay } from './components/DetectionOverlay';
+import { TrackedModelLayer } from './components/TrackedModelLayer';
 import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
@@ -103,10 +106,13 @@ export default function App() {
       <EarthquakeLayer viewer={cesiumViewer} />
       <FireLayer viewer={cesiumViewer} />
       <LaunchLayer viewer={cesiumViewer} />
+      <InstallationLayer viewer={cesiumViewer} />
+      <TrackedModelLayer viewer={cesiumViewer} />
 
       <PostProcessEngine viewer={cesiumViewer} />
       <TrackContact viewer={cesiumViewer} />
       <CinematicHUD viewer={cesiumViewer} />
+      <DetectionOverlay viewer={cesiumViewer} />
 
       <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />
       <BootSplash />

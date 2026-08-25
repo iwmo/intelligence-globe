@@ -14,5 +14,7 @@ describe('applyGlobePick Wave 3 prefixes', () => {
     expect(useAppStore.getState().selectedAircraftId).toBeNull();
     applyGlobePick('launch:abc');
     expect(useAppStore.getState().selectedAircraftId).toBeNull();
+    applyGlobePick('osm:99');
+    expect(useAppStore.getState().selectedAircraftId).toBeNull();
   });
 });

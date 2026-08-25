@@ -3,6 +3,8 @@ import { useAppStore } from '../store/useAppStore';
 export function DisplayChips() {
   const hudVisible = useAppStore(s => s.hudVisible);
   const setHudVisible = useAppStore(s => s.setHudVisible);
+  const detectOverlayEnabled = useAppStore(s => s.detectOverlayEnabled);
+  const setDetectOverlayEnabled = useAppStore(s => s.setDetectOverlayEnabled);
   const cleanUI = useAppStore(s => s.cleanUI);
   const setCleanUI = useAppStore(s => s.setCleanUI);
 
@@ -19,7 +21,12 @@ export function DisplayChips() {
       letterSpacing: '0.1em',
     }}>
       <Chip active={hudVisible} onClick={() => setHudVisible(!hudVisible)} label="HUD" />
-      <Chip active={false} onClick={() => undefined} label="DETECT" title="Detection overlay — Wave 4" />
+      <Chip
+        active={detectOverlayEnabled}
+        onClick={() => setDetectOverlayEnabled(!detectOverlayEnabled)}
+        label="DETECT"
+        title="Detection overlay (D)"
+      />
       <Chip active={cleanUI} onClick={() => setCleanUI(!cleanUI)} label="CLEAN" />
     </div>
   );
