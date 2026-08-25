@@ -12,6 +12,7 @@ import { SettingsPanel } from './SettingsPanel';
 import { GdeltDetailPanel } from './GdeltDetailPanel';
 import { MapTypePanel } from './MapTypePanel';
 import { zoomStep } from '../lib/viewerRegistry';
+import { DEFAULT_RIGHT_PANEL_WIDTH, clampPanelWidth, loadStoredPanelWidth } from '../lib/panelWidth';
 
 type RightTab = 'camera' | 'settings' | 'map' | 'contacts' | 'launches' | null;
 
@@ -24,8 +25,7 @@ const ENTITY_COLORS: Record<string, string> = {
 };
 
 function loadPanelWidth(): number {
-  try { return parseInt(localStorage.getItem('right-panel-width') ?? '280') || 280; }
-  catch { return 280; }
+  return loadStoredPanelWidth('right-panel-width', DEFAULT_RIGHT_PANEL_WIDTH);
 }
 
 export function RightSidebar() {
@@ -37,6 +37,14 @@ export function RightSidebar() {
   useEffect(() => {
     try { localStorage.setItem('right-panel-width', String(panelWidth)); } catch {}
   }, [panelWidth]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setPanelWidth(w => clampPanelWidth(w, DEFAULT_RIGHT_PANEL_WIDTH, window.innerWidth));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const selectedSatelliteId  = useAppStore(s => s.selectedSatelliteId);
   const selectedAircraftId   = useAppStore(s => s.selectedAircraftId);
@@ -74,14 +82,16 @@ export function RightSidebar() {
     selectedShipId       !== null ? 'VESSEL'       :
     selectedGdeltEventId !== null ? 'GDELT EVENT'  : null;
 
-  const headerTitle = entityType ?? (
+  const tabTitle =
     activeRightTab === 'camera'   ? 'CAMERA'   :
     activeRightTab === 'settings' ? 'SETTINGS' :
     activeRightTab === 'map'      ? 'MAP LAYER' :
     activeRightTab === 'contacts' ? 'CONTACTS'  :
-    activeRightTab === 'launches' ? 'LAUNCHES'  : ''
-  );
-  const headerColor = ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)';
+    activeRightTab === 'launches' ? 'LAUNCHES'  : '';
+  const headerTitle = tabTitle || entityType || '';
+  const headerColor = tabTitle
+    ? 'rgba(0,212,255,0.75)'
+    : (ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)');
 
   function handleClose() {
     clearSelection();
@@ -97,7 +107,7 @@ export function RightSidebar() {
     const startX = e.clientX;
     const startW = panelWidthRef.current;
     function onMove(ev: MouseEvent) {
-      const newW = Math.max(140, Math.min(520, startW - (ev.clientX - startX)));
+      const newW = clampPanelWidth(startW - (ev.clientX - startX), DEFAULT_RIGHT_PANEL_WIDTH, window.innerWidth);
       setPanelWidth(newW);
     }
     function onUp() {
@@ -197,6 +207,7 @@ export function RightSidebar() {
         background: 'rgba(0,0,0,0.90)',
         borderLeft: panelOpen ? '1px solid rgba(0,212,255,0.15)' : 'none',
         overflow: 'hidden',
+        boxSizing: 'border-box',
         transition: panelOpen ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex',
         flexDirection: 'column',

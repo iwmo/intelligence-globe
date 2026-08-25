@@ -73,17 +73,49 @@ export async function runVoiceTool(name: string, args: Record<string, unknown>):
       return `Tracking ${best.callsign?.trim() || best.icao24}`;
     }
     case 'what_is_selected': {
-      if (store.selectedAircraftId) return `Aircraft ${store.selectedAircraftId}`;
+      if (store.selectedAircraftId) {
+        return `Aircraft ${store.selectedAircraftId}${store.cockpitMode ? ' in cockpit' : store.trackedEntity ? ' tracked' : ''}`;
+      }
       if (store.selectedMilitaryId) return `Military ${store.selectedMilitaryId}`;
       if (store.selectedShipId) return `Ship ${store.selectedShipId}`;
       if (store.selectedSatelliteId != null) return `Satellite ${store.selectedSatelliteId}`;
       return 'Nothing selected';
     }
+    case 'count_flights_in_bbox': {
+      const bbox = store.viewportBbox;
+      const params = new URLSearchParams();
+      if (bbox) {
+        params.set('min_lat', String(bbox.minLat));
+        params.set('max_lat', String(bbox.maxLat));
+        params.set('min_lon', String(bbox.minLon));
+        params.set('max_lon', String(bbox.maxLon));
+      }
+      try {
+        const res = await fetch(`/api/aircraft/?${params}`);
+        if (!res.ok) return 'Could not count aircraft';
+        const list = await res.json() as AircraftRecord[];
+        const n = Array.isArray(list) ? list.length : 0;
+        return bbox
+          ? `${n} aircraft in the current viewport`
+          : `${n} aircraft loaded (no viewport bbox yet)`;
+      } catch {
+        return 'Could not count aircraft';
+      }
+    }
     case 'clear_selection':
       store.clearSelection();
       return 'Cleared';
-    case 'enter_cockpit':
-      return 'Cockpit is not available in v1';
+    case 'enter_cockpit': {
+      const kind = store.trackedEntity?.kind;
+      if (kind !== 'aircraft' && kind !== 'military') {
+        return 'Track an aircraft first';
+      }
+      store.setCockpitMode(true);
+      return 'Cockpit chase on';
+    }
+    case 'exit_cockpit':
+      store.setCockpitMode(false);
+      return 'Cockpit chase off';
     default:
       return `Unknown tool ${name}`;
   }

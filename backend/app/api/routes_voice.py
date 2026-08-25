@@ -96,7 +96,19 @@ VOICE_TOOLS = [
     {
         "type": "function",
         "name": "enter_cockpit",
-        "description": "Not available in v1",
+        "description": "Enter heading-locked cockpit chase on the tracked aircraft",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "exit_cockpit",
+        "description": "Leave cockpit chase and keep the current track",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "count_flights_in_bbox",
+        "description": "Count aircraft currently loaded in the viewport",
         "parameters": {"type": "object", "properties": {}},
     },
 ]
@@ -138,8 +150,8 @@ async def create_voice_session():
             "model": settings.voice_model,
             "instructions": (
                 "You command Intelligence Globe. Use tools to fly, track contacts, "
-                "and toggle layers. Do not invent Google Places results. "
-                "enter_cockpit is not available."
+                "toggle layers, count flights in view, and enter or exit cockpit chase. "
+                "Do not invent Google Places results. Launch ascent paths are estimates."
             ),
             "audio": {"output": {"voice": "alloy"}},
             "tools": VOICE_TOOLS,

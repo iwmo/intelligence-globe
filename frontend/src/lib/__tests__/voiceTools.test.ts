@@ -26,7 +26,15 @@ describe('runVoiceTool', () => {
     expect(resetGlobe).toHaveBeenCalled();
   });
 
-  it('stubs cockpit', async () => {
-    expect(await runVoiceTool('enter_cockpit', {})).toMatch(/not available/i);
+  it('refuses cockpit without a tracked air contact', async () => {
+    expect(await runVoiceTool('enter_cockpit', {})).toMatch(/track an aircraft/i);
+  });
+
+  it('enters cockpit when an aircraft is tracked', async () => {
+    useAppStore.getState().selectContact('aircraft', 'abc123');
+    expect(await runVoiceTool('enter_cockpit', {})).toMatch(/cockpit chase on/i);
+    expect(useAppStore.getState().cockpitMode).toBe(true);
+    expect(await runVoiceTool('exit_cockpit', {})).toMatch(/off/i);
+    expect(useAppStore.getState().cockpitMode).toBe(false);
   });
 });

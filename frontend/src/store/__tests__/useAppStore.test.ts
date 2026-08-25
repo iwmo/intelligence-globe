@@ -460,4 +460,23 @@ describe('useAppStore — visual engine and clean UI slices', () => {
       expect(useAppStore.getState().detectOverlayEnabled).toBe(true);
     });
   });
+
+  describe('cockpit', () => {
+    it('defaults off and clears with selection', () => {
+      expect(useAppStore.getState().cockpitMode).toBe(false);
+      useAppStore.getState().selectContact('aircraft', 'abc');
+      useAppStore.getState().setCockpitMode(true);
+      expect(useAppStore.getState().cockpitMode).toBe(true);
+      useAppStore.getState().clearSelection();
+      expect(useAppStore.getState().cockpitMode).toBe(false);
+    });
+
+    it('clearTrackedEntity also leaves cockpit', () => {
+      useAppStore.getState().selectContact('aircraft', 'abc');
+      useAppStore.getState().setCockpitMode(true);
+      useAppStore.getState().clearTrackedEntity();
+      expect(useAppStore.getState().trackedEntity).toBeNull();
+      expect(useAppStore.getState().cockpitMode).toBe(false);
+    });
+  });
 });

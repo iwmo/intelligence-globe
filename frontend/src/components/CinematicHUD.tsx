@@ -30,6 +30,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
   const selectedShipId = useAppStore(s => s.selectedShipId);
   const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
   const showBanner = useSettingsStore(s => s.showClassificationBanner);
+  const cockpitMode = useAppStore(s => s.cockpitMode);
 
   const aircraft = useAircraft();
   const military = useMilitaryAircraft();
@@ -177,6 +178,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
             <div>SPD {contact.speed}</div>
             <div>HDG {contact.heading}</div>
             <div>{contact.source} · {contact.freshness}</div>
+            {cockpitMode && <div>COCKPIT</div>}
           </>
         ) : (
           <div style={{ opacity: 0.7 }}>NO CONTACT</div>

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import landmarksData from '../data/landmarks.json';
 import { flyToLandmark } from '../lib/viewerRegistry';
 import { useAppStore, type VisualPreset } from '../store/useAppStore';
+import { canEnterCockpit } from '../lib/trackContact';
 
 const PRESET_KEYS: Record<string, VisualPreset> = {
   '1': 'normal',
@@ -12,7 +13,7 @@ const PRESET_KEYS: Record<string, VisualPreset> = {
 };
 
 /**
- * Global shortcuts: Q/W/E/R/T landmarks, 1–5 presets, H HUD, D detect, Esc stop track.
+ * Global shortcuts: Q/W/E/R/T landmarks, 1–5 presets, H HUD, D detect, C cockpit, Esc stop track.
  * Ignored while typing in an input or textarea.
  */
 export function useKeyboardShortcuts(): void {
@@ -30,7 +31,18 @@ export function useKeyboardShortcuts(): void {
       }
 
       if (e.key === 'Escape') {
-        useAppStore.getState().clearSelection();
+        const store = useAppStore.getState();
+        if (store.cockpitMode) {
+          store.setCockpitMode(false);
+          return;
+        }
+        store.clearSelection();
+        return;
+      }
+      if (e.key === 'c' || e.key === 'C') {
+        const store = useAppStore.getState();
+        if (!canEnterCockpit(store.trackedEntity?.kind)) return;
+        store.setCockpitMode(!store.cockpitMode);
         return;
       }
       if (e.key === 'h' || e.key === 'H') {
