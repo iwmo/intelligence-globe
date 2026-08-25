@@ -19,6 +19,9 @@ vi.mock('../../store/useAppStore', () => ({
 vi.mock('../../hooks/useStreetTraffic', () => ({
   useStreetTraffic: vi.fn(() => ({ roads: null, isLoading: false })),
 }));
+vi.mock('../../hooks/useTrafficFlow', () => ({
+  useTrafficFlow: vi.fn(() => ({ data: { mode: 'sim', samples: [] } })),
+}));
 
 import { StreetTrafficLayer } from '../StreetTrafficLayer';
 

@@ -3,19 +3,10 @@ import type { Viewer } from 'cesium';
 import landmarksData from '../data/landmarks.json';
 import { flyToLandmark } from '../lib/viewerRegistry';
 
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-  boundingbox: [string, string, string, string]; // [south, north, west, east]
-}
-
-function computeAltFromBbox(bbox: [string, string, string, string]): number {
-  const [south, north, west, east] = bbox.map(Number);
-  const latSpan = north - south;
-  const lonSpan = east - west;
-  return Math.max(100_000, Math.min(3_000_000, Math.max(latSpan, lonSpan) * 111_000));
+interface PlaceHit {
+  label: string;
+  lat: number;
+  lon: number;
 }
 
 const LANDMARK_BUTTON_STYLE: React.CSSProperties = {
@@ -69,7 +60,7 @@ function loadCollapsed(): boolean {
 export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => loadCollapsed());
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [results, setResults] = useState<PlaceHit[]>([]);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'no-results' | 'error'>('idle');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -118,19 +109,12 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
     debounceRef.current = setTimeout(async () => {
       setSearchStatus('loading');
       try {
-        const url = new URL('https://nominatim.openstreetmap.org/search');
-        url.searchParams.set('q', value.trim());
-        url.searchParams.set('format', 'json');
-        url.searchParams.set('limit', '5');
-        const res = await fetch(url.toString(), {
-          headers: {
-            'User-Agent': 'IntelligenceGlobe/2.0 (homelab OSINT viewer)',
-            'Accept-Language': 'en',
-          },
-        });
-        const data = (await res.json()) as NominatimResult[];
-        setResults(data);
-        setSearchStatus(data.length === 0 ? 'no-results' : 'idle');
+        const res = await fetch(`/api/places/geocode?q=${encodeURIComponent(value.trim())}`);
+        if (!res.ok) throw new Error('geocode');
+        const data = await res.json() as { results?: PlaceHit[] };
+        const hits = data.results ?? [];
+        setResults(hits);
+        setSearchStatus(hits.length === 0 ? 'no-results' : 'idle');
         setDropdownOpen(true);
       } catch {
         setSearchStatus('error');
@@ -140,14 +124,13 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
     }, 400);
   }
 
-  function handleResultClick(result: NominatimResult) {
-    const altMeters = computeAltFromBbox(result.boundingbox);
+  function handleResultClick(result: PlaceHit) {
     flyToLandmark({
-      lon: parseFloat(result.lon),
-      lat: parseFloat(result.lat),
-      altMeters,
+      lon: result.lon,
+      lat: result.lat,
+      altMeters: 80_000,
     });
-    setQuery(result.display_name.split(',')[0]);
+    setQuery(result.label.split(',')[0]);
     setDropdownOpen(false);
   }
 
@@ -267,7 +250,7 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
             )}
             {results.map(r => (
               <div
-                key={r.place_id}
+                key={`${r.lat},${r.lon},${r.label}`}
                 onClick={() => handleResultClick(r)}
                 style={{
                   color: '#e0e0e0',
@@ -287,7 +270,7 @@ export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
                   (e.currentTarget as HTMLDivElement).style.background = 'transparent';
                 }}
               >
-                {r.display_name}
+                {r.label}
               </div>
             ))}
           </div>

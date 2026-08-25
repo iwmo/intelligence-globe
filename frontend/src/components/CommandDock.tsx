@@ -4,6 +4,7 @@ import { useAppStore, type VisualPreset } from '../store/useAppStore';
 import { flyToLandmark } from '../lib/viewerRegistry';
 import landmarksData from '../data/landmarks.json';
 import { fetchVoiceStatus, startVoiceSession } from '../lib/voiceSession';
+import { useLocality } from '../hooks/useLocality';
 
 const PRESETS: { id: VisualPreset; key: string; label: string }[] = [
   { id: 'normal', key: '1', label: 'NORMAL' },
@@ -19,6 +20,8 @@ export function CommandDock() {
   const [voiceLive, setVoiceLive] = useState(false);
   const visualPreset = useAppStore(s => s.visualPreset);
   const setVisualPreset = useAppStore(s => s.setVisualPreset);
+  const locality = useLocality();
+  const locationLabel = locality.data?.label?.split(',')[0] ?? '--';
 
   useEffect(() => {
     fetchVoiceStatus().then(s => setVoiceAvailable(s.available)).catch(() => setVoiceAvailable(false));
@@ -127,7 +130,7 @@ export function CommandDock() {
             padding: 0,
           }}
         >
-          Style: {visualPreset.toUpperCase()} · Location: --
+          Style: {visualPreset.toUpperCase()} · Location: {locationLabel}
         </button>
         <div style={{ flex: 1 }} />
         <button

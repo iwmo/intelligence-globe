@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     voice_session_cap_usd: float = 3.0
     firms_map_key: str = ""  # FIRMS_MAP_KEY — server-side only
     ll2_api_token: str = ""  # LL2_API_TOKEN — optional, anonymous works
+    google_maps_api_key: str = ""  # GOOGLE_MAPS_API_KEY — Places/Geocoding only, never VITE_
+    tomtom_api_key: str = ""  # TOMTOM_API_KEY — traffic flow, never VITE_
+    tomtom_daily_sample_budget: int = 2_000
 
     # Freshness thresholds (FRESH-02) — overridable via environment variables
     AIRCRAFT_STALE_SECONDS: int = 120

@@ -116,6 +116,51 @@ export async function runVoiceTool(name: string, args: Record<string, unknown>):
     case 'exit_cockpit':
       store.setCockpitMode(false);
       return 'Cockpit chase off';
+    case 'geocode_place': {
+      const query = String(args.query ?? args.q ?? '').trim();
+      if (!query) return 'Need a place name';
+      try {
+        const res = await fetch(`/api/places/geocode?q=${encodeURIComponent(query)}`);
+        if (!res.ok) return 'Could not geocode';
+        const data = await res.json() as { results?: Array<{ label: string; lat: number; lon: number }> };
+        const hit = data.results?.[0];
+        if (!hit) return `No place named ${query}`;
+        flyToLandmark({ lon: hit.lon, lat: hit.lat, altMeters: 80_000 });
+        return `Flying to ${hit.label.split(',')[0]}`;
+      } catch {
+        return 'Could not geocode';
+      }
+    }
+    case 'reverse_geocode': {
+      const bbox = store.viewportBbox;
+      const lat = Number(args.lat ?? (bbox ? (bbox.minLat + bbox.maxLat) / 2 : NaN));
+      const lon = Number(args.lon ?? (bbox ? (bbox.minLon + bbox.maxLon) / 2 : NaN));
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return 'Need a camera position';
+      try {
+        const res = await fetch(`/api/places/reverse?lat=${lat}&lon=${lon}`);
+        if (!res.ok) return 'Could not name this place';
+        const data = await res.json() as { label?: string };
+        return data.label || 'Unknown place';
+      } catch {
+        return 'Could not name this place';
+      }
+    }
+    case 'nearby_places': {
+      const bbox = store.viewportBbox;
+      if (!bbox) return 'Need a viewport';
+      const lat = (bbox.minLat + bbox.maxLat) / 2;
+      const lon = (bbox.minLon + bbox.maxLon) / 2;
+      try {
+        const res = await fetch(`/api/places/nearby?lat=${lat}&lon=${lon}`);
+        if (!res.ok) return 'Could not list nearby places';
+        const data = await res.json() as { available?: boolean; results?: Array<{ label: string }> };
+        if (!data.available) return 'Nearby search needs a Google Places key';
+        const names = (data.results ?? []).map(r => r.label).filter(Boolean);
+        return names.length ? names.join(', ') : 'No nearby places';
+      } catch {
+        return 'Could not list nearby places';
+      }
+    }
     default:
       return `Unknown tool ${name}`;
   }

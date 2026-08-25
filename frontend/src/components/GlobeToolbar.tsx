@@ -9,7 +9,9 @@ const ATTRIBUTION = [
   'Open-Meteo (CC BY 4.0)',
   'Launch Library 2 / The Space Devs',
   'ADS-B (adsb.lol) · AIS · CelesTrak',
-  'OpenStreetMap installations (ODbL)',
+  'OpenStreetMap installations and roads (ODbL)',
+  'Nominatim geocoding (ODbL) · Google Places when a key is set',
+  'TomTom Traffic Flow when a key is set',
   'Tracked airliner model — Intelligence Globe (CC BY 4.0)',
   'Cesium ion / Google Photorealistic 3D Tiles',
 ];

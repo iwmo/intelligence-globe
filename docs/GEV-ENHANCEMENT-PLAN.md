@@ -472,7 +472,8 @@ Use these as execution tickets. Stop after any wave; the app should feel better 
 | Decision | Choice | Why |
 |---|---|---|
 | 3D tiles provider | Stay on Cesium ion `2275207` | Already wired; free for personal quota; no Google billing account |
-| Google Maps API key | Do not add in Waves 1–4 | Places is the expensive part; voice does not need it |
+| Google Maps API key | Server-side only after Wave 5; 3D stays on ion | Places/Geocoding optional; Nearby is metered; never `VITE_` |
+| TomTom traffic | Optional live flow under 8 km; OSM sim without a key | GEV pattern; daily sample budget |
 | Voice | Yes, Mini, 8–10 tools, session cap | Requested; cost-controlled; tools wrap code we will have after Wave 1 |
 | Terrain | Real mesh, not ellipsoid | Required for the look and for any later cockpit |
 | New feeds | USGS, FIRMS, Open-Meteo, LL2 first | Free, honest, and they show up on the globe |

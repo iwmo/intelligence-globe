@@ -6,18 +6,22 @@ import {
   Color,
 } from 'cesium';
 import { useStreetTraffic, type RoadSegment } from '../hooks/useStreetTraffic';
+import { useTrafficFlow } from '../hooks/useTrafficFlow';
+import { FLOW_HEX, nearestFlowBucket, type FlowBucket } from '../lib/trafficFlow';
 import { useAppStore } from '../store/useAppStore';
 
 const MAX_PARTICLES = 500;
 const SHOW_THRESHOLD = 500_000; // hide layer above 500 km altitude
 const PARTICLE_ALTITUDE_M = 10; // constant 10m — PointPrimitive does not support CLAMP_TO_GROUND
 // Color is computed lazily to avoid calling CesiumJS at module load time (breaks test mocks)
-let _particleColor: Color | null = null;
-function getParticleColor(): Color {
-  if (!_particleColor) {
-    _particleColor = Color.fromCssColorString('#38BDF8'); // sky blue
+const _bucketColors = new Map<FlowBucket, Color>();
+function colorForBucket(bucket: FlowBucket): Color {
+  let color = _bucketColors.get(bucket);
+  if (!color) {
+    color = Color.fromCssColorString(FLOW_HEX[bucket]);
+    _bucketColors.set(bucket, color);
   }
-  return _particleColor;
+  return color;
 }
 
 interface Particle {
@@ -46,6 +50,8 @@ export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
   const layerVisible = useAppStore(s => s.layers.streetTraffic);
   const replayMode   = useAppStore(s => s.replayMode);
   const { roads } = useStreetTraffic(viewer, layerVisible);
+  const flow = useTrafficFlow(viewer, layerVisible);
+  const samples = flow.data?.samples ?? [];
 
   const collectionRef = useRef<PointPrimitiveCollection | null>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -139,10 +145,13 @@ export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
       const speed = 0.00005 + Math.random() * (0.0002 - 0.00005);
 
       const position = getPosition(validRoads, roadIndex, segIndex, t);
+      const mid = validRoads[roadIndex].coordinates[segIndex];
+      const bucket = nearestFlowBucket(mid[0], mid[1], samples);
+      if (bucket === 'closed') continue;
       const primitive = col.add({
         position,
         pixelSize: 3,
-        color: getParticleColor(),
+        color: colorForBucket(bucket),
         show: layerVisible,
       });
 
@@ -198,7 +207,7 @@ export function StreetTrafficLayer({ viewer }: { viewer: Viewer | null }) {
 
     // Cleanup handled by next roads change or unmount
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roads]);
+  }, [roads, samples]);
 
   // Effect 4: Visibility toggle from store
   useEffect(() => {
