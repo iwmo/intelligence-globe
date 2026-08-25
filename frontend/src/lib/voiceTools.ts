@@ -2,7 +2,7 @@ import { flyToLandmark, flyToPosition, resetGlobe } from './viewerRegistry';
 import { useAppStore, type MapType, type VisualPreset } from '../store/useAppStore';
 import type { AircraftRecord } from '../hooks/useAircraft';
 
-export function runVoiceTool(name: string, args: Record<string, unknown>): string {
+export async function runVoiceTool(name: string, args: Record<string, unknown>): Promise<string> {
   const store = useAppStore.getState();
 
   switch (name) {
@@ -42,11 +42,26 @@ export function runVoiceTool(name: string, args: Record<string, unknown>): strin
       return 'Unknown contact kind';
     }
     case 'select_nearest': {
-      const list = (args.aircraft as AircraftRecord[] | undefined) ?? [];
       const bbox = store.viewportBbox;
-      if (!bbox || list.length === 0) return 'No aircraft in view';
-      const midLat = (bbox.minLat + bbox.maxLat) / 2;
-      const midLon = (bbox.minLon + bbox.maxLon) / 2;
+      let list = (args.aircraft as AircraftRecord[] | undefined) ?? [];
+      if (list.length === 0) {
+        const params = new URLSearchParams();
+        if (bbox) {
+          params.set('min_lat', String(bbox.minLat));
+          params.set('max_lat', String(bbox.maxLat));
+          params.set('min_lon', String(bbox.minLon));
+          params.set('max_lon', String(bbox.maxLon));
+        }
+        try {
+          const res = await fetch(`/api/aircraft/?${params}`);
+          if (res.ok) list = await res.json() as AircraftRecord[];
+        } catch {
+          return 'Could not load aircraft';
+        }
+      }
+      if (list.length === 0) return 'No aircraft in view';
+      const midLat = bbox ? (bbox.minLat + bbox.maxLat) / 2 : list[0].latitude;
+      const midLon = bbox ? (bbox.minLon + bbox.maxLon) / 2 : list[0].longitude;
       let best = list[0];
       let bestD = Infinity;
       for (const ac of list) {

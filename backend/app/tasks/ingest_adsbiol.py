@@ -142,7 +142,10 @@ async def ingest_commercial_aircraft() -> int:
         Number of aircraft rows upserted.
     """
     base_url = os.getenv("ADSBIO_BASE_URL", "https://re-api.adsb.lol")
+    box_param = get_viewport_bbox()
     url = f"{base_url}/?all_with_pos"
+    if box_param:
+        url = f"{url}&{box_param}"
 
     logger.info("Fetching commercial aircraft from ADSB.lol: %s", url)
 
@@ -251,14 +254,15 @@ async def ingest_commercial_aircraft() -> int:
         # Tombstone sweep: only when fetching the global feed (no bbox filter active).
         # Skip tombstoning when bbox is active — partial view must not mark
         # out-of-view aircraft as inactive.
-        seen_icao24s = list({r["icao24"] for r in valid_records})
-        if seen_icao24s:
-            tombstone_stmt = (
-                sa_update(Aircraft)
-                .where(Aircraft.icao24.not_in(seen_icao24s))
-                .values(is_active=False)
-            )
-            await session.execute(tombstone_stmt)
+        if box_param is None:
+            seen_icao24s = list({r["icao24"] for r in valid_records})
+            if seen_icao24s:
+                tombstone_stmt = (
+                    sa_update(Aircraft)
+                    .where(Aircraft.icao24.not_in(seen_icao24s))
+                    .values(is_active=False)
+                )
+                await session.execute(tombstone_stmt)
 
         await session.commit()
 
@@ -277,8 +281,10 @@ async def ingest_military_aircraft() -> int:
         Number of military aircraft rows upserted.
     """
     base_url = os.getenv("ADSBIO_BASE_URL", "https://re-api.adsb.lol")
-    box_param = None
+    box_param = get_viewport_bbox()
     url = f"{base_url}/?all_with_pos&filter_mil"
+    if box_param:
+        url = f"{url}&{box_param}"
 
     logger.info("Fetching military aircraft from ADSB.lol: %s", url)
 

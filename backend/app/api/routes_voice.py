@@ -6,18 +6,114 @@ from app.config import settings
 
 router = APIRouter()
 
+REALTIME_CLIENT_SECRETS = "https://api.openai.com/v1/realtime/client_secrets"
+
 VOICE_TOOLS = [
-    {"name": "fly_to", "description": "Fly the camera to a lon/lat/alt"},
-    {"name": "zoom_to_globe", "description": "Reset the camera to the home globe view"},
-    {"name": "set_layer_visibility", "description": "Show or hide a named data layer"},
-    {"name": "set_visual_preset", "description": "Set sensor preset: normal, nvg, crt, flir, noir"},
-    {"name": "set_map_type", "description": "Set the base map type"},
-    {"name": "track_contact", "description": "Track a selected aircraft, ship, or satellite"},
-    {"name": "select_nearest", "description": "Select the nearest contact in the viewport"},
-    {"name": "what_is_selected", "description": "Describe the currently selected contact"},
-    {"name": "clear_selection", "description": "Clear selection and stop tracking"},
-    {"name": "enter_cockpit", "description": "Not available in v1"},
+    {
+        "type": "function",
+        "name": "fly_to",
+        "description": "Fly the camera to a lon/lat/alt",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lon": {"type": "number"},
+                "lat": {"type": "number"},
+                "alt": {"type": "number"},
+            },
+            "required": ["lon", "lat"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "zoom_to_globe",
+        "description": "Reset the camera to the home globe view",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "set_layer_visibility",
+        "description": "Show or hide a named data layer",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "layer": {"type": "string"},
+                "visible": {"type": "boolean"},
+            },
+            "required": ["layer", "visible"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_visual_preset",
+        "description": "Set sensor preset: normal, nvg, crt, flir, noir",
+        "parameters": {
+            "type": "object",
+            "properties": {"preset": {"type": "string"}},
+            "required": ["preset"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "set_map_type",
+        "description": "Set the base map type",
+        "parameters": {
+            "type": "object",
+            "properties": {"mapType": {"type": "string"}},
+            "required": ["mapType"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "track_contact",
+        "description": "Track a selected aircraft, ship, or satellite",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string"},
+                "id": {"type": "string"},
+            },
+            "required": ["kind", "id"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "select_nearest",
+        "description": "Select the nearest airborne aircraft in the current viewport",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "what_is_selected",
+        "description": "Describe the currently selected contact",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "clear_selection",
+        "description": "Clear selection and stop tracking",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "enter_cockpit",
+        "description": "Not available in v1",
+        "parameters": {"type": "object", "properties": {}},
+    },
 ]
+
+
+def extract_client_secret(data: dict) -> str | None:
+    """GA returns {value: ek_...}. Beta returned {client_secret: {value: ...}}."""
+    if isinstance(data.get("value"), str) and data["value"]:
+        return data["value"]
+    secret = data.get("client_secret")
+    if isinstance(secret, str) and secret:
+        return secret
+    if isinstance(secret, dict):
+        value = secret.get("value")
+        if isinstance(value, str) and value:
+            return value
+    return None
 
 
 @router.get("/status")
@@ -36,19 +132,24 @@ async def create_voice_session():
         raise HTTPException(status_code=503, detail="Voice unavailable")
 
     payload = {
-        "model": settings.voice_model,
-        "voice": "alloy",
-        "instructions": (
-            "You command Intelligence Globe. Use tools to fly, track contacts, "
-            "and toggle layers. Do not invent Google Places results. "
-            "enter_cockpit is not available."
-        ),
+        "expires_after": {"anchor": "created_at", "seconds": 600},
+        "session": {
+            "type": "realtime",
+            "model": settings.voice_model,
+            "instructions": (
+                "You command Intelligence Globe. Use tools to fly, track contacts, "
+                "and toggle layers. Do not invent Google Places results. "
+                "enter_cockpit is not available."
+            ),
+            "audio": {"output": {"voice": "alloy"}},
+            "tools": VOICE_TOOLS,
+        },
     }
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             res = await client.post(
-                "https://api.openai.com/v1/realtime/sessions",
+                REALTIME_CLIENT_SECRETS,
                 headers={
                     "Authorization": f"Bearer {settings.openai_api_key}",
                     "Content-Type": "application/json",
@@ -61,10 +162,12 @@ async def create_voice_session():
     if res.status_code >= 400:
         raise HTTPException(status_code=502, detail="OpenAI session failed")
 
-    data = res.json()
-    secret = data.get("client_secret", {})
+    secret = extract_client_secret(res.json() if res.content else {})
+    if not secret:
+        raise HTTPException(status_code=502, detail="OpenAI session failed")
+
     return {
-        "client_secret": secret.get("value"),
+        "client_secret": secret,
         "model": settings.voice_model,
         "cap_usd": settings.voice_session_cap_usd,
         "tools": [t["name"] for t in VOICE_TOOLS],

@@ -61,7 +61,7 @@ describe('PlaybackBar smoke tests', () => {
   it('renders PLAYBACK button in live mode', () => {
     mockState.replayMode = 'live';
     const { getByText } = render(<PlaybackBar />);
-    expect(getByText('PLAYBACK')).toBeTruthy();
+    expect(getByText('PLAYBACK ▶')).toBeTruthy();
   });
 });
 
@@ -69,7 +69,7 @@ describe('PlaybackBar playback mode', () => {
   it('renders LIVE button and speed presets in playback mode', () => {
     mockState.replayMode = 'playback';
     const { getByText } = render(<PlaybackBar />);
-    expect(getByText('LIVE')).toBeTruthy();
+    expect(getByText('← LIVE')).toBeTruthy();
     expect(getByText('1m/s')).toBeTruthy();
     expect(getByText('3m/s')).toBeTruthy();
     expect(getByText('5m/s')).toBeTruthy();
@@ -86,7 +86,7 @@ describe('PlaybackBar — snapshot loading gate', () => {
     mockSnapshotsResult.isLoading = true;
 
     const { getByText } = render(<PlaybackBar />);
-    const btn = getByText('Loading snapshots...');
+    const btn = getByText('...');
     expect(btn).toBeTruthy();
     expect((btn as HTMLButtonElement).disabled).toBe(true);
 
@@ -132,7 +132,7 @@ describe('PLAY-04: invalidateQueries on return to LIVE', () => {
 
     const { getByText } = render(<PlaybackBar />);
     // Click the LIVE toggle button to switch back to live mode
-    const liveBtn = getByText('LIVE');
+    const liveBtn = getByText('← LIVE');
     fireEvent.click(liveBtn);
 
     // Contract: invalidateQueries must be called exactly once on mode switch to live.

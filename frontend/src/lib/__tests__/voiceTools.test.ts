@@ -16,17 +16,17 @@ describe('runVoiceTool', () => {
     useAppStore.getState().setVisualPreset('normal');
   });
 
-  it('sets NVG from set_visual_preset', () => {
-    expect(runVoiceTool('set_visual_preset', { preset: 'nvg' })).toContain('nvg');
+  it('sets NVG from set_visual_preset', async () => {
+    expect(await runVoiceTool('set_visual_preset', { preset: 'nvg' })).toContain('nvg');
     expect(useAppStore.getState().visualPreset).toBe('nvg');
   });
 
-  it('resets the globe', () => {
-    runVoiceTool('zoom_to_globe', {});
+  it('resets the globe', async () => {
+    await runVoiceTool('zoom_to_globe', {});
     expect(resetGlobe).toHaveBeenCalled();
   });
 
-  it('stubs cockpit', () => {
-    expect(runVoiceTool('enter_cockpit', {})).toMatch(/not available/i);
+  it('stubs cockpit', async () => {
+    expect(await runVoiceTool('enter_cockpit', {})).toMatch(/not available/i);
   });
 });

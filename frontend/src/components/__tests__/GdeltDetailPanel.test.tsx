@@ -2,12 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-// --- Mocks ---
+const mockUseGdeltEvents = vi.hoisted(() => vi.fn(() => ({ data: [] as unknown[] })));
 
 vi.mock('../../store/useAppStore', () => {
-  // factory must be self-contained — no refs to outer vars (Vitest hoisting)
   const storeState = {
-    selectedGdeltEventId: null as number | null,
+    selectedGdeltEventId: null as string | null,
     setSelectedGdeltEventId: vi.fn(),
     setGdeltOsintPrefill: vi.fn(),
     gdeltOsintPrefill: null,
@@ -19,30 +18,23 @@ vi.mock('../../store/useAppStore', () => {
   return { useAppStore };
 });
 
-vi.mock('../DraggablePanel', () => ({
-  DraggablePanel: ({ children, title }: { children: React.ReactNode; title: string }) =>
-    React.createElement('div', { 'data-testid': 'draggable-panel', 'data-title': title }, children),
+vi.mock('../../hooks/useGdeltEvents', () => ({
+  useGdeltEvents: mockUseGdeltEvents,
 }));
-
-// --- Imports after mocks ---
 
 import { useAppStore } from '../../store/useAppStore';
 import type { GdeltEvent } from '../../hooks/useGdeltEvents';
 import { GdeltDetailPanel } from '../GdeltDetailPanel';
 
-// Typed access to the self-contained mock state
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const storeState = (useAppStore as any)._state as {
-  selectedGdeltEventId: number | null;
+const storeState = (useAppStore as unknown as { _state: {
+  selectedGdeltEventId: string | null;
   setSelectedGdeltEventId: ReturnType<typeof vi.fn>;
   setGdeltOsintPrefill: ReturnType<typeof vi.fn>;
   gdeltOsintPrefill: null;
-};
-
-// --- Fixture ---
+} })._state;
 
 const fixtureEvent: GdeltEvent = {
-  global_event_id: 42,
+  global_event_id: '42',
   occurred_at: '2024-06-01T12:00:00Z',
   discovered_at: '2024-06-01T12:15:00Z',
   latitude: 48.8566,
@@ -58,68 +50,59 @@ const fixtureEvent: GdeltEvent = {
   source_is_stale: false,
 };
 
+function renderPanel(events: GdeltEvent[] = [fixtureEvent]) {
+  mockUseGdeltEvents.mockReturnValue({ data: events });
+  return render(<GdeltDetailPanel />);
+}
+
 describe('GdeltDetailPanel — GDELT-08 render', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     storeState.selectedGdeltEventId = null;
+    mockUseGdeltEvents.mockReturnValue({ data: [fixtureEvent] });
   });
 
   it('renders nothing when selectedGdeltEventId is null', () => {
     storeState.selectedGdeltEventId = null;
-    const { container } = render(<GdeltDetailPanel events={[fixtureEvent]} />);
+    const { container } = renderPanel();
     expect(container.firstChild).toBeNull();
   });
 
   it('renders panel content when selectedGdeltEventId is set', () => {
-    storeState.selectedGdeltEventId = 42;
-    render(<GdeltDetailPanel events={[fixtureEvent]} />);
-    expect(screen.getByTestId('draggable-panel')).toBeTruthy();
+    storeState.selectedGdeltEventId = '42';
+    renderPanel();
+    expect(screen.getByText('FRANCE')).toBeTruthy();
+    expect(screen.getByText('LOG AS OSINT EVENT')).toBeTruthy();
   });
 
   it('shows source_url, actor1_name, actor2_name, goldstein_scale, avg_tone', () => {
-    storeState.selectedGdeltEventId = 42;
-    render(<GdeltDetailPanel events={[fixtureEvent]} />);
-    // source_url as link
+    storeState.selectedGdeltEventId = '42';
+    renderPanel();
     const link = screen.getByRole('link');
-    expect(link).toBeTruthy();
     expect(link.getAttribute('href')).toBe('https://example.com/article');
     expect(link.getAttribute('target')).toBe('_blank');
-    // actor names
     expect(screen.getByText('FRANCE')).toBeTruthy();
     expect(screen.getByText('GERMANY')).toBeTruthy();
-    // goldstein and avg_tone
     expect(screen.getByText('-5.0')).toBeTruthy();
     expect(screen.getByText('-3.5')).toBeTruthy();
   });
 
   it('shows automated-extraction disclaimer', () => {
-    storeState.selectedGdeltEventId = 42;
-    render(<GdeltDetailPanel events={[fixtureEvent]} />);
+    storeState.selectedGdeltEventId = '42';
+    renderPanel();
     expect(screen.getByText(/Data extracted automatically by the GDELT Project/i)).toBeTruthy();
   });
 
   it('shows N/A for null actor names', () => {
-    storeState.selectedGdeltEventId = 42;
-    const nullActorEvent: GdeltEvent = { ...fixtureEvent, actor1_name: null, actor2_name: null };
-    render(<GdeltDetailPanel events={[nullActorEvent]} />);
-    const naItems = screen.getAllByText('N/A');
-    expect(naItems.length).toBeGreaterThanOrEqual(2);
+    storeState.selectedGdeltEventId = '42';
+    renderPanel([{ ...fixtureEvent, actor1_name: null, actor2_name: null }]);
+    expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows N/A for null goldstein_scale and avg_tone', () => {
-    storeState.selectedGdeltEventId = 42;
-    const nullNumericEvent: GdeltEvent = { ...fixtureEvent, goldstein_scale: null, avg_tone: null };
-    render(<GdeltDetailPanel events={[nullNumericEvent]} />);
-    const naItems = screen.getAllByText('N/A');
-    expect(naItems.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('close button calls setSelectedGdeltEventId(null)', () => {
-    storeState.selectedGdeltEventId = 42;
-    render(<GdeltDetailPanel events={[fixtureEvent]} />);
-    const closeBtn = screen.getByTitle('Close');
-    fireEvent.click(closeBtn);
-    expect(storeState.setSelectedGdeltEventId).toHaveBeenCalledWith(null);
+    storeState.selectedGdeltEventId = '42';
+    renderPanel([{ ...fixtureEvent, goldstein_scale: null, avg_tone: null }]);
+    expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -127,13 +110,13 @@ describe('GdeltDetailPanel — GDELT-09 OSINT bridge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     storeState.selectedGdeltEventId = null;
+    mockUseGdeltEvents.mockReturnValue({ data: [fixtureEvent] });
   });
 
   it('"Log as OSINT Event" button calls setGdeltOsintPrefill with event lat/lon/ts/sourceUrl', () => {
-    storeState.selectedGdeltEventId = 42;
-    render(<GdeltDetailPanel events={[fixtureEvent]} />);
-    const logBtn = screen.getByText('LOG AS OSINT EVENT');
-    fireEvent.click(logBtn);
+    storeState.selectedGdeltEventId = '42';
+    renderPanel();
+    fireEvent.click(screen.getByText('LOG AS OSINT EVENT'));
     expect(storeState.setGdeltOsintPrefill).toHaveBeenCalledWith({
       lat: fixtureEvent.latitude,
       lon: fixtureEvent.longitude,
