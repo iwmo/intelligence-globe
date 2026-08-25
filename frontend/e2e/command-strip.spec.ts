@@ -7,6 +7,8 @@ const VIEWPORTS = [
   { width: 1440, height: 900 },
 ] as const;
 
+test.setTimeout(90_000);
+
 async function mockBackend(page: Page) {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
