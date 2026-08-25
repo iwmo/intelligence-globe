@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
-import { Layers, Search, SlidersHorizontal, Monitor } from 'lucide-react';
+import { Layers, Search, SlidersHorizontal } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useGpsJamming } from '../hooks/useGpsJamming';
 import { useEarthquakes } from '../hooks/useEarthquakes';
@@ -8,17 +8,16 @@ import { useFires } from '../hooks/useFires';
 import { useLaunches } from '../hooks/useLaunches';
 import { layerHonesty } from '../lib/layerFreshness';
 import { DEFAULT_LEFT_PANEL_WIDTH, clampPanelWidth, loadStoredPanelWidth } from '../lib/panelWidth';
+import { useSourceHealthStore } from '../store/useSourceHealthStore';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
-import { PostProcessPanel } from './PostProcessPanel';
 
-type LeftTab = 'layers' | 'search' | 'filters' | 'visual' | null;
+type LeftTab = 'layers' | 'search' | 'filters' | null;
 
 const TAB_TITLES: Record<NonNullable<LeftTab>, string> = {
   layers: 'LAYERS',
   search: 'SEARCH',
   filters: 'FILTERS',
-  visual: 'VISUAL ENGINE',
 };
 
 function loadTab(): LeftTab {
@@ -88,7 +87,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         style={{
         position: 'fixed',
         left: 0,
-        top: 0,
+        top: 'var(--shell-top-height)',
         bottom: 0,
         width: railWidth,
         zIndex: 200,
@@ -105,15 +104,14 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         <TabIcon id="layers"  icon={<Layers size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Layers" />
         <TabIcon id="search"  icon={<Search size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Search" />
         <TabIcon id="filters" icon={<SlidersHorizontal size={16} />} activeTab={activeTab} onTabClick={handleTabClick} tooltip="Filters" />
-        <TabIcon id="visual"  icon={<Monitor size={16} />}           activeTab={activeTab} onTabClick={handleTabClick} tooltip="Visual Engine" />
       </div>
 
       {/* Sliding left panel */}
       <div style={{
         position: 'fixed',
         left: railWidth,
-        top: 36,
-        bottom: 48,
+        top: 'var(--shell-top-height)',
+        bottom: 0,
         width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
@@ -139,7 +137,7 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
         }}>
           <span style={{
             fontFamily: 'monospace',
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.15em',
             color: 'rgba(0,212,255,0.75)',
@@ -172,7 +170,6 @@ export function LeftSidebar({ workerRef }: LeftSidebarProps) {
           {activeTab === 'layers'  && <LayersTabContent />}
           {activeTab === 'search'  && <SearchBar workerRef={workerRef} />}
           {activeTab === 'filters' && <FilterPanel />}
-          {activeTab === 'visual'  && <div style={{ padding: '4px 0' }}><PostProcessPanel /></div>}
         </div>
 
         {/* Resize handle */}
@@ -235,6 +232,7 @@ function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
 
 function LayersTabContent() {
   const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass, aircraftLastUpdated, tleLastUpdated } = useAppStore();
+  const sourceHealth = useSourceHealthStore(s => s.sources);
   const gpsJamming = useGpsJamming();
   const earthquakes = useEarthquakes();
   const fires = useFires();
@@ -261,9 +259,16 @@ function LayersTabContent() {
         const active = layers[key];
         const honesty = layerHonesty({
           visible: active,
+          status: sourceHealth[key].status,
           lastUpdated: 'lastUpdated' in rest ? rest.lastUpdated : undefined,
           hasData: 'hasData' in rest ? rest.hasData : undefined,
         });
+        const honestyColor =
+          honesty === 'LIVE' || honesty === 'EMPTY' ? 'var(--status-live)' :
+          honesty === 'CONNECTING' ? 'var(--status-connecting)' :
+          honesty === 'STALE' ? 'var(--status-stale)' :
+          honesty === 'ERROR' ? 'var(--status-error)' :
+          'var(--status-unavailable)';
         return (
           <button
             key={key}
@@ -279,7 +284,7 @@ function LayersTabContent() {
               borderRadius: 3,
               cursor: 'pointer',
               color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               letterSpacing: '0.08em',
               fontFamily: 'monospace',
@@ -291,7 +296,7 @@ function LayersTabContent() {
               {active ? '●' : '○'}
             </span>
             <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.08em', opacity: 0.7 }}>{honesty}</span>
+            <span style={{ fontSize: 11, letterSpacing: '0.08em', color: honestyColor }}>{honesty}</span>
           </button>
         );
       })}

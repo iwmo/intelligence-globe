@@ -20,8 +20,6 @@ export function getCameraGridRef(lonLat: [number, number]): string {
 interface CinematicHUDProps { viewer: Viewer | null; }
 
 export function CinematicHUD({ viewer }: CinematicHUDProps) {
-  const cleanUI = useAppStore(s => s.cleanUI);
-  const setCleanUI = useAppStore(s => s.setCleanUI);
   const hudVisible = useAppStore(s => s.hudVisible);
   const replayMode = useAppStore(s => s.replayMode);
   const trackedEntity = useAppStore(s => s.trackedEntity);
@@ -110,7 +108,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
     return () => { viewer.camera.moveEnd.removeEventListener(handler); };
   }, [viewer]);
 
-  const mgrsTop = (showBanner ? 26 : 0) + (replayMode === 'playback' ? 70 : 44);
+  const mgrsTop = (showBanner ? 26 : 0) + (replayMode === 'playback' ? 112 : 60);
 
   if (!hudVisible) {
     return (
@@ -185,22 +183,6 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         )}
       </div>
 
-      <button
-        onClick={() => setCleanUI(!cleanUI)}
-        style={{
-          position: 'absolute',
-          bottom: 68,
-          left: cleanUI ? 8 : 48,
-          pointerEvents: 'auto',
-          background: 'rgba(0, 0, 0, 0.6)',
-          border: '1px solid rgba(0, 255, 0, 0.5)',
-          color: '#00ff00', fontFamily: 'monospace',
-          fontSize: '11px', padding: '4px 10px',
-          cursor: 'pointer', letterSpacing: '0.1em', userSelect: 'none',
-        }}
-      >
-        {cleanUI ? '[FULL UI]' : '[CLEAN UI]'}
-      </button>
     </div>
   );
 }

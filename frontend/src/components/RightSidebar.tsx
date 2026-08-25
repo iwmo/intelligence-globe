@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Compass, Settings, Map, Users, Rocket } from 'lucide-react';
 import { ContactsRoster } from './ContactsRoster';
 import { LaunchesRoster } from './LaunchesRoster';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, type RightPanel } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
 import { MilitaryDetailPanel } from './MilitaryDetailPanel';
@@ -13,8 +13,6 @@ import { GdeltDetailPanel } from './GdeltDetailPanel';
 import { MapTypePanel } from './MapTypePanel';
 import { zoomStep } from '../lib/viewerRegistry';
 import { DEFAULT_RIGHT_PANEL_WIDTH, clampPanelWidth, loadStoredPanelWidth } from '../lib/panelWidth';
-
-type RightTab = 'camera' | 'settings' | 'map' | 'contacts' | 'launches' | null;
 
 const ENTITY_COLORS: Record<string, string> = {
   'SATELLITE':   '#00D4FF',
@@ -29,7 +27,8 @@ function loadPanelWidth(): number {
 }
 
 export function RightSidebar() {
-  const [activeRightTab, setActiveRightTab] = useState<RightTab>(null);
+  const activeRightTab = useAppStore(s => s.activeRightPanel);
+  const setActiveRightTab = useAppStore(s => s.setActiveRightPanel);
   const [panelWidth, setPanelWidth] = useState<number>(loadPanelWidth);
   const panelWidthRef = useRef(panelWidth);
   panelWidthRef.current = panelWidth;
@@ -57,7 +56,10 @@ export function RightSidebar() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === ',') setActiveRightTab(t => t === 'settings' ? null : 'settings');
+      if (e.key === ',') {
+        const current = useAppStore.getState().activeRightPanel;
+        useAppStore.getState().setActiveRightPanel(current === 'settings' ? null : 'settings');
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -98,8 +100,8 @@ export function RightSidebar() {
     setActiveRightTab(null);
   }
 
-  function handleRightTabClick(tab: NonNullable<RightTab>) {
-    setActiveRightTab(prev => prev === tab ? null : tab);
+  function handleRightTabClick(tab: NonNullable<RightPanel>) {
+    setActiveRightTab(activeRightTab === tab ? null : tab);
   }
 
   function startResize(e: React.MouseEvent) {
@@ -127,7 +129,7 @@ export function RightSidebar() {
         style={{
         position: 'fixed',
         right: 0,
-        top: 0,
+        top: 'var(--shell-top-height)',
         bottom: 0,
         width: railWidth,
         zIndex: 200,
@@ -200,8 +202,8 @@ export function RightSidebar() {
       <div style={{
         position: 'fixed',
         right: railWidth,
-        top: 36,
-        bottom: 48,
+        top: 'var(--shell-top-height)',
+        bottom: 0,
         width: panelOpen ? panelWidth : 0,
         zIndex: 190,
         background: 'rgba(0,0,0,0.90)',
@@ -226,7 +228,7 @@ export function RightSidebar() {
         }}>
           <span style={{
             fontFamily: 'monospace',
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.15em',
             color: headerColor,
@@ -293,10 +295,10 @@ export function RightSidebar() {
 }
 
 interface RightTabIconProps {
-  id: NonNullable<RightTab>;
+  id: NonNullable<RightPanel>;
   icon: React.ReactNode;
-  activeTab: RightTab;
-  onTabClick: (tab: NonNullable<RightTab>) => void;
+  activeTab: RightPanel;
+  onTabClick: (tab: NonNullable<RightPanel>) => void;
   tooltip: string;
   disabled?: boolean;
 }

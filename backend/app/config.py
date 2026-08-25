@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 
 
 class Settings(BaseSettings):
@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     google_maps_api_key: str = ""  # GOOGLE_MAPS_API_KEY — Places/Geocoding only, never VITE_
     tomtom_api_key: str = ""  # TOMTOM_API_KEY — traffic flow, never VITE_
     tomtom_daily_sample_budget: int = 2_000
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        """Railway exposes postgresql:// URLs; SQLAlchemy async uses asyncpg."""
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
 
     # Freshness thresholds (FRESH-02) — overridable via environment variables
     AIRCRAFT_STALE_SECONDS: int = 120

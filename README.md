@@ -48,7 +48,7 @@ A unified real-time intelligence picture — live satellites, aircraft, maritime
 5. **Open the application**
 
    ```
-   http://localhost
+   http://localhost:8085
    ```
 
 > **Note:** `VITE_CESIUM_ION_TOKEN` is required — the build fails without it. Cesium Ion has a free tier; registration takes under a minute.
@@ -68,7 +68,7 @@ All key types listed below are required. The stack will not start if `VITE_CESIU
 ## Architecture
 
 ```
-Browser → http://localhost:80
+Browser → http://localhost:8085
               ↓
         nginx (frontend container)
               ↓  /api/* proxy
@@ -92,7 +92,11 @@ Services started by `docker compose up`:
 
 ## CI
 
-GitHub Actions runs four checks on every push and pull request — `pytest` (backend unit tests), `vitest` + `tsc` (frontend tests and type-checking), `gitleaks` (secret scanning across full git history), and a Docker build verification for both images. All four jobs must pass before a branch can be merged.
+GitHub Actions runs five checks on every push and pull request — `pytest` (backend unit tests), `vitest` + `tsc` (frontend tests and type-checking), Playwright browser tests, `gitleaks` (secret scanning across full git history), and a Docker build verification for both images. All checks must pass before a branch can be merged.
+
+## Railway production
+
+The production service topology, variable names, deployment order, and unmocked E2E command are documented in [docs/RAILWAY-DEPLOYMENT.md](docs/RAILWAY-DEPLOYMENT.md).
 
 
 ## License

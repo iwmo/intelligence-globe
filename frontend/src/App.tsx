@@ -24,16 +24,15 @@ import { CinematicHUD } from './components/CinematicHUD';
 import { TrackContact } from './components/TrackContact';
 import { PlaybackBar } from './components/PlaybackBar';
 import { CommandDock } from './components/CommandDock';
-import { StyleChip } from './components/StyleChip';
-import { GlobeToolbar } from './components/GlobeToolbar';
 import { BootSplash } from './components/BootSplash';
 import { FirstRunCard } from './components/FirstRunCard';
-import { DisplayChips } from './components/DisplayChips';
+import { CommandStrip } from './components/shell/CommandStrip';
 import { parseShareHash, applyShareView, writeShareHash } from './lib/shareView';
 import { OsintEventPanel } from './components/OsintEventPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useViewerClock } from './hooks/useViewerClock';
 import { useViewportBbox } from './hooks/useViewportBbox';
+import { useSourceHealthSync } from './hooks/useSourceHealthSync';
 import { useAppStore } from './store/useAppStore';
 import { useGdeltPrefsStore } from './store/useGdeltPrefsStore';
 
@@ -48,6 +47,7 @@ export default function App() {
   useKeyboardShortcuts();
   useViewerClock(cesiumViewer);
   useViewportBbox(cesiumViewer);
+  useSourceHealthSync();
 
   useEffect(() => {
     satWorkerRef.current = satWorker;
@@ -116,11 +116,9 @@ export default function App() {
       <CinematicHUD viewer={cesiumViewer} />
       <DetectionOverlay viewer={cesiumViewer} />
 
-      <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />
+      <CommandStrip />
+      {!cleanUI && <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />}
       <BootSplash />
-      <StyleChip />
-      <DisplayChips />
-      <GlobeToolbar />
       {!cleanUI && <FirstRunCard />}
       {!cleanUI && <CommandDock />}
 

@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { queryClient } from '../lib/queryClient';
 import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
 import { useOsintEvents } from '../hooks/useOsintEvents';
 import { EVENT_COLORS } from '../data/osintEvents';
@@ -23,7 +22,6 @@ interface PlaybackBarProps { onOpenOsintPanel?: () => void; }
 
 export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const replayMode         = useAppStore(s => s.replayMode);
-  const setReplayMode      = useAppStore(s => s.setReplayMode);
   const replayTs           = useAppStore(s => s.replayTs);
   const setReplayTs        = useAppStore(s => s.setReplayTs);
   const replayWindowStart  = useAppStore(s => s.replayWindowStart);
@@ -37,13 +35,6 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const tleLastUpdated     = useAppStore(s => s.tleLastUpdated);
   const isPlaying          = useAppStore(s => s.isPlaying);
   const setIsPlaying       = useAppStore(s => s.setIsPlaying);
-
-  // Live UTC clock for LIVE mode display
-  const [utcTime, setUtcTime] = useState(() => new Date().toISOString().slice(0, 19) + 'Z');
-  useEffect(() => {
-    const id = setInterval(() => setUtcTime(new Date().toISOString().slice(0, 19) + 'Z'), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const TLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
   const tleAge = tleLastUpdated ? Date.now() - new Date(tleLastUpdated).getTime() : 0;
@@ -102,7 +93,6 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => { rafRunningRef.current = false; cancelAnimationFrame(rafRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replayMode, isPlaying]);
 
   const scrubberValue =
@@ -113,95 +103,68 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const hasWindow = replayWindowStart != null && replayWindowEnd != null;
   const formattedTs = new Date(replayTs).toISOString().slice(0, 19) + 'Z';
 
-  function handleModeToggle() {
-    if (replayMode === 'live') {
-      setReplayMode('playback');
-    } else {
-      useAppStore.getState().setIsPlaying(false);
-      setReplayMode('live');
-      useAppStore.getState().setReplayTs(Date.now());
-      queryClient.invalidateQueries();
-    }
-  }
-
   const btnBase = {
-    fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer',
+    fontFamily: 'var(--font-mono)', fontSize: '12px', cursor: 'pointer',
     border: '1px solid rgba(255,255,255,0.2)', borderRadius: '3px',
     padding: '2px 7px', background: 'rgba(255,255,255,0.08)', color: '#aaa',
   };
 
+  if (replayMode !== 'playback') return null;
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 8, right: 8,
-      zIndex: 79,
-      background: 'rgba(0,0,0,0.80)',
-      backdropFilter: 'blur(6px)',
-      WebkitBackdropFilter: 'blur(6px)',
-      borderBottom: '1px solid rgba(255,255,255,0.07)',
-      fontFamily: 'monospace', fontSize: '11px', color: '#ccc',
+    <div className="playback-bar" style={{
+      position: 'fixed', top: 'var(--shell-top-height)', left: 8, right: 8,
+      zIndex: 175,
+      background: 'var(--card)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      border: '1px solid var(--border)',
+      borderTop: 0,
+      fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--foreground)',
       pointerEvents: 'auto',
-      height: replayMode === 'playback' ? 60 : 36,
-      transition: 'height 0.18s ease',
+      height: 52,
       overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
 
-      {/* Row 1 — always visible */}
+      {/* Replay controls — live/replay mode switching now lives in CommandStrip */}
       <div style={{
-        height: 36, flexShrink: 0,
+        height: 28, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '0 12px',
       }}>
-        {replayMode === 'live' ? (
-          <>
-            <span style={{ color: '#ff3333', animation: 'hud-pulse 2s ease-in-out infinite', fontSize: 10 }}>●</span>
-            <span style={{ color: '#00ff00', fontSize: 10, letterSpacing: '0.08em' }}>REC</span>
-            <span style={{ color: '#00ff00', fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>{utcTime}</span>
-            <div style={{ flex: 1 }} />
-            <button onClick={handleModeToggle} style={{ ...btnBase, fontWeight: 700, letterSpacing: '0.05em' }}>
-              PLAYBACK ▶
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={handleModeToggle} style={{ ...btnBase, background: 'rgba(255,51,51,0.15)', color: '#ff6666', borderColor: 'rgba(255,51,51,0.4)', fontWeight: 700 }}>
-              ← LIVE
-            </button>
-            <button
-              onClick={() => setIsPlaying(p => !p)}
-              disabled={!hasWindow || snapshotsLoading}
-              style={{ ...btnBase, color: '#ccc', cursor: (hasWindow && !snapshotsLoading) ? 'pointer' : 'not-allowed' }}
-            >
-              {snapshotsLoading ? '...' : isPlaying ? 'PAUSE' : 'PLAY'}
-            </button>
-            {hasWindow
-              ? <span style={{ color: '#88ff88', fontSize: 10, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formattedTs}</span>
-              : <span style={{ color: '#888', fontSize: 10, whiteSpace: 'nowrap' }}>No data</span>
-            }
-            <div style={{ flex: 1 }} />
-            {SPEED_PRESETS.map(p => (
-              <button key={p.value} onClick={() => setSpeedMultiplier(p.value)} style={{
-                ...btnBase,
-                color: speedMultiplier === p.value ? '#88ff88' : '#666',
-                border: speedMultiplier === p.value ? '1px solid #88ff88' : '1px solid rgba(255,255,255,0.1)',
-                fontWeight: speedMultiplier === p.value ? 700 : 400,
-                padding: '2px 4px',
-              }}>{p.label}</button>
-            ))}
-            <button onClick={() => onOpenOsintPanel?.()} style={{
-              ...btnBase, background: 'rgba(0,212,255,0.12)',
-              color: '#00D4FF', border: '1px solid rgba(0,212,255,0.4)', fontWeight: 700,
-            }}>LOG</button>
-            {tleStalenessWarning && (
-              <span style={{ color: '#ff3333', fontSize: 9, flexShrink: 0, whiteSpace: 'nowrap' }}>TLE&gt;7d</span>
-            )}
-          </>
+        <button
+          onClick={() => setIsPlaying(p => !p)}
+          disabled={!hasWindow || snapshotsLoading}
+          style={{ ...btnBase, color: '#ccc', cursor: (hasWindow && !snapshotsLoading) ? 'pointer' : 'not-allowed' }}
+        >
+          {snapshotsLoading ? '...' : isPlaying ? 'PAUSE' : 'PLAY'}
+        </button>
+        {hasWindow
+          ? <span style={{ color: 'var(--status-live)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formattedTs}</span>
+          : <span style={{ color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>No replay data</span>
+        }
+        <div style={{ flex: 1 }} />
+        {SPEED_PRESETS.map(p => (
+          <button key={p.value} onClick={() => setSpeedMultiplier(p.value)} style={{
+            ...btnBase,
+            color: speedMultiplier === p.value ? 'var(--status-live)' : 'var(--muted-foreground)',
+            border: speedMultiplier === p.value ? '1px solid var(--status-live)' : '1px solid var(--border)',
+            fontWeight: speedMultiplier === p.value ? 700 : 400,
+            padding: '2px 4px',
+          }}>{p.label}</button>
+        ))}
+        <button onClick={() => onOpenOsintPanel?.()} style={{
+          ...btnBase, background: 'color-mix(in oklch, var(--accent) 12%, transparent)',
+          color: 'var(--accent)', border: '1px solid color-mix(in oklch, var(--accent) 40%, transparent)', fontWeight: 700,
+        }}>LOG</button>
+        {tleStalenessWarning && (
+          <span style={{ color: 'var(--status-error)', fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>TLE&gt;7d</span>
         )}
       </div>
 
-      {/* Row 2 — PLAYBACK only: scrubber + category chips */}
-      {replayMode === 'playback' && (
-        <div style={{
+      {/* Timeline scrubber + category chips */}
+      <div style={{
           height: 24, flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '0 12px',
@@ -263,13 +226,12 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
                 background: (activeCategories.length === 0 || activeCategories.includes(cat)) ? EVENT_COLORS[cat] : 'rgba(255,255,255,0.05)',
                 color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
                 padding: '1px 4px', borderRadius: '2px', cursor: 'pointer',
-                fontFamily: 'monospace', fontSize: '8px', fontWeight: 700,
+                fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700,
                 opacity: (activeCategories.length === 0 || activeCategories.includes(cat)) ? 1 : 0.35,
               }}>{cat}</button>
             ))}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

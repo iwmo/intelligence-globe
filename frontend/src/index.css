@@ -1,104 +1,131 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+  font-family: 'Geist Variable', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Operational Earth surfaces */
+  --background: oklch(0.105 0.012 258);
+  --foreground: oklch(0.94 0.008 250);
+  --card: oklch(0.16 0.014 258 / 94%);
+  --card-foreground: oklch(0.94 0.008 250);
+  --popover: oklch(0.17 0.015 258 / 98%);
+  --popover-foreground: oklch(0.94 0.008 250);
+  --primary: oklch(0.72 0.15 224);
+  --primary-foreground: oklch(0.11 0.012 258);
+  --secondary: oklch(0.22 0.018 258);
+  --secondary-foreground: oklch(0.89 0.009 250);
+  --muted: oklch(0.2 0.014 258);
+  --muted-foreground: oklch(0.67 0.014 250);
+  --accent: oklch(0.72 0.15 224);
+  --accent-foreground: oklch(0.11 0.012 258);
+  --destructive: oklch(0.68 0.2 25);
+  --border: oklch(0.88 0.01 250 / 14%);
+  --input: oklch(0.88 0.01 250 / 18%);
+  --ring: oklch(0.72 0.15 224);
+  --radius: 0.5rem;
+
+  /* Semantic status colors */
+  --status-live: oklch(0.76 0.17 150);
+  --status-connecting: oklch(0.75 0.12 225);
+  --status-stale: oklch(0.79 0.15 84);
+  --status-warning: oklch(0.76 0.16 64);
+  --status-error: oklch(0.68 0.2 25);
+  --status-unavailable: oklch(0.58 0.02 250);
+
+  /* Typography, controls, and shell geometry */
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --control-height: 2.25rem;
+  --control-height-touch: 2.75rem;
+  --shell-top-height: 3rem;
+  --shell-timeline-height: 1.75rem;
+  --shell-gutter: 0.75rem;
+  --z-globe: 0;
+  --z-hud: 80;
+  --z-panel: 190;
+  --z-shell: 240;
+  --z-overlay: 300;
+  --motion-fast: 120ms;
+  --motion-standard: 180ms;
 }
 
 @layer base {
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
-    --chart-5: oklch(0.424 0.199 265.638);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
-    --chart-5: oklch(0.424 0.199 265.638);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
-  .theme {
-    --font-sans: 'Geist Variable', sans-serif;
-  }
   * {
     @apply border-border;
   }
+
+  html,
   body {
     @apply bg-background text-foreground;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
   }
+
   html {
     @apply font-sans;
+  }
+
+  body {
+    min-width: 320px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 28%, transparent);
   }
 }
 
 /* Intel panel custom scrollbar */
 .intel-panel-scroll::-webkit-scrollbar { width: 4px; }
-.intel-panel-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-.intel-panel-scroll::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.25); border-radius: 2px; }
-.intel-panel-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
+.intel-panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.intel-panel-scroll::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--accent) 28%, transparent); border-radius: 2px; }
+.intel-panel-scroll::-webkit-scrollbar-thumb:hover { background: color-mix(in oklch, var(--accent) 50%, transparent); }
+
+.telemetry {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  [data-slot='button'] {
+    min-width: var(--control-height-touch);
+    min-height: var(--control-height-touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -4,6 +4,7 @@ export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
 export type MapType = 'satellite' | 'hybrid' | 'roadmap' | 'contour' | 'bing_aerial' | 'bing_road' | 'google_3d';
 export type TrackableKind = 'aircraft' | 'military' | 'ship' | 'satellite';
 export type SelectableKind = TrackableKind | 'gdelt';
+export type RightPanel = 'camera' | 'settings' | 'map' | 'contacts' | 'launches' | null;
 
 export interface TrackedEntity {
   kind: TrackableKind;
@@ -73,6 +74,8 @@ interface AppState {
 
   cleanUI: boolean;
   setCleanUI: (v: boolean) => void;
+  activeRightPanel: RightPanel;
+  setActiveRightPanel: (panel: RightPanel) => void;
 
   // Replay engine slice (Phase 11)
   replayMode: 'live' | 'playback';
@@ -183,6 +186,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   cleanUI: false,
   setCleanUI: (v) => set({ cleanUI: v }),
+  activeRightPanel: null,
+  setActiveRightPanel: (panel) => set({ activeRightPanel: panel }),
 
   // Replay engine slice
   replayMode: 'live',

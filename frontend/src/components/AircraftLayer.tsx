@@ -210,6 +210,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       prevPositions.clear();
       currPositions.clear();
       billboardsByIcao24.clear();
+      if (!viewer.isDestroyed()) delete viewer.scene.canvas.dataset.aircraftRenderCount;
     };
   }, [viewer]);
 
@@ -283,6 +284,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
         }
       }
     }
+    viewer.scene.canvas.dataset.aircraftRenderCount = String(billboardsByIcao24.size);
 
     lastUpdateTime = Date.now();
 

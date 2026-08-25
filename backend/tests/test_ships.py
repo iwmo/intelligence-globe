@@ -221,6 +221,7 @@ async def test_list_ships_bbox():
     from datetime import datetime, timezone
     from app.db import AsyncSessionLocal
     from app.models.ship import Ship
+    from sqlalchemy import delete
 
     now = datetime.now(timezone.utc)
     ship_in = Ship(
@@ -232,6 +233,9 @@ async def test_list_ships_bbox():
         is_active=True, last_seen_at=now,
     )
     async with AsyncSessionLocal() as session:
+        await session.execute(
+            delete(Ship).where(Ship.mmsi.in_(["123456789", "987654321"]))
+        )
         session.add_all([ship_in, ship_out])
         await session.commit()
 

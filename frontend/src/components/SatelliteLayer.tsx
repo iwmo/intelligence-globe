@@ -181,6 +181,7 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
             show: false,
           });
         }
+        viewer.scene.canvas.dataset.satelliteRenderCount = String(collection.length);
         // Immediately apply current showEntityLabels state so labels are visible
         // on initial load when the toggle was persisted true in localStorage.
         const initialShow = useSettingsStore.getState().showSatelliteLabels;
@@ -338,6 +339,7 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
       overpassCollectionRef.current = null;
       workerRef.current = null;
       indexMapRef.current = new Map();
+      if (!viewer.isDestroyed()) delete viewer.scene.canvas.dataset.satelliteRenderCount;
     };
   }, [viewer, satellites.data, onWorkerReady]);
 
