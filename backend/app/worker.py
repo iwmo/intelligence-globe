@@ -44,6 +44,15 @@ def main() -> None:
     queue.enqueue("app.tasks.ingest_gdelt.sync_ingest_gdelt")
     logger.info("Enqueued GDELT ingest job; first run starting now")
 
+    queue.enqueue("app.tasks.ingest_earthquakes.sync_ingest_earthquakes")
+    logger.info("Enqueued USGS earthquake ingest; first run starting now")
+
+    queue.enqueue("app.tasks.ingest_fires.sync_ingest_fires")
+    logger.info("Enqueued FIRMS fire ingest; first run starting now")
+
+    queue.enqueue("app.tasks.ingest_launches.sync_ingest_launches")
+    logger.info("Enqueued LL2 launch ingest; first run starting now")
+
     worker = Worker([queue], connection=conn)
     worker.work(with_scheduler=True)
 

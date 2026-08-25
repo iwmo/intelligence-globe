@@ -24,6 +24,9 @@ import app.models.military_aircraft  # noqa: F401
 import app.models.gps_jamming  # noqa: F401
 import app.models.osint_event  # noqa: F401
 import app.models.gdelt_event  # noqa: F401
+import app.models.earthquake  # noqa: F401
+import app.models.fire_detection  # noqa: F401
+import app.models.launch  # noqa: F401
 
 # Alembic Config object
 config = context.config

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Compass, Settings, Map, Users } from 'lucide-react';
+import { Compass, Settings, Map, Users, Rocket } from 'lucide-react';
 import { ContactsRoster } from './ContactsRoster';
+import { LaunchesRoster } from './LaunchesRoster';
 import { useAppStore } from '../store/useAppStore';
 import { SatelliteDetailPanel } from './SatelliteDetailPanel';
 import { AircraftDetailPanel } from './AircraftDetailPanel';
@@ -12,7 +13,7 @@ import { GdeltDetailPanel } from './GdeltDetailPanel';
 import { MapTypePanel } from './MapTypePanel';
 import { zoomStep } from '../lib/viewerRegistry';
 
-type RightTab = 'camera' | 'settings' | 'map' | 'contacts' | null;
+type RightTab = 'camera' | 'settings' | 'map' | 'contacts' | 'launches' | null;
 
 const ENTITY_COLORS: Record<string, string> = {
   'SATELLITE':   '#00D4FF',
@@ -77,7 +78,8 @@ export function RightSidebar() {
     activeRightTab === 'camera'   ? 'CAMERA'   :
     activeRightTab === 'settings' ? 'SETTINGS' :
     activeRightTab === 'map'      ? 'MAP LAYER' :
-    activeRightTab === 'contacts' ? 'CONTACTS'  : ''
+    activeRightTab === 'contacts' ? 'CONTACTS'  :
+    activeRightTab === 'launches' ? 'LAUNCHES'  : ''
   );
   const headerColor = ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)';
 
@@ -156,6 +158,13 @@ export function RightSidebar() {
           activeTab={activeRightTab}
           onTabClick={handleRightTabClick}
           tooltip="Contacts"
+        />
+        <RightTabIcon
+          id="launches"
+          icon={<Rocket size={16} />}
+          activeTab={activeRightTab}
+          onTabClick={handleRightTabClick}
+          tooltip="Launches"
         />
 
         <div style={{ flex: 1 }} />
@@ -241,6 +250,7 @@ export function RightSidebar() {
           {activeRightTab === 'settings' && <SettingsPanel />}
           {activeRightTab === 'map'      && <MapTypePanel />}
           {activeRightTab === 'contacts' && <ContactsRoster />}
+          {activeRightTab === 'launches' && <LaunchesRoster />}
           {activeRightTab === null && selectedSatelliteId  !== null && <SatelliteDetailPanel />}
           {activeRightTab === null && selectedAircraftId   !== null && <AircraftDetailPanel />}
           {activeRightTab === null && selectedMilitaryId   !== null && <MilitaryDetailPanel />}

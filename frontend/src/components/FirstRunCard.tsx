@@ -45,6 +45,15 @@ export function FirstRunCard() {
         Intel picture
       </button>
       <button type="button" onClick={() => {
+        setLayerVisible('earthquakes', true);
+        setLayerVisible('fires', true);
+        setLayerVisible('launches', true);
+        flyToLandmark({ lon: -120, lat: 38, altMeters: 2_500_000, pitch: -70 });
+        dismiss();
+      }} style={btn}>
+        Live earth
+      </button>
+      <button type="button" onClick={() => {
         flyToLandmark({ lon: 0, lat: 20, altMeters: 18_000_000, pitch: -90 });
         dismiss();
       }} style={btn}>

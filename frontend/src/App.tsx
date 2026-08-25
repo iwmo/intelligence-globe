@@ -10,6 +10,9 @@ import { ShipLayer } from './components/ShipLayer';
 import { GpsJammingLayer } from './components/GpsJammingLayer';
 import { StreetTrafficLayer } from './components/StreetTrafficLayer';
 import { GdeltLayer } from './components/GdeltLayer';
+import { EarthquakeLayer } from './components/EarthquakeLayer';
+import { FireLayer } from './components/FireLayer';
+import { LaunchLayer } from './components/LaunchLayer';
 import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
@@ -97,6 +100,9 @@ export default function App() {
       <GpsJammingLayer viewer={cesiumViewer} />
       <StreetTrafficLayer viewer={cesiumViewer} />
       <GdeltLayer viewer={cesiumViewer} />
+      <EarthquakeLayer viewer={cesiumViewer} />
+      <FireLayer viewer={cesiumViewer} />
+      <LaunchLayer viewer={cesiumViewer} />
 
       <PostProcessEngine viewer={cesiumViewer} />
       <TrackContact viewer={cesiumViewer} />

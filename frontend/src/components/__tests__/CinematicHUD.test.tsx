@@ -9,6 +9,11 @@ vi.mock('mgrs', () => ({ forward: () => '37U CQ 12345 67890' }));
 vi.mock('../../hooks/useAircraft', () => ({ useAircraft: () => ({ data: [] }) }));
 vi.mock('../../hooks/useMilitaryAircraft', () => ({ useMilitaryAircraft: () => ({ data: [] }) }));
 vi.mock('../../hooks/useShips', () => ({ useShips: () => ({ data: [] }) }));
+vi.mock('../../hooks/useWeather', () => ({
+  useWeather: () => ({ data: { temperature_c: 21.2, wind_kn: 8 } }),
+  weatherQueryPoint: (lat: number | null, lon: number | null) =>
+    lat == null || lon == null ? [null, null] : [lat, lon],
+}));
 
 const mockState = {
   cleanUI: false,
@@ -51,6 +56,7 @@ describe('CinematicHUD', () => {
     mockState.hudVisible = true;
     const { getByText } = renderHud();
     expect(getByText('NO CONTACT')).toBeTruthy();
+    expect(getByText(/WX 21°C/)).toBeTruthy();
   });
 
   it('does not render the costume classification banner by default', () => {
