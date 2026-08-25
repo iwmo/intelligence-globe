@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import type { Viewer } from 'cesium';
 import { useAppStore } from '../store/useAppStore';
-import { chaseTrackedEntity } from '../lib/trackContact';
+import { chaseCockpit, chaseTrackedEntity } from '../lib/trackContact';
 
 export function TrackContact({ viewer }: { viewer: Viewer | null }) {
   const trackedEntity = useAppStore(s => s.trackedEntity);
+  const cockpitMode = useAppStore(s => s.cockpitMode);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !trackedEntity) return undefined;
@@ -13,6 +14,11 @@ export function TrackContact({ viewer }: { viewer: Viewer | null }) {
       if (viewer.isDestroyed()) return;
       const current = useAppStore.getState().trackedEntity;
       if (!current) return;
+      if (useAppStore.getState().cockpitMode) {
+        const ok = chaseCockpit(viewer, current);
+        if (!ok) useAppStore.getState().setCockpitMode(false);
+        return;
+      }
       chaseTrackedEntity(viewer, current);
     };
 
@@ -22,7 +28,7 @@ export function TrackContact({ viewer }: { viewer: Viewer | null }) {
         viewer.scene.preRender.removeEventListener(onTick);
       }
     };
-  }, [viewer, trackedEntity]);
+  }, [viewer, trackedEntity, cockpitMode]);
 
   return null;
 }

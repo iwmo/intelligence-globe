@@ -5,16 +5,24 @@ vi.mock('../../lib/viewerRegistry', () => ({
   flyToLandmark: vi.fn(),
 }));
 
+vi.mock('../../lib/trackContact', () => ({
+  canEnterCockpit: (kind?: string) => kind === 'aircraft' || kind === 'military',
+}));
+
 vi.mock('../../store/useAppStore', () => {
   const setVisualPreset = vi.fn();
   const setHudVisible = vi.fn();
   const setDetectOverlayEnabled = vi.fn();
+  const setCockpitMode = vi.fn();
   const clearSelection = vi.fn();
   const state = {
     hudVisible: true,
     setHudVisible,
     detectOverlayEnabled: false,
     setDetectOverlayEnabled,
+    cockpitMode: false,
+    setCockpitMode,
+    trackedEntity: { kind: 'aircraft' as const, id: 'abc' },
     setVisualPreset,
     clearSelection,
   };
@@ -80,5 +88,11 @@ describe('useKeyboardShortcuts — keyboard shortcut dispatch', () => {
     renderHook(() => useKeyboardShortcuts());
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
     expect(useAppStore.getState().setDetectOverlayEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('keydown c enters cockpit when an aircraft is tracked', () => {
+    renderHook(() => useKeyboardShortcuts());
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+    expect(useAppStore.getState().setCockpitMode).toHaveBeenCalledWith(true);
   });
 });

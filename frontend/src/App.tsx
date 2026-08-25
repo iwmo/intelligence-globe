@@ -16,6 +16,7 @@ import { LaunchLayer } from './components/LaunchLayer';
 import { InstallationLayer } from './components/InstallationLayer';
 import { DetectionOverlay } from './components/DetectionOverlay';
 import { TrackedModelLayer } from './components/TrackedModelLayer';
+import { AscentLayer } from './components/AscentLayer';
 import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
@@ -108,6 +109,7 @@ export default function App() {
       <LaunchLayer viewer={cesiumViewer} />
       <InstallationLayer viewer={cesiumViewer} />
       <TrackedModelLayer viewer={cesiumViewer} />
+      <AscentLayer viewer={cesiumViewer} />
 
       <PostProcessEngine viewer={cesiumViewer} />
       <TrackContact viewer={cesiumViewer} />

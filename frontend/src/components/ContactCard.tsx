@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAppStore, type TrackableKind } from '../store/useAppStore';
+import { canEnterCockpit } from '../lib/trackContact';
 
 interface ContactCardProps {
   kind: TrackableKind;
@@ -24,6 +25,8 @@ export function ContactCard({
 }: ContactCardProps) {
   const tracked = useAppStore(s => s.trackedEntity);
   const setTrackedEntity = useAppStore(s => s.setTrackedEntity);
+  const cockpitMode = useAppStore(s => s.cockpitMode);
+  const setCockpitMode = useAppStore(s => s.setCockpitMode);
   const isTracked = tracked?.kind === kind && String(tracked.id) === String(id);
 
   return (
@@ -64,6 +67,28 @@ export function ContactCard({
           }}
         >
           {isTracked ? 'TRACKING' : 'TRACK'}
+        </button>
+      )}
+      {trackable && canEnterCockpit(kind) && isTracked && (
+        <button
+          type="button"
+          onClick={() => setCockpitMode(!cockpitMode)}
+          style={{
+            width: '100%',
+            marginBottom: 10,
+            padding: '6px 8px',
+            background: cockpitMode ? 'rgba(255,255,255,0.12)' : 'transparent',
+            border: `1px solid ${cockpitMode ? accent : 'rgba(255,255,255,0.2)'}`,
+            borderRadius: 3,
+            color: cockpitMode ? accent : 'rgba(255,255,255,0.75)',
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            fontSize: 11,
+            letterSpacing: '0.12em',
+            fontWeight: 700,
+          }}
+        >
+          {cockpitMode ? 'COCKPIT' : 'ENTER COCKPIT'}
         </button>
       )}
       {children}

@@ -10,6 +10,14 @@ export interface TrackedEntity {
   id: string | number;
 }
 
+export interface AscentEstimate {
+  id: string;
+  name: string;
+  lon: number;
+  lat: number;
+  headingDeg?: number;
+}
+
 export interface ViewportBbox {
   minLat: number;
   maxLat: number;
@@ -125,6 +133,10 @@ interface AppState {
   setDetectOverlayEnabled: (v: boolean) => void;
   hideTrackedBillboard: boolean;
   setHideTrackedBillboard: (v: boolean) => void;
+  cockpitMode: boolean;
+  setCockpitMode: (v: boolean) => void;
+  ascentEstimate: AscentEstimate | null;
+  setAscentEstimate: (v: AscentEstimate | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -230,8 +242,8 @@ export const useAppStore = create<AppState>((set) => ({
   setMapType: (t) => set({ mapType: t }),
 
   trackedEntity: null,
-  setTrackedEntity: (e) => set({ trackedEntity: e }),
-  clearTrackedEntity: () => set({ trackedEntity: null }),
+  setTrackedEntity: (e) => set({ trackedEntity: e, cockpitMode: false }),
+  clearTrackedEntity: () => set({ trackedEntity: null, cockpitMode: false }),
   clearSelection: () => set({
     selectedSatelliteId: null,
     selectedAircraftId: null,
@@ -239,6 +251,7 @@ export const useAppStore = create<AppState>((set) => ({
     selectedShipId: null,
     selectedGdeltEventId: null,
     trackedEntity: null,
+    cockpitMode: false,
   }),
   selectContact: (kind, id) => set(() => {
     const cleared = {
@@ -248,6 +261,7 @@ export const useAppStore = create<AppState>((set) => ({
       selectedShipId: null as string | null,
       selectedGdeltEventId: null as string | null,
       trackedEntity: null as TrackedEntity | null,
+      cockpitMode: false,
     };
     if (kind === 'aircraft') {
       return { ...cleared, selectedAircraftId: String(id), trackedEntity: { kind, id: String(id) } };
@@ -270,4 +284,8 @@ export const useAppStore = create<AppState>((set) => ({
   setDetectOverlayEnabled: (v) => set({ detectOverlayEnabled: v }),
   hideTrackedBillboard: false,
   setHideTrackedBillboard: (v) => set({ hideTrackedBillboard: v }),
+  cockpitMode: false,
+  setCockpitMode: (v) => set({ cockpitMode: v }),
+  ascentEstimate: null,
+  setAscentEstimate: (v) => set({ ascentEstimate: v }),
 }));

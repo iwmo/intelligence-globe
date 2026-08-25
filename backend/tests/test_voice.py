@@ -68,3 +68,5 @@ def test_voice_session_mints_ga_client_secret(monkeypatch):
     body = res.json()
     assert body["client_secret"] == "ek_test"
     assert "fly_to" in body["tools"]
+    assert "enter_cockpit" in body["tools"]
+    assert "count_flights_in_bbox" in body["tools"]
