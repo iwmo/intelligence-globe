@@ -1,11 +1,19 @@
 import { useEffect } from 'react';
 import landmarksData from '../data/landmarks.json';
 import { flyToLandmark } from '../lib/viewerRegistry';
+import { useAppStore, type VisualPreset } from '../store/useAppStore';
+
+const PRESET_KEYS: Record<string, VisualPreset> = {
+  '1': 'normal',
+  '2': 'nvg',
+  '3': 'crt',
+  '4': 'flir',
+  '5': 'noir',
+};
 
 /**
- * Registers Q/W/E/R/T global keyboard shortcuts that fly the camera to landmark presets.
- * Shortcuts are case-insensitive and ignored when the user is typing in an input or textarea.
- * Cleans up the event listener on unmount.
+ * Global shortcuts: Q/W/E/R/T landmarks, 1–5 presets, H HUD, Esc stop track.
+ * Ignored while typing in an input or textarea.
  */
 export function useKeyboardShortcuts(): void {
   useEffect(() => {
@@ -14,18 +22,33 @@ export function useKeyboardShortcuts(): void {
     );
 
     const handler = (e: KeyboardEvent) => {
-      // Don't fire if user is typing in an input or textarea
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
       ) {
         return;
       }
+
+      if (e.key === 'Escape') {
+        useAppStore.getState().clearSelection();
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        const { hudVisible, setHudVisible } = useAppStore.getState();
+        setHudVisible(!hudVisible);
+        return;
+      }
+      const preset = PRESET_KEYS[e.key];
+      if (preset) {
+        useAppStore.getState().setVisualPreset(preset);
+        return;
+      }
+
       const lm = shortcuts.get(e.key.toUpperCase());
       if (lm) flyToLandmark(lm);
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []); // no deps — landmarks are static
+  }, []);
 }

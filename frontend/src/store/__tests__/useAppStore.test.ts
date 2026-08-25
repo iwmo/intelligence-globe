@@ -360,6 +360,28 @@ describe('useAppStore — GDELT slices', () => {
   });
 });
 
+describe('useAppStore — track and selection', () => {
+  beforeEach(() => {
+    useAppStore.getState().clearSelection();
+  });
+
+  it('selectContact tracks aircraft and clears other IDs', () => {
+    useAppStore.getState().selectContact('aircraft', 'abc123');
+    const s = useAppStore.getState();
+    expect(s.selectedAircraftId).toBe('abc123');
+    expect(s.selectedSatelliteId).toBeNull();
+    expect(s.trackedEntity).toEqual({ kind: 'aircraft', id: 'abc123' });
+  });
+
+  it('clearSelection drops track and all entity IDs', () => {
+    useAppStore.getState().selectContact('ship', '123');
+    useAppStore.getState().clearSelection();
+    const s = useAppStore.getState();
+    expect(s.selectedShipId).toBeNull();
+    expect(s.trackedEntity).toBeNull();
+  });
+});
+
 describe('useAppStore — mapType', () => {
   beforeEach(() => {
     useAppStore.setState({ mapType: 'google_3d' });

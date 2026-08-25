@@ -17,6 +17,7 @@ import { useShips } from '../hooks/useShips';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
+import { setEntityPosition } from '../lib/entityPositions';
 
 // ---------------------------------------------------------------------------
 // SVG-derived canvas icon — pre-rendered once at module scope.
@@ -124,6 +125,7 @@ export function ShipLayer({ viewer }: { viewer: Viewer | null }) {
         ? ship.heading
         : (ship.cog ?? 0);
 
+      setEntityPosition('ship', ship.mmsi, pos);
       if (shipBillboardsByMmsi.has(ship.mmsi)) {
         // Direct position and heading update — no lerp needed for slow-moving ships
         const bb = shipBillboardsByMmsi.get(ship.mmsi);

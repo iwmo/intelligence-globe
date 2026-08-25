@@ -43,6 +43,7 @@ const defaultStoreState = {
   showAircraftLabels: false,
   showMilitaryLabels: false,
   showShipLabels: false,
+  showClassificationBanner: false,
   setDefaultLayers: mockSetDefaultLayers,
   setDefaultPreset: mockSetDefaultPreset,
   setDefaultMapType: mockSetDefaultMapType,
@@ -52,6 +53,7 @@ const defaultStoreState = {
   setShowAircraftLabels: vi.fn(),
   setShowMilitaryLabels: vi.fn(),
   setShowShipLabels: vi.fn(),
+  setShowClassificationBanner: vi.fn(),
 };
 
 let storeState = { ...defaultStoreState };

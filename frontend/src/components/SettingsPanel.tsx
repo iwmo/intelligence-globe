@@ -42,8 +42,10 @@ export function SettingsPanel() {
   const {
     defaultLayers, defaultPreset, defaultMapType, defaultCamera, defaultMode,
     showSatelliteLabels, showAircraftLabels, showMilitaryLabels, showShipLabels,
+    showClassificationBanner,
     setDefaultLayers, setDefaultPreset, setDefaultMapType, setDefaultCamera, setDefaultMode,
     setShowSatelliteLabels, setShowAircraftLabels, setShowMilitaryLabels, setShowShipLabels,
+    setShowClassificationBanner,
   } = useSettingsStore();
 
   function handleLayerToggle(key: keyof typeof defaultLayers) {
@@ -70,6 +72,7 @@ export function SettingsPanel() {
           { key: 'aircraft',  label: 'Aircraft',   color: '#FF8C00', checked: showAircraftLabels,  toggle: () => setShowAircraftLabels(!showAircraftLabels) },
           { key: 'military',  label: 'Military',   color: '#EF4444', checked: showMilitaryLabels,  toggle: () => setShowMilitaryLabels(!showMilitaryLabels) },
           { key: 'ship',      label: 'Ships',      color: '#22C55E', checked: showShipLabels,      toggle: () => setShowShipLabels(!showShipLabels) },
+          { key: 'banner',    label: 'OSINT banner', color: '#9ca3af', checked: showClassificationBanner, toggle: () => setShowClassificationBanner(!showClassificationBanner) },
         ] as const).map(({ key, label, color, checked, toggle }) => (
           <label key={key} style={labelStyle}>
             <input type="checkbox" style={{ ...checkboxStyle, accentColor: color }}

@@ -20,6 +20,7 @@ export interface SettingsState {
   showAircraftLabels: boolean;
   showMilitaryLabels: boolean;
   showShipLabels: boolean;
+  showClassificationBanner: boolean;
 
   setDefaultLayers: (layers: SettingsState['defaultLayers']) => void;
   setDefaultPreset: (preset: VisualPreset) => void;
@@ -30,6 +31,7 @@ export interface SettingsState {
   setShowAircraftLabels: (v: boolean) => void;
   setShowMilitaryLabels: (v: boolean) => void;
   setShowShipLabels: (v: boolean) => void;
+  setShowClassificationBanner: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -52,6 +54,7 @@ export const useSettingsStore = create<SettingsState>()(
       showAircraftLabels: false,
       showMilitaryLabels: false,
       showShipLabels: false,
+      showClassificationBanner: false,
 
       setDefaultLayers: (layers) => set({ defaultLayers: layers }),
       setDefaultPreset: (preset) => set({ defaultPreset: preset }),
@@ -62,6 +65,7 @@ export const useSettingsStore = create<SettingsState>()(
       setShowAircraftLabels: (v) => set({ showAircraftLabels: v }),
       setShowMilitaryLabels: (v) => set({ showMilitaryLabels: v }),
       setShowShipLabels: (v) => set({ showShipLabels: v }),
+      setShowClassificationBanner: (v) => set({ showClassificationBanner: v }),
     }),
     { name: 'globe-settings' }
   )

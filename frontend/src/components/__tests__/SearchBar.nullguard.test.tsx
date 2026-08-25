@@ -12,11 +12,10 @@ vi.mock('../../hooks/useAircraft', () => ({
   useAircraft: () => ({ data: [] }),
 }));
 vi.mock('../../store/useAppStore', () => {
-  const setSelectedSatelliteId = vi.fn();
-  const setSelectedAircraftId = vi.fn();
+  const selectContact = vi.fn();
   const mockStore = {
     useAppStore: (selector: (s: any) => any) =>
-      selector({ setSelectedSatelliteId, setSelectedAircraftId }),
+      selector({ selectContact }),
   };
   (mockStore.useAppStore as any).getState = () => ({
     replayMode: 'live' as const,

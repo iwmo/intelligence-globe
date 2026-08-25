@@ -24,6 +24,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { flyToCartesian } from '../lib/viewerRegistry';
 import { resolveTimestamp } from '../lib/resolveTimestamp';
+import { setEntityPosition } from '../lib/entityPositions';
 import type { OverheadSat } from '../workers/overpassElevation';
 
 // ---------------------------------------------------------------------------
@@ -199,36 +200,15 @@ export function SatelliteLayer({ viewer = null, onWorkerReady }: SatelliteLayerP
           if (isNaN(x)) continue;
           const pt = collection.get(i / 4);
           if (pt && !collection.isDestroyed()) {
-            pt.position = new Cartesian3(x, y, z);
+            const next = new Cartesian3(x, y, z);
+            pt.position = next;
+            const norad = satData[i / 4]?.norad_cat_id;
+            if (norad != null) setEntityPosition('satellite', norad, next);
           }
           // Sync label position to match point
           const lbl2 = labelColl.get(i / 4);
           if (lbl2 && !labelColl.isDestroyed()) {
             lbl2.position = new Cartesian3(x, y, z);
-          }
-        }
-
-        // Follow selected satellite: re-center camera each tick while a satellite is selected
-        const followId = useAppStore.getState().selectedSatelliteId;
-        if (followId !== null && viewer && !viewer.isDestroyed()) {
-          const satIdx = indexMapRef.current.get(followId);
-          if (satIdx !== undefined) {
-            const pt = collection.get(satIdx);
-            if (pt && pt.position && !Cartesian3.equals(pt.position, Cartesian3.ZERO)) {
-              const carto = Ellipsoid.WGS84.cartesianToCartographic(pt.position);
-              viewer.camera.setView({
-                destination: Cartesian3.fromDegrees(
-                  CesiumMath.toDegrees(carto.longitude),
-                  CesiumMath.toDegrees(carto.latitude),
-                  viewer.camera.positionCartographic.height,
-                ),
-                orientation: {
-                  heading: viewer.camera.heading,
-                  pitch:   viewer.camera.pitch,
-                  roll:    0,
-                },
-              });
-            }
           }
         }
       }

@@ -17,6 +17,7 @@ import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
+import { setEntityPosition } from '../lib/entityPositions';
 
 // ---------------------------------------------------------------------------
 // SVG-derived canvas icon — pre-rendered once at module scope.
@@ -117,6 +118,7 @@ export function MilitaryAircraftLayer({ viewer }: { viewer: Viewer | null }) {
       // Military heading from track field (degrees clockwise from north)
       const rot = ac.track ?? 0;
 
+      setEntityPosition('military', ac.hex, pos);
       const existing = militaryBillboardsByHex.get(ac.hex);
       if (existing) {
         existing.position = pos;

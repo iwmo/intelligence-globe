@@ -15,6 +15,7 @@ import { registerViewer, flyToLandmark } from './lib/viewerRegistry';
 import { useSettingsStore } from './store/useSettingsStore';
 import { PostProcessEngine } from './components/PostProcessEngine';
 import { CinematicHUD } from './components/CinematicHUD';
+import { TrackContact } from './components/TrackContact';
 import { LandmarkNav } from './components/LandmarkNav';
 import { PlaybackBar } from './components/PlaybackBar';
 import { OsintEventPanel } from './components/OsintEventPanel';
@@ -83,6 +84,7 @@ export default function App() {
       <GdeltLayer viewer={cesiumViewer} />
 
       <PostProcessEngine viewer={cesiumViewer} />
+      <TrackContact viewer={cesiumViewer} />
       <CinematicHUD viewer={cesiumViewer} />
 
       <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />

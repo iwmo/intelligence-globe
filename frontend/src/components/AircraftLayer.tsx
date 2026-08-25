@@ -22,6 +22,8 @@ import { useAircraft } from '../hooks/useAircraft';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useReplaySnapshots, findAdjacentSnapshots } from '../hooks/useReplaySnapshots';
+import { applyGlobePick } from '../lib/applyGlobePick';
+import { setEntityPosition } from '../lib/entityPositions';
 
 const POLL_INTERVAL_MS = 90_000;
 
@@ -162,7 +164,10 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
         clickTimer = setTimeout(() => {
           clickTimer = null;
           const picked = viewer.scene.pick(click.position);
-          if (!picked) return;
+          if (!picked) {
+            applyGlobePick(null);
+            return;
+          }
           // Normalise the picked ID: BillboardCollection/Primitive puts the raw
           // value on picked.id directly; CustomDataSource Entity puts the string
           // id on picked.id.id (picked.id is the Entity object).
@@ -173,47 +178,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
               : rawId && typeof rawId === 'object' && typeof rawId.id === 'string'
               ? rawId.id
               : null;
-          if (typeof resolvedId === 'string') {
-            if (resolvedId.startsWith('gdelt:')) {
-              const eventId = resolvedId.slice(6); // string — matches DB String(20) type
-              useAppStore.getState().setSelectedGdeltEventId(eventId);
-              useAppStore.getState().setSelectedAircraftId(null);
-              useAppStore.getState().setSelectedMilitaryId(null);
-              useAppStore.getState().setSelectedShipId(null);
-              useAppStore.getState().setSelectedSatelliteId(null);
-            } else if (resolvedId.startsWith('mmsi:')) {
-              const mmsi = resolvedId.slice(5);
-              useAppStore.getState().setSelectedShipId(mmsi);
-              useAppStore.getState().setSelectedMilitaryId(null);
-              useAppStore.getState().setSelectedAircraftId(null);
-              useAppStore.getState().setSelectedSatelliteId(null);
-            } else if (resolvedId.startsWith('mil:')) {
-              const hex = resolvedId.slice(4);
-              useAppStore.getState().setSelectedMilitaryId(hex);
-              useAppStore.getState().setSelectedShipId(null);
-              useAppStore.getState().setSelectedAircraftId(null);
-              useAppStore.getState().setSelectedSatelliteId(null);
-            } else {
-              // Commercial aircraft: bare ICAO24 string (no prefix)
-              useAppStore.getState().setSelectedAircraftId(resolvedId);
-              useAppStore.getState().setSelectedMilitaryId(null);
-              useAppStore.getState().setSelectedShipId(null);
-              useAppStore.getState().setSelectedSatelliteId(null);
-            }
-          } else if (typeof resolvedId === 'number' && resolvedId > 1000) {
-            // Satellite: NORAD catalog ID is a number > 1000
-            useAppStore.getState().setSelectedSatelliteId(resolvedId);
-            useAppStore.getState().setSelectedAircraftId(null);
-            useAppStore.getState().setSelectedMilitaryId(null);
-            useAppStore.getState().setSelectedShipId(null);
-          } else {
-            // Clicked globe background or unrecognised primitive — clear all
-            useAppStore.getState().setSelectedSatelliteId(null);
-            useAppStore.getState().setSelectedAircraftId(null);
-            useAppStore.getState().setSelectedMilitaryId(null);
-            useAppStore.getState().setSelectedShipId(null);
-            useAppStore.getState().setSelectedGdeltEventId(null);
-          }
+          applyGlobePick(resolvedId);
         }, 200);
       }, ScreenSpaceEventType.LEFT_CLICK);
     }
@@ -270,6 +235,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
       const existing = currPositions.get(ac.icao24);
       prevPositions.set(ac.icao24, existing ?? nextPos);
       currPositions.set(ac.icao24, nextPos);
+      setEntityPosition('aircraft', ac.icao24, existing ?? nextPos);
 
       // Add new billboard if not yet in collection
       if (!billboardsByIcao24.has(ac.icao24)) {
@@ -330,6 +296,7 @@ export function AircraftLayer({ viewer }: { viewer: Viewer | null }) {
           const curr = currPositions.get(icao24);
           if (prev && curr && bb && !collection.isDestroyed()) {
             bb.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);
+            setEntityPosition('aircraft', icao24, bb.position);
             // Sync label position alongside billboard
             const lbl = labelsByIcao24.get(icao24);
             if (lbl) lbl.position = Cartesian3.lerp(prev, curr, alpha, scratchLerp);

@@ -41,11 +41,7 @@ export function RightSidebar() {
   const selectedMilitaryId   = useAppStore(s => s.selectedMilitaryId);
   const selectedShipId       = useAppStore(s => s.selectedShipId);
   const selectedGdeltEventId = useAppStore(s => s.selectedGdeltEventId);
-  const setSelectedSatelliteId  = useAppStore(s => s.setSelectedSatelliteId);
-  const setSelectedAircraftId   = useAppStore(s => s.setSelectedAircraftId);
-  const setSelectedMilitaryId   = useAppStore(s => s.setSelectedMilitaryId);
-  const setSelectedShipId       = useAppStore(s => s.setSelectedShipId);
-  const setSelectedGdeltEventId = useAppStore(s => s.setSelectedGdeltEventId);
+  const clearSelection = useAppStore(s => s.clearSelection);
 
   // Keyboard shortcut: , for settings
   useEffect(() => {
@@ -81,11 +77,7 @@ export function RightSidebar() {
   const headerColor = ENTITY_COLORS[entityType ?? ''] ?? 'rgba(0,212,255,0.75)';
 
   function handleClose() {
-    setSelectedSatelliteId(null);
-    setSelectedAircraftId(null);
-    setSelectedMilitaryId(null);
-    setSelectedShipId(null);
-    setSelectedGdeltEventId(null);
+    clearSelection();
     setActiveRightTab(null);
   }
 
