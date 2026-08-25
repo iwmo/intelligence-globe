@@ -37,4 +37,17 @@ describe('runVoiceTool', () => {
     expect(await runVoiceTool('exit_cockpit', {})).toMatch(/off/i);
     expect(useAppStore.getState().cockpitMode).toBe(false);
   });
+
+  it('geocodes a place through the backend proxy', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [{ label: 'Lisbon, Portugal', lat: 38.72, lon: -9.14 }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { flyToLandmark } = await import('../viewerRegistry');
+    expect(await runVoiceTool('geocode_place', { query: 'LIS' })).toMatch(/Lisbon/i);
+    expect(fetchMock).toHaveBeenCalled();
+    expect(flyToLandmark).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });

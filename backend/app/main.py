@@ -18,6 +18,8 @@ from app.api.routes_earthquakes import router as earthquakes_router
 from app.api.routes_fires import router as fires_router
 from app.api.routes_launches import router as launches_router
 from app.api.routes_weather import router as weather_router
+from app.api.routes_places import router as places_router
+from app.api.routes_traffic import router as traffic_router
 
 
 @asynccontextmanager
@@ -50,3 +52,5 @@ app.include_router(earthquakes_router, prefix="/api/earthquakes")
 app.include_router(fires_router, prefix="/api/fires")
 app.include_router(launches_router, prefix="/api/launches")
 app.include_router(weather_router, prefix="/api/weather")
+app.include_router(places_router, prefix="/api/places")
+app.include_router(traffic_router, prefix="/api/traffic")

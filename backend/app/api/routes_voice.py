@@ -111,6 +111,34 @@ VOICE_TOOLS = [
         "description": "Count aircraft currently loaded in the viewport",
         "parameters": {"type": "object", "properties": {}},
     },
+    {
+        "type": "function",
+        "name": "geocode_place",
+        "description": "Resolve a place name and fly the camera there",
+        "parameters": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "reverse_geocode",
+        "description": "Name the place under the current camera or a lon/lat",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lat": {"type": "number"},
+                "lon": {"type": "number"},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "name": "nearby_places",
+        "description": "List nearby named places at street level. Needs a Google Places key.",
+        "parameters": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -150,8 +178,10 @@ async def create_voice_session():
             "model": settings.voice_model,
             "instructions": (
                 "You command Intelligence Globe. Use tools to fly, track contacts, "
-                "toggle layers, count flights in view, and enter or exit cockpit chase. "
-                "Do not invent Google Places results. Launch ascent paths are estimates."
+                "toggle layers, count flights in view, enter or exit cockpit chase, "
+                "and geocode or name places via our proxy. "
+                "Do not invent place names. Nearby search needs a Google key. "
+                "Launch ascent paths are estimates."
             ),
             "audio": {"output": {"voice": "alloy"}},
             "tools": VOICE_TOOLS,

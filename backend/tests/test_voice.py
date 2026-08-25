@@ -70,3 +70,5 @@ def test_voice_session_mints_ga_client_secret(monkeypatch):
     assert "fly_to" in body["tools"]
     assert "enter_cockpit" in body["tools"]
     assert "count_flights_in_bbox" in body["tools"]
+    assert "geocode_place" in body["tools"]
+    assert "nearby_places" in body["tools"]
