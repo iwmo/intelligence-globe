@@ -3,6 +3,7 @@ import type { Viewer } from 'cesium';
 import type { MapType } from '../store/useAppStore';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useSourceHealthStore } from '../store/useSourceHealthStore';
 
 // Cesium ion asset IDs for 2D imagery layers
 const MAP_ION_ASSETS: Record<Exclude<MapType, 'google_3d'>, number> = {
@@ -23,6 +24,7 @@ const HOME_VIEW: LandmarkTarget = {
 
 // Tracks the active Google Photorealistic 3D Tiles instance so we can remove it on swap
 let _google3dTileset: Cesium3DTileset | null = null;
+let _mapFallbackActive = false;
 
 function setIonCreditsVisible(visible: boolean): void {
   if (typeof document === 'undefined') return;
@@ -46,9 +48,18 @@ async function loadIonImagery(mapType: Exclude<MapType, 'google_3d'>): Promise<b
     _viewer.imageryLayers.removeAll();
     _viewer.imageryLayers.addImageryProvider(provider);
     setIonCreditsVisible(true);
+    useSourceHealthStore.getState().setSourceHealth('map', {
+      status: _mapFallbackActive ? 'stale' : 'live',
+      lastSuccessAt: new Date().toISOString(),
+      reason: _mapFallbackActive ? 'Photoreal 3D unavailable; using satellite fallback' : null,
+    });
     return true;
   } catch (err) {
     console.error('[MapType] Failed to load ion imagery:', err);
+    useSourceHealthStore.getState().setSourceHealth('map', {
+      status: 'error',
+      reason: err instanceof Error ? err.message : 'Map imagery failed to load',
+    });
     return false;
   }
 }
@@ -57,6 +68,11 @@ export async function swapMapType(mapType: MapType): Promise<void> {
   if (!_viewer || _viewer.isDestroyed()) return;
 
   if (mapType === 'google_3d') {
+    _mapFallbackActive = false;
+    useSourceHealthStore.getState().setSourceHealth('map', {
+      status: 'connecting',
+      reason: null,
+    });
     try {
       const tileset = await Cesium3DTileset.fromIonAssetId(2275207);
       if (!_viewer || _viewer.isDestroyed()) return;
@@ -67,13 +83,30 @@ export async function swapMapType(mapType: MapType): Promise<void> {
       // Hide the Cesium globe mesh — the 3D tiles provide the full surface
       _viewer.scene.globe.show = false;
       setIonCreditsVisible(true);
+      useSourceHealthStore.getState().setSourceHealth('map', {
+        status: 'live',
+        lastSuccessAt: new Date().toISOString(),
+        reason: null,
+      });
     } catch (err) {
       console.error('[MapType] Failed to load Google 3D tiles, falling back to satellite:', err);
+      _mapFallbackActive = true;
+      useSourceHealthStore.getState().setSourceHealth('map', {
+        status: 'error',
+        reason: 'Photoreal 3D failed; switching to satellite',
+      });
       if (useAppStore.getState().mapType === 'google_3d') {
         useAppStore.getState().setMapType('satellite');
       }
     }
   } else {
+    if (mapType !== 'satellite') _mapFallbackActive = false;
+    if (!_mapFallbackActive) {
+      useSourceHealthStore.getState().setSourceHealth('map', {
+        status: 'connecting',
+        reason: null,
+      });
+    }
     // Leaving 3D mode: tear down tileset and restore globe
     clearGoogle3D(_viewer);
     await loadIonImagery(mapType);

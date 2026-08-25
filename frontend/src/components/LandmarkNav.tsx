@@ -57,7 +57,8 @@ function loadCollapsed(): boolean {
   } catch { return false; }
 }
 
-export function LandmarkNav({ viewer: _viewer }: { viewer: Viewer | null }) {
+export function LandmarkNav({ viewer }: { viewer: Viewer | null }) {
+  void viewer;
   const [collapsed, setCollapsed] = useState<boolean>(() => loadCollapsed());
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceHit[]>([]);

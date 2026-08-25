@@ -1,25 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Mic } from 'lucide-react';
-import { useAppStore, type VisualPreset } from '../store/useAppStore';
 import { flyToLandmark } from '../lib/viewerRegistry';
 import landmarksData from '../data/landmarks.json';
 import { fetchVoiceStatus, startVoiceSession } from '../lib/voiceSession';
 import { useLocality } from '../hooks/useLocality';
 
-const PRESETS: { id: VisualPreset; key: string; label: string }[] = [
-  { id: 'normal', key: '1', label: 'NORMAL' },
-  { id: 'nvg', key: '2', label: 'NVG' },
-  { id: 'crt', key: '3', label: 'CRT' },
-  { id: 'flir', key: '4', label: 'FLIR' },
-  { id: 'noir', key: '5', label: 'NOIR' },
-];
-
 export function CommandDock() {
   const [open, setOpen] = useState(false);
   const [voiceAvailable, setVoiceAvailable] = useState(false);
   const [voiceLive, setVoiceLive] = useState(false);
-  const visualPreset = useAppStore(s => s.visualPreset);
-  const setVisualPreset = useAppStore(s => s.setVisualPreset);
   const locality = useLocality();
   const locationLabel = locality.data?.label?.split(',')[0] ?? '--';
 
@@ -51,35 +40,6 @@ export function CommandDock() {
           flexDirection: 'column',
           gap: 8,
         }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {PRESETS.map(p => {
-              const active = visualPreset === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setVisualPreset(p.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 8px',
-                    background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
-                    border: `1px solid ${active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.12)'}`,
-                    borderRadius: 3,
-                    color: active ? '#fff' : 'rgba(255,255,255,0.6)',
-                    cursor: 'pointer',
-                    fontFamily: 'monospace',
-                    fontSize: 10,
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  <span style={{ opacity: 0.5 }}>{p.key}</span>
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {landmarksData.landmarks.map(lm => (
               <button
@@ -130,7 +90,7 @@ export function CommandDock() {
             padding: 0,
           }}
         >
-          Style: {visualPreset.toUpperCase()} · Location: {locationLabel}
+          Location: {locationLabel} · Landmarks
         </button>
         <div style={{ flex: 1 }} />
         <button

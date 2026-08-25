@@ -13,4 +13,16 @@ describe('layerHonesty', () => {
   it('is LIVE when visible and fresh', () => {
     expect(layerHonesty({ visible: true, lastUpdated: new Date().toISOString() })).toBe('LIVE');
   });
+
+  it('is CONNECTING when visible without confirmed data', () => {
+    expect(layerHonesty({ visible: true })).toBe('CONNECTING');
+  });
+
+  it('uses explicit source health ahead of inferred freshness', () => {
+    expect(layerHonesty({
+      visible: true,
+      status: 'error',
+      lastUpdated: new Date().toISOString(),
+    })).toBe('ERROR');
+  });
 });

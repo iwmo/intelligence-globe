@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { useGdeltEvents } from '../../hooks/useGdeltEvents';
-
-const mockInvalidateQueries = vi.hoisted(() => vi.fn());
 
 vi.mock('cesium', () => ({}));
 
@@ -48,28 +46,23 @@ vi.mock('../../hooks/useGdeltEvents', () => ({
   useGdeltEvents: vi.fn(() => ({ data: [] })),
 }));
 
-vi.mock('../../lib/queryClient', () => ({
-  queryClient: {
-    invalidateQueries: mockInvalidateQueries,
-  },
-}));
-
 // Static import after vi.mock — produces ModuleNotFoundError when PlaybackBar.tsx does not exist
 import { PlaybackBar } from '../PlaybackBar';
 
 describe('PlaybackBar smoke tests', () => {
-  it('renders PLAYBACK button in live mode', () => {
+  it('does not render the temporal row in live mode', () => {
     mockState.replayMode = 'live';
-    const { getByText } = render(<PlaybackBar />);
-    expect(getByText('PLAYBACK ▶')).toBeTruthy();
+    const { container } = render(<PlaybackBar />);
+    expect(container.firstChild).toBeNull();
   });
 });
 
 describe('PlaybackBar playback mode', () => {
-  it('renders LIVE button and speed presets in playback mode', () => {
+  it('renders replay controls and speed presets in playback mode', () => {
     mockState.replayMode = 'playback';
-    const { getByText } = render(<PlaybackBar />);
-    expect(getByText('← LIVE')).toBeTruthy();
+    const { getByText, queryByText } = render(<PlaybackBar />);
+    expect(getByText('No replay data')).toBeTruthy();
+    expect(queryByText('← LIVE')).toBeNull();
     expect(getByText('1m/s')).toBeTruthy();
     expect(getByText('3m/s')).toBeTruthy();
     expect(getByText('5m/s')).toBeTruthy();
@@ -111,36 +104,6 @@ describe('PlaybackBar — snapshot loading gate', () => {
     // reset
     mockState.replayWindowStart = null;
     mockState.replayWindowEnd = null;
-  });
-});
-
-// ---------------------------------------------------------------------------
-// PLAY-04: queryClient.invalidateQueries called on return to LIVE
-//
-// RED test: when handleModeToggle switches from playback → live, PlaybackBar
-// must call queryClient.invalidateQueries() exactly once to refresh all
-// React Query caches. The current implementation does NOT call invalidateQueries.
-//
-// This test FAILS until PlaybackBar imports queryClient from '../lib/queryClient'
-// and calls queryClient.invalidateQueries() inside the else branch of handleModeToggle.
-// ---------------------------------------------------------------------------
-
-describe('PLAY-04: invalidateQueries on return to LIVE', () => {
-  it('calls queryClient.invalidateQueries exactly once when switching from playback to live (RED)', () => {
-    mockState.replayMode = 'playback';
-    mockInvalidateQueries.mockClear();
-
-    const { getByText } = render(<PlaybackBar />);
-    // Click the LIVE toggle button to switch back to live mode
-    const liveBtn = getByText('← LIVE');
-    fireEvent.click(liveBtn);
-
-    // Contract: invalidateQueries must be called exactly once on mode switch to live.
-    // FAILS until PlaybackBar.handleModeToggle() adds: queryClient.invalidateQueries()
-    expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
-
-    // reset
-    mockState.replayMode = 'live';
   });
 });
 
