@@ -308,13 +308,13 @@ describe('useAppStore — GDELT slices', () => {
 
   describe('layers.gdelt', () => {
     it('layers.gdelt defaults to false', () => {
-      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false } } as Parameters<typeof useAppStore.setState>[0]);
+      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false, earthquakes: false, fires: false, launches: false } } as Parameters<typeof useAppStore.setState>[0]);
       const { layers } = useAppStore.getState();
       expect((layers as Record<string, unknown>)['gdelt']).toBe(false);
     });
 
     it('setLayerVisible("gdelt", true) sets layers.gdelt to true', () => {
-      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false } } as Parameters<typeof useAppStore.setState>[0]);
+      useAppStore.setState({ layers: { satellites: true, aircraft: true, militaryAircraft: false, ships: false, gpsJamming: false, streetTraffic: false, gdelt: false, earthquakes: false, fires: false, launches: false } } as Parameters<typeof useAppStore.setState>[0]);
       (useAppStore.getState().setLayerVisible as (layer: string, visible: boolean) => void)('gdelt', true);
       const { layers } = useAppStore.getState();
       expect((layers as Record<string, unknown>)['gdelt']).toBe(true);

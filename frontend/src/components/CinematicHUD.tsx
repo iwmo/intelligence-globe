@@ -9,6 +9,7 @@ import { useAircraft } from '../hooks/useAircraft';
 import { useMilitaryAircraft } from '../hooks/useMilitaryAircraft';
 import { useShips } from '../hooks/useShips';
 import { resolveHudContact } from '../lib/hudContact';
+import { useWeather, weatherQueryPoint } from '../hooks/useWeather';
 
 export function getCameraGridRef(lonLat: [number, number]): string {
   const [, lat] = lonLat;
@@ -78,6 +79,21 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
   const [mgrsStr, setMgrsStr] = useState('...');
   const [altKm, setAltKm] = useState(0);
   const [latLon, setLatLon] = useState<[string, string]>(['0.0000', '0.0000']);
+  const camLat = Number(latLon[0]);
+  const camLon = Number(latLon[1]);
+  const selectedAc = selectedAircraftId
+    ? aircraft.data?.find(a => a.icao24 === selectedAircraftId)
+    : undefined;
+  const selectedMil = selectedMilitaryId
+    ? military.data?.find(a => a.hex === selectedMilitaryId)
+    : undefined;
+  const selectedShip = selectedShipId
+    ? ships.data?.find(s => s.mmsi === selectedShipId)
+    : undefined;
+  const wxLat = selectedAc?.latitude ?? selectedMil?.lat ?? selectedShip?.lat ?? (Number.isFinite(camLat) ? camLat : null);
+  const wxLon = selectedAc?.longitude ?? selectedMil?.lon ?? selectedShip?.lon ?? (Number.isFinite(camLon) ? camLon : null);
+  const [wxQLat, wxQLon] = weatherQueryPoint(wxLat, wxLon);
+  const weather = useWeather(wxQLat, wxQLon);
 
   useEffect(() => {
     if (!viewer) return undefined;
@@ -138,6 +154,12 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
         <div style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.1em' }}>{mgrsStr}</div>
         <div>ALT: {altKm} km</div>
         <div>{latLon[0]}° N / {latLon[1]}° E</div>
+        {weather.data?.temperature_c != null && (
+          <div>
+            WX {Math.round(weather.data.temperature_c)}°C
+            {weather.data.wind_kn != null ? ` · ${Math.round(weather.data.wind_kn)} kn` : ''}
+          </div>
+        )}
       </div>
 
       <div style={{

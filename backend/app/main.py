@@ -14,6 +14,10 @@ from app.api.routes_osint import router as osint_router
 from app.api.routes_gdelt import router as gdelt_router
 from app.api.routes_viewport import router as viewport_router
 from app.api.routes_voice import router as voice_router
+from app.api.routes_earthquakes import router as earthquakes_router
+from app.api.routes_fires import router as fires_router
+from app.api.routes_launches import router as launches_router
+from app.api.routes_weather import router as weather_router
 
 
 @asynccontextmanager
@@ -42,3 +46,7 @@ app.include_router(osint_router, prefix="/api/osint-events")
 app.include_router(gdelt_router, prefix="/api/gdelt-events")
 app.include_router(viewport_router, prefix="/api")
 app.include_router(voice_router, prefix="/api/voice")
+app.include_router(earthquakes_router, prefix="/api/earthquakes")
+app.include_router(fires_router, prefix="/api/fires")
+app.include_router(launches_router, prefix="/api/launches")
+app.include_router(weather_router, prefix="/api/weather")

@@ -3,6 +3,9 @@ import type { RefObject } from 'react';
 import { Layers, Search, SlidersHorizontal, Monitor } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useGpsJamming } from '../hooks/useGpsJamming';
+import { useEarthquakes } from '../hooks/useEarthquakes';
+import { useFires } from '../hooks/useFires';
+import { useLaunches } from '../hooks/useLaunches';
 import { layerHonesty } from '../lib/layerFreshness';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
@@ -224,6 +227,9 @@ function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
 function LayersTabContent() {
   const { layers, setLayerVisible, gdeltQuadClassFilter, toggleGdeltQuadClass, aircraftLastUpdated, tleLastUpdated } = useAppStore();
   const gpsJamming = useGpsJamming();
+  const earthquakes = useEarthquakes();
+  const fires = useFires();
+  const launches = useLaunches();
   const hasJamCells = (gpsJamming.data?.cells?.length ?? 0) > 0;
 
   const LAYER_BUTTONS = [
@@ -234,6 +240,9 @@ function LayersTabContent() {
     { key: 'gpsJamming'      as const, label: 'GPS JAMMING', hasData: hasJamCells ? true : undefined },
     { key: 'streetTraffic'   as const, label: 'TRAFFIC' },
     { key: 'gdelt'           as const, label: 'GDELT' },
+    { key: 'earthquakes'     as const, label: 'EARTHQUAKES', hasData: (earthquakes.data?.events.length ?? 0) > 0 ? true : undefined },
+    { key: 'fires'           as const, label: 'FIRES', hasData: fires.data?.available === false ? false : ((fires.data?.cells.length ?? 0) > 0 ? true : undefined) },
+    { key: 'launches'        as const, label: 'LAUNCHES', hasData: (launches.data?.launches.length ?? 0) > 0 ? true : undefined },
   ] as const;
 
   return (
