@@ -9,6 +9,8 @@ const ATTRIBUTION = [
   'Open-Meteo (CC BY 4.0)',
   'Launch Library 2 / The Space Devs',
   'ADS-B (adsb.lol) · AIS · CelesTrak',
+  'OpenStreetMap installations (ODbL)',
+  'Tracked airliner model — Intelligence Globe (CC BY 4.0)',
   'Cesium ion / Google Photorealistic 3D Tiles',
 ];
 
