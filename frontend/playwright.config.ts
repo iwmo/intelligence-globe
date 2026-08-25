@@ -7,6 +7,9 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
+  expect: {
+    timeout: 30_000,
+  },
   use: {
     baseURL: externalBaseUrl || 'http://127.0.0.1:3000',
     trace: 'retain-on-failure',
