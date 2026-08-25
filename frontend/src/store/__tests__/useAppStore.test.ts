@@ -360,6 +360,21 @@ describe('useAppStore — GDELT slices', () => {
   });
 });
 
+describe('useAppStore — mapType', () => {
+  beforeEach(() => {
+    useAppStore.setState({ mapType: 'google_3d' });
+  });
+
+  it('defaults to google_3d', () => {
+    expect(useAppStore.getState().mapType).toBe('google_3d');
+  });
+
+  it('setMapType switches to satellite', () => {
+    useAppStore.getState().setMapType('satellite');
+    expect(useAppStore.getState().mapType).toBe('satellite');
+  });
+});
+
 describe('useAppStore — visual engine and clean UI slices', () => {
   beforeEach(() => {
     useAppStore.setState({

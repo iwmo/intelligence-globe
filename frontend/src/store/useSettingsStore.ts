@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { VisualPreset } from './useAppStore';
+import type { MapType, VisualPreset } from './useAppStore';
 
 export interface SettingsState {
   defaultLayers: {
@@ -12,6 +12,7 @@ export interface SettingsState {
     streetTraffic: boolean;
   };
   defaultPreset: VisualPreset;
+  defaultMapType: MapType;
   defaultCamera: { lon: number; lat: number; altMeters: number; pitch: number } | null;
   defaultMode: 'live' | 'playback';
 
@@ -22,6 +23,7 @@ export interface SettingsState {
 
   setDefaultLayers: (layers: SettingsState['defaultLayers']) => void;
   setDefaultPreset: (preset: VisualPreset) => void;
+  setDefaultMapType: (t: MapType) => void;
   setDefaultCamera: (camera: SettingsState['defaultCamera']) => void;
   setDefaultMode: (mode: 'live' | 'playback') => void;
   setShowSatelliteLabels: (v: boolean) => void;
@@ -43,6 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
         streetTraffic: false,
       },
       defaultPreset: 'normal',
+      defaultMapType: 'google_3d',
       defaultCamera: null,
       defaultMode: 'live',
       showSatelliteLabels: false,
@@ -52,6 +55,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDefaultLayers: (layers) => set({ defaultLayers: layers }),
       setDefaultPreset: (preset) => set({ defaultPreset: preset }),
+      setDefaultMapType: (t) => set({ defaultMapType: t }),
       setDefaultCamera: (camera) => set({ defaultCamera: camera }),
       setDefaultMode: (mode) => set({ defaultMode: mode }),
       setShowSatelliteLabels: (v) => set({ showSatelliteLabels: v }),

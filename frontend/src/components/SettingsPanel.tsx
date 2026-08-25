@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getViewer } from '../lib/viewerRegistry';
+import type { MapType } from '../store/useAppStore';
 
 function radToDeg(rad: number): number { return (rad * 180) / Math.PI; }
 
@@ -11,6 +12,16 @@ const LAYER_LABELS: Record<string, string> = {
 };
 
 const PRESET_OPTIONS = ['normal', 'nvg', 'crt', 'flir', 'noir'] as const;
+
+const MAP_TYPE_OPTIONS: { id: MapType; label: string }[] = [
+  { id: 'google_3d', label: 'Photoreal 3D (uses ion quota)' },
+  { id: 'satellite', label: 'Satellite 2D' },
+  { id: 'hybrid', label: 'Hybrid 2D' },
+  { id: 'roadmap', label: 'Roadmap' },
+  { id: 'contour', label: 'Contour' },
+  { id: 'bing_aerial', label: 'Bing Aerial' },
+  { id: 'bing_road', label: 'Bing Road' },
+];
 
 const sectionStyle: React.CSSProperties = {
   padding: '8px 10px', borderBottom: '1px solid rgba(0,212,255,0.10)',
@@ -29,9 +40,9 @@ const checkboxStyle: React.CSSProperties = { accentColor: 'rgba(0,212,255,0.8)',
 
 export function SettingsPanel() {
   const {
-    defaultLayers, defaultPreset, defaultCamera, defaultMode,
+    defaultLayers, defaultPreset, defaultMapType, defaultCamera, defaultMode,
     showSatelliteLabels, showAircraftLabels, showMilitaryLabels, showShipLabels,
-    setDefaultLayers, setDefaultPreset, setDefaultCamera, setDefaultMode,
+    setDefaultLayers, setDefaultPreset, setDefaultMapType, setDefaultCamera, setDefaultMode,
     setShowSatelliteLabels, setShowAircraftLabels, setShowMilitaryLabels, setShowShipLabels,
   } = useSettingsStore();
 
@@ -84,7 +95,10 @@ export function SettingsPanel() {
       {/* Default Preset */}
       <div style={sectionStyle}>
         <div style={headingStyle}>Default Preset</div>
-        <select value={defaultPreset} onChange={(e) => setDefaultPreset(e.target.value as typeof defaultPreset)}
+        <select
+          aria-label="Default preset"
+          value={defaultPreset}
+          onChange={(e) => setDefaultPreset(e.target.value as typeof defaultPreset)}
           style={{
             background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(0,212,255,0.3)',
             borderRadius: '3px', color: 'rgba(255,255,255,0.85)',
@@ -93,6 +107,31 @@ export function SettingsPanel() {
           }}>
           {PRESET_OPTIONS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
         </select>
+      </div>
+
+      {/* Default map — photoreal 3D burns one ion session per page load */}
+      <div style={sectionStyle}>
+        <div style={headingStyle}>Default Map</div>
+        <select
+          aria-label="Default map type"
+          value={defaultMapType}
+          onChange={(e) => setDefaultMapType(e.target.value as MapType)}
+          style={{
+            background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(0,212,255,0.3)',
+            borderRadius: '3px', color: 'rgba(255,255,255,0.85)',
+            fontFamily: 'monospace', fontSize: '10px', padding: '3px 6px',
+            width: '100%', cursor: 'pointer',
+          }}>
+          {MAP_TYPE_OPTIONS.map((opt) => (
+            <option key={opt.id} value={opt.id}>{opt.label}</option>
+          ))}
+        </select>
+        <div style={{
+          fontFamily: 'monospace', fontSize: '9px',
+          color: 'rgba(255,255,255,0.45)', marginTop: 6, lineHeight: 1.45,
+        }}>
+          Photoreal 3D uses Cesium ion Community quota (1,000 sessions / month). Each reload starts a session.
+        </div>
       </div>
 
       {/* Default Camera */}

@@ -206,6 +206,6 @@ export const useAppStore = create<AppState>((set) => ({
   gdeltOsintPrefill: null,
   setGdeltOsintPrefill: (v) => set({ gdeltOsintPrefill: v }),
 
-  mapType: 'satellite',
+  mapType: 'google_3d',
   setMapType: (t) => set({ mapType: t }),
 }));

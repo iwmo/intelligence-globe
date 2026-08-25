@@ -95,8 +95,8 @@ const MAP_OPTIONS: MapOption[] = [
   },
   {
     id: 'google_3d',
-    label: 'GOOGLE 3D',
-    sublabel: 'Google Photorealistic 3D Tiles',
+    label: 'PHOTOREAL 3D',
+    sublabel: 'Uses ion quota · 1,000 sessions/mo',
     icon: (
       <svg width="32" height="22" viewBox="0 0 32 22" fill="none">
         <rect width="32" height="22" rx="2" fill="#0a1a0f" />

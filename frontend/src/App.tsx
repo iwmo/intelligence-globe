@@ -69,6 +69,7 @@ export default function App() {
           appStore.setLayerVisible(layer as keyof typeof s.defaultLayers, visible);
         });
         appStore.setVisualPreset(s.defaultPreset);
+        appStore.setMapType(s.defaultMapType ?? 'google_3d');
         appStore.setReplayMode(s.defaultMode);
         if (s.defaultCamera) flyToLandmark(s.defaultCamera);
       }} />

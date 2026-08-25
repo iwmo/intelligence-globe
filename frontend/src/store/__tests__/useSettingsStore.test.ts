@@ -13,6 +13,7 @@ function resetStore() {
       streetTraffic: false,
     },
     defaultPreset: 'normal',
+    defaultMapType: 'google_3d',
     defaultCamera: null,
     defaultMode: 'live',
   });
@@ -99,6 +100,21 @@ describe('useSettingsStore — CONFIG-04: defaultCamera', () => {
     useSettingsStore.getState().setDefaultCamera({ lon: 10, lat: 48, altMeters: 5_000_000, pitch: -45 });
     useSettingsStore.getState().setDefaultCamera(null);
     expect(useSettingsStore.getState().defaultCamera).toBeNull();
+  });
+});
+
+describe('useSettingsStore — defaultMapType', () => {
+  beforeEach(resetStore);
+
+  it('initial defaultMapType is google_3d', () => {
+    expect(useSettingsStore.getState().defaultMapType).toBe('google_3d');
+  });
+
+  it('setDefaultMapType persists satellite fallback', () => {
+    useSettingsStore.getState().setDefaultMapType('satellite');
+    expect(useSettingsStore.getState().defaultMapType).toBe('satellite');
+    const stored = JSON.parse(localStorage.getItem('globe-settings')!);
+    expect(stored.state.defaultMapType).toBe('satellite');
   });
 });
 
