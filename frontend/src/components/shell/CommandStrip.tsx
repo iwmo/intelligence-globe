@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { RefObject } from 'react';
 import {
   Check,
   Crosshair,
@@ -18,6 +19,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Button } from '../ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { SearchBar } from '../SearchBar';
 import { MapFallbackNotice } from './MapFallbackNotice';
 import { SystemHealthBadge } from './SystemHealthBadge';
 import { ViewModePopover } from './ViewModePopover';
@@ -62,7 +64,11 @@ function IconAction({ label, onClick, children, className }: IconActionProps) {
   );
 }
 
-export function CommandStrip() {
+interface CommandStripProps {
+  workerRef: RefObject<Worker | null>;
+}
+
+export function CommandStrip({ workerRef }: CommandStripProps) {
   const replayMode = useAppStore(s => s.replayMode);
   const replayTs = useAppStore(s => s.replayTs);
   const setReplayMode = useAppStore(s => s.setReplayMode);
@@ -120,6 +126,8 @@ export function CommandStrip() {
         </div>
         <SystemHealthBadge />
       </div>
+
+      {!cleanUI && <SearchBar workerRef={workerRef} compact />}
 
       <div className="command-strip__time telemetry" aria-label={`${replayMode} time`}>
         <span>{replayMode === 'live' ? 'UTC' : 'POSITION'}</span>

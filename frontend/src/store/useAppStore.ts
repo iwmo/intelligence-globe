@@ -4,6 +4,7 @@ export type VisualPreset = 'normal' | 'nvg' | 'crt' | 'flir' | 'noir';
 export type MapType = 'satellite' | 'hybrid' | 'roadmap' | 'contour' | 'bing_aerial' | 'bing_road' | 'google_3d';
 export type TrackableKind = 'aircraft' | 'military' | 'ship' | 'satellite';
 export type SelectableKind = TrackableKind | 'gdelt';
+export type LeftPanel = 'layers' | 'filters' | null;
 export type RightPanel = 'camera' | 'settings' | 'map' | 'contacts' | 'launches' | null;
 
 export interface TrackedEntity {
@@ -74,6 +75,8 @@ interface AppState {
 
   cleanUI: boolean;
   setCleanUI: (v: boolean) => void;
+  activeLeftPanel: LeftPanel;
+  setActiveLeftPanel: (panel: LeftPanel) => void;
   activeRightPanel: RightPanel;
   setActiveRightPanel: (panel: RightPanel) => void;
 
@@ -186,6 +189,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   cleanUI: false,
   setCleanUI: (v) => set({ cleanUI: v }),
+  activeLeftPanel: null,
+  setActiveLeftPanel: (panel) => set({ activeLeftPanel: panel }),
   activeRightPanel: null,
   setActiveRightPanel: (panel) => set({ activeRightPanel: panel }),
 

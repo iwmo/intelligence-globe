@@ -1,232 +1,103 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { RefObject } from 'react';
-import { Layers, Search, SlidersHorizontal } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, CircleDot, Layers, SlidersHorizontal } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useGpsJamming } from '../hooks/useGpsJamming';
 import { useEarthquakes } from '../hooks/useEarthquakes';
 import { useFires } from '../hooks/useFires';
 import { useLaunches } from '../hooks/useLaunches';
 import { layerHonesty } from '../lib/layerFreshness';
-import { DEFAULT_LEFT_PANEL_WIDTH, clampPanelWidth, loadStoredPanelWidth } from '../lib/panelWidth';
+import { DEFAULT_LEFT_PANEL_WIDTH } from '../lib/panelWidth';
 import { useSourceHealthStore } from '../store/useSourceHealthStore';
-import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
+import { OperationalDrawer } from './shell/OperationalDrawer';
+import './layer-drawer.css';
 
-type LeftTab = 'layers' | 'search' | 'filters' | null;
+type LayerKey = keyof ReturnType<typeof useAppStore.getState>['layers'];
 
-const TAB_TITLES: Record<NonNullable<LeftTab>, string> = {
-  layers: 'LAYERS',
-  search: 'SEARCH',
-  filters: 'FILTERS',
-};
-
-function loadTab(): LeftTab {
-  try { return JSON.parse(localStorage.getItem('left-sidebar-tab') ?? 'null') as LeftTab; }
-  catch { return null; }
+interface LayerDefinition {
+  key: LayerKey;
+  label: string;
+  source: string;
+  cadence: string;
 }
 
-function loadPanelWidth(): number {
-  return loadStoredPanelWidth('left-panel-width', DEFAULT_LEFT_PANEL_WIDTH);
+interface LayerGroup {
+  label: string;
+  layers: LayerDefinition[];
 }
 
-interface LeftSidebarProps {
-  workerRef: RefObject<Worker | null>;
-}
+const LAYER_GROUPS: LayerGroup[] = [
+  {
+    label: 'AIR',
+    layers: [
+      { key: 'aircraft', label: 'Civil aircraft', source: 'ADS-B', cadence: '20–30 seconds' },
+      { key: 'militaryAircraft', label: 'Military aircraft', source: 'ADS-B classification', cadence: '20–30 seconds' },
+    ],
+  },
+  {
+    label: 'MARITIME',
+    layers: [
+      { key: 'ships', label: 'Vessels', source: 'AIS', cadence: 'Near real-time' },
+    ],
+  },
+  {
+    label: 'SPACE',
+    layers: [
+      { key: 'satellites', label: 'Satellites', source: 'CelesTrak', cadence: 'TLE refresh' },
+      { key: 'launches', label: 'Launches', source: 'Launch Library 2', cadence: 'Scheduled refresh' },
+    ],
+  },
+  {
+    label: 'EVENTS',
+    layers: [
+      { key: 'gdelt', label: 'GDELT events', source: 'GDELT', cadence: '15 minutes' },
+      { key: 'earthquakes', label: 'Earthquakes', source: 'USGS', cadence: '5 minutes' },
+    ],
+  },
+  {
+    label: 'ENVIRONMENT',
+    layers: [
+      { key: 'gpsJamming', label: 'GPS interference', source: 'ADS-B NIC/NACp', cadence: 'Near real-time' },
+      { key: 'fires', label: 'Active fires', source: 'NASA FIRMS', cadence: 'Configured feed' },
+      { key: 'streetTraffic', label: 'Road traffic', source: 'TomTom', cadence: 'Viewport refresh' },
+    ],
+  },
+  {
+    label: 'INFRASTRUCTURE',
+    layers: [
+      { key: 'installations', label: 'Installations', source: 'OpenStreetMap', cadence: 'Viewport refresh' },
+    ],
+  },
+];
 
-export function LeftSidebar({ workerRef }: LeftSidebarProps) {
-  const [activeTab, setActiveTab] = useState<LeftTab>(() => loadTab());
-  const [panelWidth, setPanelWidth] = useState<number>(loadPanelWidth);
-  const panelWidthRef = useRef(panelWidth);
-  panelWidthRef.current = panelWidth;
+const RAIL_ITEMS = [
+  { id: 'layers' as const, label: 'Layer drawer', icon: <Layers aria-hidden="true" /> },
+  { id: 'filters' as const, label: 'Data filters', icon: <SlidersHorizontal aria-hidden="true" /> },
+];
 
-  useEffect(() => {
-    try { localStorage.setItem('left-panel-width', String(panelWidth)); } catch {}
-  }, [panelWidth]);
+export function LeftSidebar() {
+  const activePanel = useAppStore(state => state.activeLeftPanel);
+  const setActivePanel = useAppStore(state => state.setActiveLeftPanel);
 
-  useEffect(() => {
-    const onResize = () => {
-      setPanelWidth(w => clampPanelWidth(w, DEFAULT_LEFT_PANEL_WIDTH, window.innerWidth));
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  function handleTabClick(tab: NonNullable<LeftTab>) {
-    const next: LeftTab = activeTab === tab ? null : tab;
-    setActiveTab(next);
-    try { localStorage.setItem('left-sidebar-tab', JSON.stringify(next)); } catch {}
+  function handlePanelClick(panel: 'layers' | 'filters') {
+    setActivePanel(activePanel === panel ? null : panel);
   }
 
-  function startResize(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = panelWidthRef.current;
-    function onMove(ev: MouseEvent) {
-      const newW = clampPanelWidth(startW + ev.clientX - startX, DEFAULT_LEFT_PANEL_WIDTH, window.innerWidth);
-      setPanelWidth(newW);
-    }
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }
-
-  const [railHover, setRailHover] = useState(false);
-  const panelOpen = activeTab !== null;
-  const railExpanded = railHover || panelOpen;
-  const railWidth = railExpanded ? 40 : 8;
-
   return (
-    <>
-      {/* Left icon rail — collapsed to an 8px hit edge until hover or a tab is open */}
-      <div
-        onMouseEnter={() => setRailHover(true)}
-        onMouseLeave={() => setRailHover(false)}
-        style={{
-        position: 'fixed',
-        left: 0,
-        top: 'var(--shell-top-height)',
-        bottom: 0,
-        width: railWidth,
-        zIndex: 200,
-        background: railExpanded ? 'rgba(0,0,0,0.92)' : 'rgba(0,0,0,0.25)',
-        borderRight: railExpanded ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: 8,
-        gap: 2,
-        overflow: 'hidden',
-        transition: 'width 0.16s ease',
-      }}>
-        <TabIcon id="layers"  icon={<Layers size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Layers" />
-        <TabIcon id="search"  icon={<Search size={16} />}            activeTab={activeTab} onTabClick={handleTabClick} tooltip="Search" />
-        <TabIcon id="filters" icon={<SlidersHorizontal size={16} />} activeTab={activeTab} onTabClick={handleTabClick} tooltip="Filters" />
-      </div>
-
-      {/* Sliding left panel */}
-      <div style={{
-        position: 'fixed',
-        left: railWidth,
-        top: 'var(--shell-top-height)',
-        bottom: 0,
-        width: panelOpen ? panelWidth : 0,
-        zIndex: 190,
-        background: 'rgba(0,0,0,0.90)',
-        borderRight: panelOpen ? '1px solid rgba(0,212,255,0.15)' : 'none',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        transition: panelOpen ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        {/* Panel header */}
-        <div style={{
-          height: 36,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 12px',
-          borderBottom: '1px solid rgba(0,212,255,0.12)',
-          opacity: panelOpen ? 1 : 0,
-          transition: 'opacity 0.15s ease',
-          pointerEvents: panelOpen ? 'auto' : 'none',
-        }}>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.15em',
-            color: 'rgba(0,212,255,0.75)',
-            whiteSpace: 'nowrap',
-          }}>
-            {activeTab ? TAB_TITLES[activeTab] : ''}
-          </span>
-          <button
-            onClick={() => activeTab && handleTabClick(activeTab)}
-            style={{
-              background: 'none',
-              border: '1px solid rgba(0,212,255,0.25)',
-              borderRadius: 2,
-              color: 'rgba(0,212,255,0.6)',
-              cursor: 'pointer',
-              fontSize: 11,
-              width: 20,
-              height: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >←</button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="intel-panel-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          {activeTab === 'layers'  && <LayersTabContent />}
-          {activeTab === 'search'  && <SearchBar workerRef={workerRef} />}
-          {activeTab === 'filters' && <FilterPanel />}
-        </div>
-
-        {/* Resize handle */}
-        {panelOpen && (
-          <div
-            onMouseDown={startResize}
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 4,
-              cursor: 'col-resize',
-              background: 'transparent',
-              zIndex: 10,
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,212,255,0.25)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-          />
-        )}
-      </div>
-    </>
-  );
-}
-
-interface TabIconProps {
-  id: NonNullable<LeftTab>;
-  icon: React.ReactNode;
-  activeTab: LeftTab;
-  onTabClick: (tab: NonNullable<LeftTab>) => void;
-  tooltip: string;
-}
-
-function TabIcon({ id, icon, activeTab, onTabClick, tooltip }: TabIconProps) {
-  const isActive = activeTab === id;
-  return (
-    <button
-      title={tooltip}
-      onClick={() => onTabClick(id)}
-      style={{
-        width: 40,
-        height: 38,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: isActive ? 'rgba(0,212,255,0.12)' : 'transparent',
-        border: 'none',
-        borderRight: `2px solid ${isActive ? '#00D4FF' : 'transparent'}`,
-        color: isActive ? '#00D4FF' : 'rgba(255,255,255,0.4)',
-        cursor: 'pointer',
-        transition: 'all 0.12s ease',
-        flexShrink: 0,
-        padding: 0,
-      }}
+    <OperationalDrawer
+      side="left"
+      title={activePanel === 'filters' ? 'DATA FILTERS' : 'LAYER DRAWER'}
+      open={activePanel !== null}
+      activeItem={activePanel}
+      items={RAIL_ITEMS}
+      widthKey="left-panel-width"
+      defaultWidth={DEFAULT_LEFT_PANEL_WIDTH}
+      onItemClick={handlePanelClick}
+      onClose={() => setActivePanel(null)}
     >
-      {icon}
-    </button>
+      {activePanel === 'layers' && <LayersTabContent />}
+      {activePanel === 'filters' && <FilterPanel />}
+    </OperationalDrawer>
   );
 }
 
@@ -237,131 +108,195 @@ function LayersTabContent() {
   const earthquakes = useEarthquakes();
   const fires = useFires();
   const launches = useLaunches();
+  const [query, setQuery] = useState('');
+  const [expandedLayer, setExpandedLayer] = useState<LayerKey | null>(null);
   const hasJamCells = (gpsJamming.data?.cells?.length ?? 0) > 0;
 
-  const LAYER_BUTTONS = [
-    { key: 'satellites'      as const, label: 'SATELLITES', lastUpdated: tleLastUpdated },
-    { key: 'aircraft'        as const, label: 'AIRCRAFT', lastUpdated: aircraftLastUpdated },
-    { key: 'militaryAircraft'as const, label: 'MILITARY' },
-    { key: 'ships'           as const, label: 'SHIPS' },
-    { key: 'gpsJamming'      as const, label: 'GPS JAMMING', hasData: hasJamCells ? true : undefined },
-    { key: 'streetTraffic'   as const, label: 'TRAFFIC' },
-    { key: 'gdelt'           as const, label: 'GDELT' },
-    { key: 'earthquakes'     as const, label: 'EARTHQUAKES', hasData: (earthquakes.data?.events.length ?? 0) > 0 ? true : undefined },
-    { key: 'fires'           as const, label: 'FIRES', hasData: fires.data?.available === false ? false : ((fires.data?.cells.length ?? 0) > 0 ? true : undefined) },
-    { key: 'launches'        as const, label: 'LAUNCHES', hasData: (launches.data?.launches.length ?? 0) > 0 ? true : undefined },
-    { key: 'installations'   as const, label: 'INSTALLATIONS' },
-  ] as const;
+  const filteredGroups = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return LAYER_GROUPS;
+    return LAYER_GROUPS
+      .map(group => ({
+        ...group,
+        layers: group.layers.filter(layer =>
+          `${layer.label} ${layer.source}`.toLowerCase().includes(normalizedQuery),
+        ),
+      }))
+      .filter(group => group.layers.length > 0);
+  }, [query]);
+
+  const layerEvidence = (key: LayerKey) => {
+    if (key === 'satellites') return { lastUpdated: tleLastUpdated };
+    if (key === 'aircraft') return { lastUpdated: aircraftLastUpdated };
+    if (key === 'gpsJamming') return { hasData: hasJamCells || undefined };
+    if (key === 'earthquakes') return { hasData: (earthquakes.data?.events.length ?? 0) > 0 || undefined };
+    if (key === 'fires') {
+      return {
+        hasData: fires.data?.available === false
+          ? false
+          : ((fires.data?.cells.length ?? 0) > 0 || undefined),
+      };
+    }
+    if (key === 'launches') return { hasData: (launches.data?.launches.length ?? 0) > 0 || undefined };
+    return {};
+  };
+
+  function soloLayer(key: LayerKey) {
+    (Object.keys(layers) as LayerKey[]).forEach(layerKey => {
+      setLayerVisible(layerKey, layerKey === key);
+    });
+  }
 
   return (
-    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {LAYER_BUTTONS.map(({ key, label, ...rest }) => {
-        const active = layers[key];
-        const honesty = layerHonesty({
-          visible: active,
-          status: sourceHealth[key].status,
-          lastUpdated: 'lastUpdated' in rest ? rest.lastUpdated : undefined,
-          hasData: 'hasData' in rest ? rest.hasData : undefined,
-        });
-        const honestyColor =
-          honesty === 'LIVE' || honesty === 'EMPTY' ? 'var(--status-live)' :
-          honesty === 'CONNECTING' ? 'var(--status-connecting)' :
-          honesty === 'STALE' ? 'var(--status-stale)' :
-          honesty === 'ERROR' ? 'var(--status-error)' :
-          'var(--status-unavailable)';
+    <div className="layer-drawer">
+      <div className="layer-drawer__summary">
+        <label>
+          <span className="sr-only">Filter layers</span>
+          <input
+            type="search"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Filter layers or sources"
+          />
+        </label>
+        <span>
+          {Object.values(layers).filter(Boolean).length}/{Object.keys(layers).length} enabled
+        </span>
+      </div>
+
+      {filteredGroups.map(group => {
+        const enabledCount = group.layers.filter(layer => layers[layer.key]).length;
         return (
-          <button
-            key={key}
-            onClick={() => setLayerVisible(key, !active)}
-            title={`Toggle ${label} layer`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-              background: active ? 'rgba(0,212,255,0.15)' : 'rgba(0,0,0,0.5)',
-              border: `1px solid ${active ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.12)'}`,
-              borderRadius: 3,
-              cursor: 'pointer',
-              color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              fontFamily: 'monospace',
-              transition: 'all 0.15s ease',
-              width: '100%',
-            }}
-          >
-            <span style={{ fontSize: 10, opacity: 0.7 }}>
-              {active ? '●' : '○'}
-            </span>
-            <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
-            <span style={{ fontSize: 11, letterSpacing: '0.08em', color: honestyColor }}>{honesty}</span>
-          </button>
+          <section className="layer-group" key={group.label}>
+            <header className="layer-group__header">
+              <div>
+                <h3>{group.label}</h3>
+                <span>{enabledCount}/{group.layers.length} enabled</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => group.layers.forEach(layer => setLayerVisible(layer.key, false))}
+                disabled={enabledCount === 0}
+              >
+                Clear
+              </button>
+            </header>
+
+            <div className="layer-group__rows">
+              {group.layers.map(layer => {
+                const active = layers[layer.key];
+                const evidence = layerEvidence(layer.key);
+                const honesty = layerHonesty({
+                  visible: active,
+                  status: sourceHealth[layer.key].status,
+                  ...evidence,
+                });
+                const expanded = expandedLayer === layer.key;
+                const lastSuccessAt = sourceHealth[layer.key].lastSuccessAt;
+                return (
+                  <div className="layer-row" data-active={active} key={layer.key}>
+                    <div className="layer-row__primary">
+                      <button
+                        type="button"
+                        className="layer-row__toggle"
+                        onClick={() => setLayerVisible(layer.key, !active)}
+                        aria-pressed={active}
+                      >
+                        <CircleDot aria-hidden="true" />
+                        <span>
+                          <strong>{layer.label}</strong>
+                          <small>{layer.source}</small>
+                        </span>
+                        <em data-status={honesty.toLowerCase()}>{honesty}</em>
+                      </button>
+                      <button
+                        type="button"
+                        className="layer-row__expand"
+                        aria-label={`${expanded ? 'Hide' : 'Show'} ${layer.label} details`}
+                        aria-expanded={expanded}
+                        onClick={() => setExpandedLayer(expanded ? null : layer.key)}
+                      >
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    {expanded && (
+                      <div className="layer-row__details">
+                        <dl>
+                          <div><dt>Source</dt><dd>{layer.source}</dd></div>
+                          <div><dt>Cadence</dt><dd>{layer.cadence}</dd></div>
+                          <div>
+                            <dt>Last success</dt>
+                            <dd>
+                              {lastSuccessAt
+                                ? new Date(lastSuccessAt).toLocaleTimeString()
+                                : 'No successful update'}
+                            </dd>
+                          </div>
+                        </dl>
+                        <button type="button" onClick={() => soloLayer(layer.key)}>Solo layer</button>
+                        {layer.key === 'gpsJamming' && hasJamCells && <JammingLegend />}
+                        {layer.key === 'gdelt' && active && (
+                          <GdeltFilters
+                            selected={gdeltQuadClassFilter}
+                            onToggle={toggleGdeltQuadClass}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         );
       })}
 
-      {layers.gpsJamming && hasJamCells && (
-        <div style={{
-          marginTop: 2,
-          padding: '5px 8px',
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 3,
-          fontFamily: 'monospace',
-          fontSize: 9,
-          color: 'rgba(255,255,255,0.5)',
-        }}>
-          <div style={{ marginBottom: 4, letterSpacing: '0.05em' }}>NIC/NACp SEVERITY</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{ width: 8, height: 8, background: 'rgba(255,0,0,0.7)', borderRadius: 1, flexShrink: 0 }} />
-            High (≥30% bad)
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{ width: 8, height: 8, background: 'rgba(255,255,0,0.7)', borderRadius: 1, flexShrink: 0 }} />
-            Moderate (≥10%)
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, background: 'rgba(0,255,0,0.55)', borderRadius: 1, flexShrink: 0 }} />
-            Low / none
-          </div>
-        </div>
+      {filteredGroups.length === 0 && (
+        <div className="layer-drawer__empty">No layers match “{query}”.</div>
       )}
+    </div>
+  );
+}
 
-      {layers.gdelt && (
-        <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 5 }}>
-          <div style={{ color: '#555', fontSize: 9, marginBottom: 4, letterSpacing: '0.05em', fontFamily: 'monospace' }}>
-            QUAD CLASS
-          </div>
-          {([1, 2, 3, 4] as const).map(qc => {
-            const labels: Record<number, string> = { 1: 'VERBAL COOP', 2: 'MAT COOP', 3: 'VERBAL CONF', 4: 'MAT CONF' };
-            const colors: Record<number, string> = { 1: '#3B82F6', 2: '#22C55E', 3: '#EAB308', 4: '#EF4444' };
-            const active = gdeltQuadClassFilter.includes(qc);
-            return (
-              <button
-                key={qc}
-                onClick={() => toggleGdeltQuadClass(qc)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '3px 8px',
-                  marginBottom: 2,
-                  background: active ? `${colors[qc]}22` : 'transparent',
-                  border: `1px solid ${active ? colors[qc] : 'rgba(255,255,255,0.12)'}`,
-                  color: active ? colors[qc] : '#555',
-                  fontFamily: 'monospace',
-                  fontSize: 9,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  borderRadius: 2,
-                }}
-              >
-                {labels[qc]}
-              </button>
-            );
-          })}
-        </div>
-      )}
+function JammingLegend() {
+  return (
+    <div className="layer-legend" aria-label="GPS interference severity legend">
+      <span>NIC/NACp severity</span>
+      <div><i data-level="high" />High (≥30% bad)</div>
+      <div><i data-level="moderate" />Moderate (≥10%)</div>
+      <div><i data-level="low" />Low / none</div>
+    </div>
+  );
+}
+
+function GdeltFilters({
+  selected,
+  onToggle,
+}: {
+  selected: number[];
+  onToggle: (quadClass: number) => void;
+}) {
+  const labels: Record<number, string> = {
+    1: 'Verbal cooperation',
+    2: 'Material cooperation',
+    3: 'Verbal conflict',
+    4: 'Material conflict',
+  };
+
+  return (
+    <div className="layer-quad-filters">
+      <span>Quad class</span>
+      {([1, 2, 3, 4] as const).map(quadClass => (
+        <button
+          type="button"
+          key={quadClass}
+          data-active={selected.includes(quadClass)}
+          onClick={() => onToggle(quadClass)}
+        >
+          {labels[quadClass]}
+        </button>
+      ))}
     </div>
   );
 }

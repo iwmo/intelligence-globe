@@ -1,0 +1,119 @@
+.universal-search {
+  position: relative;
+  padding: 0.75rem;
+}
+
+.universal-search__field {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.65rem;
+  background: color-mix(in oklch, var(--input) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.universal-search__field:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 22%, transparent);
+}
+
+.universal-search__field > svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+}
+
+.universal-search__field input {
+  min-width: 0;
+  flex: 1;
+  color: var(--foreground);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 0.75rem;
+}
+
+.universal-search__field kbd {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+}
+
+.universal-search__field button {
+  display: inline-flex;
+  width: 1.5rem;
+  min-height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+
+.universal-search__field button:hover,
+.universal-search__field button:focus-visible {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.universal-search__status {
+  margin-top: 0.4rem;
+  padding-left: 0.1rem;
+  color: var(--status-connecting);
+  font-size: 0.6875rem;
+}
+
+.universal-search__status[data-error='true'] {
+  color: var(--status-error);
+}
+
+.universal-search--compact {
+  width: min(28rem, 34vw);
+  padding: 0;
+}
+
+.universal-search--compact .universal-search__field {
+  min-height: 2rem;
+  background: color-mix(in oklch, var(--background) 80%, transparent);
+}
+
+.universal-search--compact .universal-search__status {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in oklch, var(--popover) 96%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
+}
+
+@media (max-width: 1020px) {
+  .universal-search--compact {
+    width: min(18rem, 27vw);
+  }
+
+  .universal-search--compact kbd {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .universal-search--compact {
+    width: auto;
+    flex: 1;
+  }
+
+  .universal-search--compact .universal-search__field input::placeholder {
+    color: transparent;
+  }
+}
