@@ -29,6 +29,7 @@ Recommended fixed service ports:
 - `backend`: `PORT=8000`
 - `frontend`: `PORT=8080`
 - `frontend`: `BACKEND_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:8000`
+- `frontend`: `NGINX_RESOLVER=[fd12::10]` so nginx re-resolves the backend after deployments
 
 Set `FRONTEND_ORIGIN` on the backend to the final `https://` frontend domain.
 
