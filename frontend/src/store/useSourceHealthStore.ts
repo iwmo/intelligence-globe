@@ -90,14 +90,22 @@ interface SourceHealthState {
 
 export const useSourceHealthStore = create<SourceHealthState>((set) => ({
   sources: initialSources(),
-  setSourceHealth: (source, update) => set(state => ({
-    sources: {
-      ...state.sources,
-      [source]: {
-        ...state.sources[source],
-        ...update,
+  setSourceHealth: (source, update) => set(state => {
+    const current = state.sources[source];
+    const next = { ...current, ...update };
+    if (
+      next.status === current.status &&
+      next.lastSuccessAt === current.lastSuccessAt &&
+      next.reason === current.reason
+    ) {
+      return state;
+    }
+    return {
+      sources: {
+        ...state.sources,
+        [source]: next,
       },
-    },
-  })),
+    };
+  }),
   resetSourceHealth: () => set({ sources: initialSources() }),
 }));

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deriveAggregateHealth,
   useSourceHealthStore,
@@ -42,5 +42,21 @@ describe('source health store', () => {
       reason: null,
     });
     expect(deriveAggregateHealth(useSourceHealthStore.getState().sources)).toBe('live');
+  });
+
+  it('does not notify subscribers for an unchanged source update', () => {
+    const listener = vi.fn();
+    const unsubscribe = useSourceHealthStore.subscribe(listener);
+
+    useSourceHealthStore.getState().setSourceHealth('map', {
+      status: 'connecting',
+      lastSuccessAt: null,
+      reason: null,
+    });
+    expect(listener).not.toHaveBeenCalled();
+
+    useSourceHealthStore.getState().setSourceHealth('map', { status: 'live' });
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
   });
 });
