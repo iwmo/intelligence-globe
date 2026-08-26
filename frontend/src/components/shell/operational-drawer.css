@@ -179,6 +179,10 @@
     --drawer-rail-width: 2.75rem;
   }
 
+  .operational-drawer:has(.operational-drawer__panel) {
+    z-index: calc(var(--z-shell) + 1);
+  }
+
   .operational-drawer__panel {
     width: min(
       22rem,
