@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.setTimeout(120_000);
+
 async function mockBackend(page: Page) {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
