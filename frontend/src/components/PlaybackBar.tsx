@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
+import { ChevronDown, ChevronUp, Pause, Play, ScrollText } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useReplaySnapshots } from '../hooks/useReplaySnapshots';
 import { useOsintEvents } from '../hooks/useOsintEvents';
@@ -7,13 +8,14 @@ import type { OsintEvent } from '../data/osintEvents';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
 import type { GdeltEvent } from '../hooks/useGdeltEvents';
 import { QUAD_CLASS_HEX } from '../data/gdeltColors';
+import './playback-drawer.css';
 
 const SPEED_PRESETS = [
-  { label: '1m/s',  value: 60 },
-  { label: '3m/s',  value: 180 },
-  { label: '5m/s',  value: 300 },
-  { label: '15m/s', value: 900 },
-  { label: '1h/s',  value: 3600 },
+  { label: '60×',   value: 60 },
+  { label: '180×',  value: 180 },
+  { label: '300×',  value: 300 },
+  { label: '900×',  value: 900 },
+  { label: '3600×', value: 3600 },
 ] as const;
 
 const OSINT_CATEGORIES = ['KINETIC', 'AIRSPACE', 'MARITIME', 'SEISMIC', 'JAMMING'] as const;
@@ -35,6 +37,14 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
   const tleLastUpdated     = useAppStore(s => s.tleLastUpdated);
   const isPlaying          = useAppStore(s => s.isPlaying);
   const setIsPlaying       = useAppStore(s => s.setIsPlaying);
+  const expanded           = useAppStore(s => s.replayTimelineExpanded);
+  const setExpanded        = useAppStore(s => s.setReplayTimelineExpanded);
+  const pinnedContacts     = useAppStore(s => s.pinnedContacts);
+  const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
+  const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
+  const selectedShipId = useAppStore(s => s.selectedShipId);
+  const selectedSatelliteId = useAppStore(s => s.selectedSatelliteId);
+  const selectedGdeltEventId = useAppStore(s => s.selectedGdeltEventId);
 
   const TLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
   const tleAge = tleLastUpdated ? Date.now() - new Date(tleLastUpdated).getTime() : 0;
@@ -100,138 +110,192 @@ export function PlaybackBar({ onOpenOsintPanel }: PlaybackBarProps) {
       ? Math.round(((replayTs - replayWindowStart) / (replayWindowEnd - replayWindowStart)) * 1000)
       : 0;
 
-  const hasWindow = replayWindowStart != null && replayWindowEnd != null;
+  const hasWindow =
+    replayWindowStart != null &&
+    replayWindowEnd != null &&
+    replayWindowEnd > replayWindowStart;
   const formattedTs = new Date(replayTs).toISOString().slice(0, 19) + 'Z';
-
-  const btnBase = {
-    fontFamily: 'var(--font-mono)', fontSize: '12px', cursor: 'pointer',
-    border: '1px solid rgba(255,255,255,0.2)', borderRadius: '3px',
-    padding: '2px 7px', background: 'rgba(255,255,255,0.08)', color: '#aaa',
-  };
+  const selectedSummary =
+    selectedAircraftId != null ? `AIRCRAFT ${selectedAircraftId}` :
+    selectedMilitaryId != null ? `MILITARY ${selectedMilitaryId}` :
+    selectedShipId != null ? `VESSEL ${selectedShipId}` :
+    selectedSatelliteId != null ? `SATELLITE ${selectedSatelliteId}` :
+    selectedGdeltEventId != null ? `EVENT ${selectedGdeltEventId}` :
+    'NO SELECTION';
+  const visibleEvents: OsintEvent[] = activeCategories.length === 0
+    ? osintEvents
+    : osintEvents.filter(event => activeCategories.includes(event.category));
 
   if (replayMode !== 'playback') return null;
 
   return (
-    <div className="playback-bar" style={{
-      position: 'fixed', top: 'var(--shell-top-height)', left: 8, right: 8,
-      zIndex: 175,
-      background: 'var(--card)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      border: '1px solid var(--border)',
-      borderTop: 0,
-      fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--foreground)',
-      pointerEvents: 'auto',
-      height: 52,
-      overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    <section
+      className="playback-drawer"
+      data-expanded={expanded}
+      aria-label="Replay timeline"
+    >
+      <header className="playback-drawer__header">
+        <div className="playback-drawer__identity">
+          <span>HISTORY</span>
+          <strong>REPLAY TIMELINE</strong>
+          <span className="playback-drawer__selection" title={selectedSummary}>
+            {selectedSummary}
+          </span>
+        </div>
+        <div className="playback-drawer__transport">
+          <time dateTime={new Date(replayTs).toISOString()}>
+            {hasWindow ? formattedTs : 'NO REPLAY DATA'}
+          </time>
+          {tleStalenessWarning && (
+            <span className="playback-drawer__warning">TLE &gt; 7 DAYS</span>
+          )}
+          <button
+            type="button"
+            className="playback-drawer__play"
+            onClick={() => setIsPlaying(previous => !previous)}
+            disabled={!hasWindow || snapshotsLoading}
+            aria-label={isPlaying ? 'Pause replay' : 'Play replay'}
+          >
+            {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+            {snapshotsLoading ? '...' : isPlaying ? 'PAUSE' : 'PLAY'}
+          </button>
+          <button
+            type="button"
+            className="playback-drawer__log"
+            onClick={() => onOpenOsintPanel?.()}
+          >
+            <ScrollText aria-hidden="true" />
+            LOG EVENT
+          </button>
+          <button
+            type="button"
+            className="playback-drawer__collapse"
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Collapse replay timeline' : 'Expand replay timeline'}
+          >
+            {expanded ? <ChevronDown aria-hidden="true" /> : <ChevronUp aria-hidden="true" />}
+          </button>
+        </div>
+      </header>
 
-      {/* Replay controls — live/replay mode switching now lives in CommandStrip */}
-      <div style={{
-        height: 28, flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '0 12px',
-      }}>
-        <button
-          onClick={() => setIsPlaying(p => !p)}
-          disabled={!hasWindow || snapshotsLoading}
-          style={{ ...btnBase, color: '#ccc', cursor: (hasWindow && !snapshotsLoading) ? 'pointer' : 'not-allowed' }}
-        >
-          {snapshotsLoading ? '...' : isPlaying ? 'PAUSE' : 'PLAY'}
-        </button>
-        {hasWindow
-          ? <span style={{ color: 'var(--status-live)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formattedTs}</span>
-          : <span style={{ color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>No replay data</span>
-        }
-        <div style={{ flex: 1 }} />
-        {SPEED_PRESETS.map(p => (
-          <button key={p.value} onClick={() => setSpeedMultiplier(p.value)} style={{
-            ...btnBase,
-            color: speedMultiplier === p.value ? 'var(--status-live)' : 'var(--muted-foreground)',
-            border: speedMultiplier === p.value ? '1px solid var(--status-live)' : '1px solid var(--border)',
-            fontWeight: speedMultiplier === p.value ? 700 : 400,
-            padding: '2px 4px',
-          }}>{p.label}</button>
-        ))}
-        <button onClick={() => onOpenOsintPanel?.()} style={{
-          ...btnBase, background: 'color-mix(in oklch, var(--accent) 12%, transparent)',
-          color: 'var(--accent)', border: '1px solid color-mix(in oklch, var(--accent) 40%, transparent)', fontWeight: 700,
-        }}>LOG</button>
-        {tleStalenessWarning && (
-          <span style={{ color: 'var(--status-error)', fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>TLE&gt;7d</span>
-        )}
-      </div>
-
-      {/* Timeline scrubber + category chips */}
-      <div style={{
-          height: 24, flexShrink: 0,
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '0 12px',
-        }}>
-          {/* Timeline scrubber */}
-          <div style={{ flex: 1, position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
-            <input type="range" min={0} max={1000} value={scrubberValue} disabled={!hasWindow}
-              onChange={e => {
-                if (!replayWindowStart || !replayWindowEnd) return;
-                const frac = parseInt(e.target.value) / 1000;
-                setReplayTs(replayWindowStart + frac * (replayWindowEnd - replayWindowStart));
-              }}
-              style={{ width: '100%', position: 'relative', zIndex: 1 }}
-            />
-            {hasWindow && (() => {
-              const visibleEvents: OsintEvent[] = activeCategories.length === 0
-                ? osintEvents : osintEvents.filter(e => activeCategories.includes(e.category));
-              return visibleEvents.map(evt => {
-                const frac = (evt.ts - replayWindowStart!) / (replayWindowEnd! - replayWindowStart!);
-                if (frac < 0 || frac > 1) return null;
+      {expanded && (
+        <div className="playback-drawer__body">
+          <div className="playback-drawer__timeline">
+            <label htmlFor="replay-timeline-range">Replay position</label>
+            <div className="playback-drawer__track">
+              <input
+                id="replay-timeline-range"
+                type="range"
+                min={0}
+                max={1000}
+                value={scrubberValue}
+                disabled={!hasWindow}
+                aria-valuetext={hasWindow ? formattedTs : 'No replay data'}
+                onChange={event => {
+                  if (replayWindowStart == null || replayWindowEnd == null) return;
+                  const fraction = Number.parseInt(event.target.value, 10) / 1000;
+                  setReplayTs(replayWindowStart + fraction * (replayWindowEnd - replayWindowStart));
+                }}
+              />
+              {hasWindow && visibleEvents.map(event => {
+                const fraction = (event.ts - replayWindowStart) / (replayWindowEnd - replayWindowStart);
+                if (fraction < 0 || fraction > 1) return null;
                 return (
-                  <div key={evt.id} data-event-id={evt.id} title={evt.label}
-                    onClick={() => { setReplayTs(evt.ts); if (evt.latitude != null && evt.longitude != null) setAreaOfInterest({ lat: evt.latitude, lon: evt.longitude }); }}
+                  <button
+                    key={event.id}
+                    type="button"
+                    className="playback-drawer__marker"
+                    data-event-id={event.id}
+                    title={event.label}
+                    aria-label={`Jump to ${event.label}`}
+                    onClick={() => {
+                      setReplayTs(event.ts);
+                      if (event.latitude != null && event.longitude != null) {
+                        setAreaOfInterest({ lat: event.latitude, lon: event.longitude });
+                      }
+                    }}
                     style={{
-                      position: 'absolute', left: `${frac * 100}%`, top: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: 8, height: 8, minWidth: 16, minHeight: 16,
-                      borderRadius: '50%', background: EVENT_COLORS[evt.category] ?? '#fff',
-                      cursor: 'pointer', zIndex: 2,
-                      border: '1px solid rgba(0,0,0,0.5)', padding: 4, boxSizing: 'border-box',
+                      left: `${fraction * 100}%`,
+                      background: EVENT_COLORS[event.category] ?? '#fff',
                     }}
                   />
                 );
-              });
-            })()}
-            {hasWindow && (() => (gdeltEvents ?? []).map((evt: GdeltEvent) => {
-              const ts = new Date(evt.occurred_at).getTime();
-              const frac = (ts - replayWindowStart!) / (replayWindowEnd! - replayWindowStart!);
-              if (frac < 0 || frac > 1) return null;
-              return (
-                <div key={`gdelt-${evt.global_event_id}`} title={`GDELT Q${evt.quad_class} ${evt.occurred_at}`}
-                  style={{
-                    position: 'absolute', left: `${frac * 100}%`, top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 8, height: 8, minWidth: 16, minHeight: 16,
-                    borderRadius: '50%', background: QUAD_CLASS_HEX[evt.quad_class] ?? '#fff',
-                    cursor: 'default', zIndex: 2,
-                    border: '1px solid rgba(0,0,0,0.5)', padding: 4, boxSizing: 'border-box',
-                  }}
-                />
-              );
-            }))()}
+              })}
+              {hasWindow && (gdeltEvents ?? []).map((event: GdeltEvent) => {
+                const timestamp = new Date(event.occurred_at).getTime();
+                const fraction = (timestamp - replayWindowStart) / (replayWindowEnd - replayWindowStart);
+                if (fraction < 0 || fraction > 1) return null;
+                return (
+                  <button
+                    key={`gdelt-${event.global_event_id}`}
+                    type="button"
+                    className="playback-drawer__marker"
+                    data-testid={`gdelt-dot-${event.global_event_id}`}
+                    title={`GDELT Q${event.quad_class} ${event.occurred_at}`}
+                    aria-label={`Jump to GDELT event ${event.global_event_id}`}
+                    onClick={() => {
+                      setReplayTs(timestamp);
+                      setAreaOfInterest({ lat: event.latitude, lon: event.longitude });
+                    }}
+                    style={{
+                      left: `${fraction * 100}%`,
+                      background: QUAD_CLASS_HEX[event.quad_class] ?? '#fff',
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div className="playback-drawer__range">
+              <span>{hasWindow ? new Date(replayWindowStart).toISOString().slice(11, 19) : '--:--:--'}</span>
+              <span>{hasWindow ? new Date(replayWindowEnd).toISOString().slice(11, 19) : '--:--:--'}</span>
+            </div>
           </div>
 
-          {/* Category chips */}
-          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-            {OSINT_CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => toggleCategory(cat)} style={{
-                background: (activeCategories.length === 0 || activeCategories.includes(cat)) ? EVENT_COLORS[cat] : 'rgba(255,255,255,0.05)',
-                color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
-                padding: '1px 4px', borderRadius: '2px', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700,
-                opacity: (activeCategories.length === 0 || activeCategories.includes(cat)) ? 1 : 0.35,
-              }}>{cat}</button>
-            ))}
+          <div className="playback-drawer__controls">
+            <div className="playback-drawer__control-group" aria-label="Replay speed">
+              <span>SPEED</span>
+              <div>
+                {SPEED_PRESETS.map(preset => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    aria-pressed={speedMultiplier === preset.value}
+                    onClick={() => setSpeedMultiplier(preset.value)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="playback-drawer__control-group" aria-label="Event categories">
+              <span>EVENT FILTERS</span>
+              <div>
+                {OSINT_CATEGORIES.map(category => {
+                  const active = activeCategories.length === 0 || activeCategories.includes(category);
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      aria-pressed={active}
+                      data-category={category}
+                      onClick={() => toggleCategory(category)}
+                      style={{ '--category-color': EVENT_COLORS[category] } as CSSProperties}
+                    >
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-      </div>
-    </div>
+
+          <footer className="playback-drawer__footer">
+            <span>{pinnedContacts.length} PINNED PRESERVED</span>
+            <span>{snapshotsLoading ? 'LOADING HISTORY' : hasWindow ? 'HISTORY READY' : 'HISTORY UNAVAILABLE'}</span>
+          </footer>
+        </div>
+      )}
+    </section>
   );
 }

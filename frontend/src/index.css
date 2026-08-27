@@ -112,6 +112,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+.app-shell {
+  --shell-bottom-inset: 0px;
+}
+
+.app-shell--playback.app-shell--timeline-expanded {
+  --shell-bottom-inset: 10.75rem;
+}
+
+@media (max-width: 900px) {
+  .app-shell--playback.app-shell--timeline-expanded {
+    --shell-bottom-inset: 18rem;
+  }
+}
+
 @media (pointer: coarse) {
   [data-slot='button'] {
     min-width: var(--control-height-touch);

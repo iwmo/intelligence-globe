@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { useGdeltEvents } from '../../hooks/useGdeltEvents';
 
 vi.mock('cesium', () => ({}));
@@ -20,17 +20,25 @@ const mockState = {
   tleLastUpdated: null as string | null,
   isPlaying: false as boolean,
   setIsPlaying: vi.fn(),
+  replayTimelineExpanded: true,
+  setReplayTimelineExpanded: vi.fn((expanded: boolean) => {
+    mockState.replayTimelineExpanded = expanded;
+  }),
+  pinnedContacts: [],
+  selectedAircraftId: null,
+  selectedMilitaryId: null,
+  selectedShipId: null,
+  selectedSatelliteId: null,
+  selectedGdeltEventId: null,
 };
 
 // Mutable so individual tests can set isLoading
 const mockSnapshotsResult = { data: new Map(), isLoading: false };
 
 // useAppStore mock: selector hook + getState() for imperative calls in handleModeToggle
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockUseAppStore(selector: (s: any) => unknown) {
   return selector(mockState);
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (mockUseAppStore as any).getState = () => mockState;
 
 vi.mock('../../store/useAppStore', () => ({
@@ -49,6 +57,10 @@ vi.mock('../../hooks/useGdeltEvents', () => ({
 // Static import after vi.mock — produces ModuleNotFoundError when PlaybackBar.tsx does not exist
 import { PlaybackBar } from '../PlaybackBar';
 
+beforeEach(() => {
+  mockState.replayTimelineExpanded = true;
+});
+
 describe('PlaybackBar smoke tests', () => {
   it('does not render the temporal row in live mode', () => {
     mockState.replayMode = 'live';
@@ -61,13 +73,22 @@ describe('PlaybackBar playback mode', () => {
   it('renders replay controls and speed presets in playback mode', () => {
     mockState.replayMode = 'playback';
     const { getByText, queryByText } = render(<PlaybackBar />);
-    expect(getByText('No replay data')).toBeTruthy();
+    expect(getByText('NO REPLAY DATA')).toBeTruthy();
     expect(queryByText('← LIVE')).toBeNull();
-    expect(getByText('1m/s')).toBeTruthy();
-    expect(getByText('3m/s')).toBeTruthy();
-    expect(getByText('5m/s')).toBeTruthy();
-    expect(getByText('15m/s')).toBeTruthy();
-    expect(getByText('1h/s')).toBeTruthy();
+    expect(getByText('60×')).toBeTruthy();
+    expect(getByText('180×')).toBeTruthy();
+    expect(getByText('300×')).toBeTruthy();
+    expect(getByText('900×')).toBeTruthy();
+    expect(getByText('3600×')).toBeTruthy();
+  });
+
+  it('collapses the timeline body while retaining replay transport', () => {
+    mockState.replayMode = 'playback';
+    const { getByRole, queryByLabelText, rerender } = render(<PlaybackBar />);
+    fireEvent.click(getByRole('button', { name: 'Collapse replay timeline' }));
+    rerender(<PlaybackBar />);
+    expect(queryByLabelText('Replay speed')).toBeNull();
+    expect(getByRole('button', { name: 'Expand replay timeline' })).toBeTruthy();
   });
 });
 
@@ -266,9 +287,7 @@ describe('PlaybackBar — GDELT-11 timeline dots', () => {
     vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
 
     const { container } = render(<PlaybackBar />);
-    const dot = Array.from(container.querySelectorAll('div')).find(
-      el => el.getAttribute('title')?.startsWith('GDELT')
-    ) as HTMLElement | undefined;
+    const dot = container.querySelector('[data-testid="gdelt-dot-evt-b"]') as HTMLElement | null;
     expect(dot).toBeTruthy();
     // JSDOM normalises hex to rgb(); accept either form
     expect(dot!.style.background.toLowerCase()).toMatch(/#3b82f6|rgb\(59,\s*130,\s*246\)/);
@@ -294,9 +313,7 @@ describe('PlaybackBar — GDELT-11 timeline dots', () => {
     vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
 
     const { container } = render(<PlaybackBar />);
-    const dot = Array.from(container.querySelectorAll('div')).find(
-      el => el.getAttribute('title')?.startsWith('GDELT')
-    ) as HTMLElement | undefined;
+    const dot = container.querySelector('[data-testid="gdelt-dot-evt-c"]') as HTMLElement | null;
     expect(dot).toBeTruthy();
     // JSDOM normalises hex to rgb(); accept either form
     expect(dot!.style.background.toLowerCase()).toMatch(/#ef4444|rgb\(239,\s*68,\s*68\)/);
@@ -323,9 +340,7 @@ describe('PlaybackBar — GDELT-11 timeline dots', () => {
     vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
 
     const { container } = render(<PlaybackBar />);
-    const dots = Array.from(container.querySelectorAll('div')).filter(
-      el => el.getAttribute('title')?.startsWith('GDELT')
-    );
+    const dots = container.querySelectorAll('[data-testid^="gdelt-dot-"]');
     expect(dots.length).toBe(0);
   });
 
@@ -349,9 +364,7 @@ describe('PlaybackBar — GDELT-11 timeline dots', () => {
     vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
 
     const { container } = render(<PlaybackBar />);
-    const dots = Array.from(container.querySelectorAll('div')).filter(
-      el => el.getAttribute('title')?.startsWith('GDELT')
-    );
+    const dots = container.querySelectorAll('[data-testid^="gdelt-dot-"]');
     expect(dots.length).toBe(0);
   });
 
@@ -375,9 +388,7 @@ describe('PlaybackBar — GDELT-11 timeline dots', () => {
     vi.mocked(useGdeltEvents).mockReturnValue({ data: [event] } as ReturnType<typeof useGdeltEvents>);
 
     const { container } = render(<PlaybackBar />);
-    const dots = Array.from(container.querySelectorAll('div')).filter(
-      el => el.getAttribute('title')?.startsWith('GDELT')
-    );
+    const dots = container.querySelectorAll('[data-testid^="gdelt-dot-"]');
     expect(dots.length).toBe(0);
   });
 });

@@ -71,15 +71,15 @@ for (const viewport of VIEWPORTS) {
     await expect(page.getByRole('button', { name: 'Open playback' })).toBeVisible();
     await page.getByRole('button', { name: 'Open playback' }).click();
     await expect(page.getByRole('button', { name: 'Return to live' })).toBeVisible();
-    await expect(page.locator('.playback-bar')).toBeVisible();
+    await expect(page.locator('.playback-drawer')).toBeVisible();
     const commandStrip = await page.locator('.command-strip').boundingBox();
-    const playbackBar = await page.locator('.playback-bar').boundingBox();
+    const playbackBar = await page.locator('.playback-drawer').boundingBox();
     expect(commandStrip).not.toBeNull();
     expect(playbackBar).not.toBeNull();
     expect(playbackBar!.y).toBeGreaterThanOrEqual(commandStrip!.y + commandStrip!.height - 1);
 
     await page.getByRole('button', { name: 'Enter focus mode' }).click();
-    await expect(page.locator('.playback-bar')).toHaveCount(0);
+    await expect(page.locator('.playback-drawer')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Exit focus mode' })).toBeVisible();
     await page.getByRole('button', { name: 'Exit focus mode' }).click();
     await page.getByRole('button', { name: 'Return to live' }).click();

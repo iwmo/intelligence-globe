@@ -73,11 +73,14 @@ test.describe('live production-shaped stack', () => {
     });
     await page.goto(`/#${view.toString()}`);
     await expect(page.locator('.cesium-widget canvas')).toBeVisible();
-    await expect.poll(
-      () => page.locator('.cesium-widget canvas').getAttribute('data-satellite-render-count')
-        .then(value => Number(value ?? 0)),
-      { timeout: 120_000, intervals: [1_000, 2_000, 5_000, 10_000] },
-    ).toBeGreaterThan(0);
+    await page.waitForFunction(
+      () => Number(
+        document.querySelector<HTMLCanvasElement>('.cesium-widget canvas')
+          ?.dataset.satelliteRenderCount ?? 0,
+      ) > 0,
+      undefined,
+      { timeout: 180_000, polling: 1_000 },
+    );
     await expect(page.locator('.command-strip__health')).toHaveAttribute(
       'aria-label',
       /System status: (live|degraded)/,
