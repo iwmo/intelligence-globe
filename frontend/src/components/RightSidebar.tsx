@@ -110,11 +110,17 @@ export function RightSidebar() {
       railFooter={
         <>
           {entityType && (
-            <span
-              className="context-inspector__selection-indicator"
+            <button
+              type="button"
+              className="operational-drawer__rail-button context-inspector__selection-button"
               style={{ '--selection-color': ENTITY_COLORS[entityType] } as CSSProperties}
-              title={`${entityType} selected`}
-            />
+              title={`Return to ${entityType.toLowerCase()} selection`}
+              aria-label={`Return to ${entityType.toLowerCase()} selection`}
+              data-active={activeRightTab === null}
+              onClick={() => setActiveRightTab(null)}
+            >
+              <span className="context-inspector__selection-indicator" />
+            </button>
           )}
           <button
             type="button"

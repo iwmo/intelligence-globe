@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Crosshair, MapPin, Pin, PinOff } from 'lucide-react';
 import { useAppStore, type TrackableKind } from '../store/useAppStore';
 import { canEnterCockpit } from '../lib/trackContact';
+import { flyToPosition } from '../lib/viewerRegistry';
+import './contact-card.css';
 
 interface ContactCardProps {
   kind: TrackableKind;
@@ -8,9 +11,26 @@ interface ContactCardProps {
   title: string;
   altitude: string;
   speed: string;
+  heading?: string;
   accent: string;
+  source: string;
+  freshness?: string | null;
+  position?: { lat: number; lon: number; altitudeMeters?: number | null };
+  notice?: ReactNode;
+  context?: ReactNode;
+  history?: ReactNode;
   children?: ReactNode;
   trackable?: boolean;
+}
+
+function freshnessLabel(value?: string | null): string {
+  if (!value) return 'Freshness unavailable';
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return value;
+  const ageSeconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (ageSeconds < 60) return `${ageSeconds}s ago`;
+  if (ageSeconds < 3600) return `${Math.floor(ageSeconds / 60)}m ago`;
+  return `${Math.floor(ageSeconds / 3600)}h ago`;
 }
 
 export function ContactCard({
@@ -19,7 +39,14 @@ export function ContactCard({
   title,
   altitude,
   speed,
+  heading = '--',
   accent,
+  source,
+  freshness,
+  position,
+  notice,
+  context,
+  history,
   children,
   trackable = true,
 }: ContactCardProps) {
@@ -27,71 +54,100 @@ export function ContactCard({
   const setTrackedEntity = useAppStore(s => s.setTrackedEntity);
   const cockpitMode = useAppStore(s => s.cockpitMode);
   const setCockpitMode = useAppStore(s => s.setCockpitMode);
+  const pinnedContacts = useAppStore(s => s.pinnedContacts);
+  const togglePinnedContact = useAppStore(s => s.togglePinnedContact);
   const isTracked = tracked?.kind === kind && String(tracked.id) === String(id);
+  const isPinned = pinnedContacts.some(contact =>
+    contact.kind === kind && String(contact.id) === String(id)
+  );
 
   return (
-    <div style={{ padding: '12px 12px 14px', color: '#e0e0e0', fontFamily: 'monospace', fontSize: 12 }}>
-      <div style={{ fontSize: 9, letterSpacing: '0.14em', color: accent, marginBottom: 6 }}>
-        {kind.toUpperCase()}
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 8 }}>
-        {title}
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 10, color: 'rgba(255,255,255,0.8)' }}>
-        <div>
-          <div style={{ fontSize: 9, opacity: 0.5 }}>ALT</div>
-          <div>{altitude}</div>
+    <article
+      className="contact-card"
+      style={{ '--contact-accent': accent } as CSSProperties}
+    >
+      <header className="contact-card__selection">
+        <div className="contact-card__eyebrow">
+          <span>{kind.toUpperCase()}</span>
+          <time>{freshnessLabel(freshness)}</time>
         </div>
-        <div>
-          <div style={{ fontSize: 9, opacity: 0.5 }}>SPD</div>
-          <div>{speed}</div>
+        <h3>{title}</h3>
+        <dl className="contact-card__telemetry">
+          <div><dt>ALT</dt><dd>{altitude}</dd></div>
+          <div><dt>SPD</dt><dd>{speed}</dd></div>
+          <div><dt>HDG</dt><dd>{heading}</dd></div>
+        </dl>
+        {notice}
+      </header>
+
+      <section className="contact-card__section" aria-labelledby={`actions-${kind}-${id}`}>
+        <h4 id={`actions-${kind}-${id}`}>Actions</h4>
+        <div className="contact-card__actions">
+          {trackable && (
+            <button
+              type="button"
+              data-active={isTracked}
+              onClick={() => setTrackedEntity(isTracked ? null : { kind, id })}
+            >
+              <Crosshair aria-hidden="true" />
+              {isTracked ? 'Tracking' : 'Track'}
+            </button>
+          )}
+          {position && (
+            <button
+              type="button"
+              onClick={() => flyToPosition(
+                position.lon,
+                position.lat,
+                position.altitudeMeters ?? 10_000,
+              )}
+            >
+              <MapPin aria-hidden="true" />
+              Center
+            </button>
+          )}
+          <button
+            type="button"
+            data-active={isPinned}
+            onClick={() => togglePinnedContact({ kind, id })}
+          >
+            {isPinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+            {isPinned ? 'Unpin' : 'Pin'}
+          </button>
+          {trackable && canEnterCockpit(kind) && isTracked && (
+            <button
+              type="button"
+              data-active={cockpitMode}
+              onClick={() => setCockpitMode(!cockpitMode)}
+            >
+              {cockpitMode ? 'Exit cockpit' : 'Cockpit'}
+            </button>
+          )}
         </div>
-      </div>
-      {trackable && (
-        <button
-          type="button"
-          onClick={() => setTrackedEntity(isTracked ? null : { kind, id })}
-          style={{
-            width: '100%',
-            marginBottom: 10,
-            padding: '6px 8px',
-            background: isTracked ? 'rgba(255,255,255,0.12)' : 'transparent',
-            border: `1px solid ${isTracked ? accent : 'rgba(255,255,255,0.2)'}`,
-            borderRadius: 3,
-            color: isTracked ? accent : 'rgba(255,255,255,0.75)',
-            cursor: 'pointer',
-            fontFamily: 'monospace',
-            fontSize: 11,
-            letterSpacing: '0.12em',
-            fontWeight: 700,
-          }}
-        >
-          {isTracked ? 'TRACKING' : 'TRACK'}
-        </button>
+      </section>
+
+      <section className="contact-card__section" aria-labelledby={`context-${kind}-${id}`}>
+        <h4 id={`context-${kind}-${id}`}>Context</h4>
+        <dl className="contact-card__facts">
+          <div><dt>Source</dt><dd>{source}</dd></div>
+          <div><dt>Identifier</dt><dd>{id}</dd></div>
+        </dl>
+        {context}
+      </section>
+
+      {history && (
+        <section className="contact-card__section" aria-labelledby={`history-${kind}-${id}`}>
+          <h4 id={`history-${kind}-${id}`}>History</h4>
+          {history}
+        </section>
       )}
-      {trackable && canEnterCockpit(kind) && isTracked && (
-        <button
-          type="button"
-          onClick={() => setCockpitMode(!cockpitMode)}
-          style={{
-            width: '100%',
-            marginBottom: 10,
-            padding: '6px 8px',
-            background: cockpitMode ? 'rgba(255,255,255,0.12)' : 'transparent',
-            border: `1px solid ${cockpitMode ? accent : 'rgba(255,255,255,0.2)'}`,
-            borderRadius: 3,
-            color: cockpitMode ? accent : 'rgba(255,255,255,0.75)',
-            cursor: 'pointer',
-            fontFamily: 'monospace',
-            fontSize: 11,
-            letterSpacing: '0.12em',
-            fontWeight: 700,
-          }}
-        >
-          {cockpitMode ? 'COCKPIT' : 'ENTER COCKPIT'}
-        </button>
+
+      {children && (
+        <details className="contact-card__details" open>
+          <summary>Details</summary>
+          <div>{children}</div>
+        </details>
       )}
-      {children}
-    </div>
+    </article>
   );
 }

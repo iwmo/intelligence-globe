@@ -10,6 +10,8 @@ vi.mock('../../store/useAppStore', () => {
     setSelectedGdeltEventId: vi.fn(),
     setGdeltOsintPrefill: vi.fn(),
     gdeltOsintPrefill: null,
+    pinnedContacts: [],
+    togglePinnedContact: vi.fn(),
   };
   const useAppStore = Object.assign(
     vi.fn((selector: (s: typeof storeState) => unknown) => selector(storeState)),

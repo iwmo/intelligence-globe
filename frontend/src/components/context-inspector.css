@@ -5,8 +5,11 @@
 .context-inspector__selection-indicator {
   width: 0.5rem;
   height: 0.5rem;
-  margin-bottom: 0.25rem;
   background: var(--selection-color);
   border-radius: 50%;
   box-shadow: 0 0 0.55rem var(--selection-color);
+}
+
+.context-inspector__selection-button[data-active='true'] {
+  border-color: color-mix(in oklch, var(--selection-color) 60%, var(--border));
 }

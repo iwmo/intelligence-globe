@@ -30,6 +30,7 @@ export function ContactsRoster() {
   const aircraft = useAircraft();
   const ships = useShips();
   const selectContact = useAppStore(s => s.selectContact);
+  const pinnedContacts = useAppStore(s => s.pinnedContacts);
   const cam = cameraLatLon();
 
   const nearby = useMemo(() => {
@@ -48,6 +49,37 @@ export function ContactsRoster() {
 
   return (
     <div style={{ padding: 10, fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
+      {pinnedContacts.length > 0 && (
+        <>
+          <div style={{ fontSize: 9, letterSpacing: '0.12em', opacity: 0.5, marginBottom: 8 }}>
+            PINNED · {pinnedContacts.length}
+          </div>
+          {pinnedContacts.map(contact => (
+            <button
+              key={`pinned:${contact.kind}:${contact.id}`}
+              type="button"
+              onClick={() => selectContact(contact.kind, contact.id)}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                width: '100%',
+                background: 'rgba(0,212,255,0.06)',
+                border: 'none',
+                borderBottom: '1px solid rgba(0,212,255,0.12)',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 11,
+                padding: '7px 6px',
+              }}
+            >
+              <span>{String(contact.id).toUpperCase()}</span>
+              <span style={{ opacity: 0.5 }}>{contact.kind.toUpperCase()}</span>
+            </button>
+          ))}
+          <div style={{ height: 14 }} />
+        </>
+      )}
       <div style={{ fontSize: 9, letterSpacing: '0.12em', opacity: 0.5, marginBottom: 8 }}>
         CONTACTS · 250 KM
       </div>

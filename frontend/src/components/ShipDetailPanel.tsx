@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import type { ShipRecord } from '../hooks/useShips';
 import { ContactCard } from './ContactCard';
+import { InspectorState } from './InspectorState';
 
 function formatLastUpdate(lastUpdate: string | null): string {
   if (!lastUpdate) return 'Unknown';
@@ -38,10 +39,9 @@ export function ShipDetailPanel() {
   };
 
   return (
-    <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-
-      {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
-      {isError && <div style={{ color: '#ff4444' }}>Failed to load vessel data</div>}
+    <>
+      {isLoading && <InspectorState state="loading">Loading vessel telemetry…</InspectorState>}
+      {isError && <InspectorState state="error">Failed to load vessel data</InspectorState>}
 
       {data && (
         <ContactCard
@@ -50,7 +50,22 @@ export function ShipDetailPanel() {
           title={(data.vessel_name ?? data.mmsi).toUpperCase()}
           altitude="SEA"
           speed={data.sog != null ? `${data.sog.toFixed(1)} kts` : '--'}
+          heading={headingDisplay(data.heading)}
           accent="#06B6D4"
+          source="AIS"
+          freshness={data.updated_at ?? data.last_update}
+          position={{ lat: data.lat, lon: data.lon, altitudeMeters: 0 }}
+          context={(
+            <div className="contact-card__context-copy">
+              {data.vessel_type ?? 'Unknown vessel type'}
+              {data.nav_status !== null ? ` · Navigation status ${data.nav_status}` : ''}
+            </div>
+          )}
+          history={(
+            <div className="contact-card__history-copy">
+              {data.is_stale ? 'Latest AIS observation is stale.' : `Last AIS update: ${formatLastUpdate(data.last_update)}`}
+            </div>
+          )}
         >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
@@ -93,6 +108,6 @@ export function ShipDetailPanel() {
         </div>
         </ContactCard>
       )}
-    </div>
+    </>
   );
 }

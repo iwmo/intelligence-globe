@@ -12,6 +12,11 @@ export interface TrackedEntity {
   id: string | number;
 }
 
+export interface PinnedContact {
+  kind: SelectableKind;
+  id: string | number;
+}
+
 export interface AscentEstimate {
   id: string;
   name: string;
@@ -130,6 +135,8 @@ interface AppState {
   trackedEntity: TrackedEntity | null;
   setTrackedEntity: (e: TrackedEntity | null) => void;
   clearTrackedEntity: () => void;
+  pinnedContacts: PinnedContact[];
+  togglePinnedContact: (contact: PinnedContact) => void;
   clearSelection: () => void;
   selectContact: (kind: SelectableKind, id: string | number) => void;
 
@@ -152,15 +159,27 @@ export const useAppStore = create<AppState>((set) => ({
   setLayerVisible: (layer, visible) =>
     set((s) => ({ layers: { ...s.layers, [layer]: visible } })),
   selectedSatelliteId: null,
-  setSelectedSatelliteId: (id) => set({ selectedSatelliteId: id }),
+  setSelectedSatelliteId: (id) => set({
+    selectedSatelliteId: id,
+    ...(id !== null ? { activeRightPanel: null } : {}),
+  }),
   tleLastUpdated: null,
   setTleLastUpdated: (ts) => set({ tleLastUpdated: ts }),
   selectedAircraftId: null,
-  setSelectedAircraftId: (id) => set({ selectedAircraftId: id }),
+  setSelectedAircraftId: (id) => set({
+    selectedAircraftId: id,
+    ...(id !== null ? { activeRightPanel: null } : {}),
+  }),
   selectedMilitaryId: null,
-  setSelectedMilitaryId: (id) => set({ selectedMilitaryId: id }),
+  setSelectedMilitaryId: (id) => set({
+    selectedMilitaryId: id,
+    ...(id !== null ? { activeRightPanel: null } : {}),
+  }),
   selectedShipId: null,
-  setSelectedShipId: (id) => set({ selectedShipId: id }),
+  setSelectedShipId: (id) => set({
+    selectedShipId: id,
+    ...(id !== null ? { activeRightPanel: null } : {}),
+  }),
 
   satelliteFilter: { constellation: null, altitudeBand: null },
   setSatelliteFilter: (f) =>
@@ -244,7 +263,10 @@ export const useAppStore = create<AppState>((set) => ({
       : [...s.gdeltQuadClassFilter, qc],
   })),
   selectedGdeltEventId: null,
-  setSelectedGdeltEventId: (id) => set({ selectedGdeltEventId: id }),
+  setSelectedGdeltEventId: (id) => set({
+    selectedGdeltEventId: id,
+    ...(id !== null ? { activeRightPanel: null } : {}),
+  }),
   gdeltOsintPrefill: null,
   setGdeltOsintPrefill: (v) => set({ gdeltOsintPrefill: v }),
 
@@ -254,6 +276,19 @@ export const useAppStore = create<AppState>((set) => ({
   trackedEntity: null,
   setTrackedEntity: (e) => set({ trackedEntity: e, cockpitMode: false }),
   clearTrackedEntity: () => set({ trackedEntity: null, cockpitMode: false }),
+  pinnedContacts: [],
+  togglePinnedContact: (contact) => set((state) => {
+    const pinned = state.pinnedContacts.some(item =>
+      item.kind === contact.kind && String(item.id) === String(contact.id)
+    );
+    return {
+      pinnedContacts: pinned
+        ? state.pinnedContacts.filter(item =>
+            item.kind !== contact.kind || String(item.id) !== String(contact.id)
+          )
+        : [...state.pinnedContacts, contact],
+    };
+  }),
   clearSelection: () => set({
     selectedSatelliteId: null,
     selectedAircraftId: null,
@@ -272,6 +307,7 @@ export const useAppStore = create<AppState>((set) => ({
       selectedGdeltEventId: null as string | null,
       trackedEntity: null as TrackedEntity | null,
       cockpitMode: false,
+      activeRightPanel: null as RightPanel,
     };
     if (kind === 'aircraft') {
       return { ...cleared, selectedAircraftId: String(id), trackedEntity: { kind, id: String(id) } };
