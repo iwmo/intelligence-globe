@@ -14,13 +14,18 @@ vi.mock('../../lib/shareView', () => ({ writeShareHash }));
 vi.mock('../../lib/queryClient', () => ({
   queryClient: { invalidateQueries },
 }));
+vi.mock('../SearchBar', () => ({
+  SearchBar: () => <input aria-label="Universal command and location search" />,
+}));
 
 import { CommandStrip } from '../shell/CommandStrip';
+
+const workerRef = { current: null };
 
 function renderStrip() {
   return render(
     <TooltipProvider>
-      <CommandStrip />
+      <CommandStrip workerRef={workerRef} />
     </TooltipProvider>,
   );
 }
@@ -53,7 +58,7 @@ describe('CommandStrip', () => {
 
     rerender(
       <TooltipProvider>
-        <CommandStrip />
+        <CommandStrip workerRef={workerRef} />
       </TooltipProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Return to live' }));

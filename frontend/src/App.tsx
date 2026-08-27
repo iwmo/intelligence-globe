@@ -116,7 +116,7 @@ export default function App() {
       <CinematicHUD viewer={cesiumViewer} />
       <DetectionOverlay viewer={cesiumViewer} />
 
-      <CommandStrip />
+      <CommandStrip workerRef={satWorkerRef} />
       {!cleanUI && <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />}
       <BootSplash />
       {!cleanUI && <FirstRunCard />}
@@ -127,7 +127,7 @@ export default function App() {
         useAppStore.getState().setGdeltOsintPrefill(null);
       }} />
 
-      {!cleanUI && <LeftSidebar workerRef={satWorkerRef} />}
+      {!cleanUI && <LeftSidebar />}
       {!cleanUI && <RightSidebar />}
     </div>
   );

@@ -1,0 +1,202 @@
+.operational-drawer {
+  --drawer-rail-width: 2.75rem;
+  position: fixed;
+  top: var(--shell-top-height);
+  bottom: 0;
+  z-index: calc(var(--z-shell) - 2);
+  display: flex;
+  pointer-events: none;
+}
+
+.operational-drawer--left {
+  left: var(--shell-gutter);
+  flex-direction: row;
+}
+
+.operational-drawer--right {
+  right: var(--shell-gutter);
+  flex-direction: row-reverse;
+}
+
+.operational-drawer__rail {
+  display: flex;
+  width: var(--drawer-rail-width);
+  flex: 0 0 var(--drawer-rail-width);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.25rem;
+  background: color-mix(in oklch, var(--background) 88%, transparent);
+  border-color: var(--border);
+  backdrop-filter: blur(1rem);
+  pointer-events: auto;
+}
+
+.operational-drawer--left .operational-drawer__rail {
+  border-right: 1px solid var(--border);
+}
+
+.operational-drawer--right .operational-drawer__rail {
+  border-left: 1px solid var(--border);
+}
+
+.operational-drawer__rail-button,
+.operational-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.operational-drawer__rail-button {
+  width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.operational-drawer__rail-button:hover,
+.operational-drawer__rail-button:focus-visible,
+.operational-drawer__rail-button[data-active='true'] {
+  color: var(--foreground);
+  background: var(--muted);
+  border-color: var(--border);
+}
+
+.operational-drawer__rail-button[data-active='true'] {
+  color: var(--drawer-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--drawer-accent) 35%, transparent);
+}
+
+.operational-drawer__rail-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.operational-drawer__rail-spacer {
+  flex: 1;
+}
+
+.operational-drawer__panel {
+  position: relative;
+  display: flex;
+  min-width: 18rem;
+  max-width: min(34rem, calc(100vw - 5.5rem));
+  flex-direction: column;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background) 94%, transparent);
+  border-color: color-mix(in oklch, var(--drawer-accent) 22%, var(--border));
+  box-shadow: 0 1.25rem 3rem rgb(0 0 0 / 35%);
+  backdrop-filter: blur(1.25rem);
+  pointer-events: auto;
+}
+
+.operational-drawer--left .operational-drawer__panel {
+  border-right: 1px solid;
+}
+
+.operational-drawer--right .operational-drawer__panel {
+  border-left: 1px solid;
+}
+
+.operational-drawer__header {
+  display: flex;
+  min-height: 3.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.operational-drawer__eyebrow {
+  display: block;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+}
+
+.operational-drawer__header h2 {
+  margin: 0.1rem 0 0;
+  color: var(--drawer-accent);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.operational-drawer__close {
+  width: 2rem;
+  min-height: 2rem;
+  border-color: var(--border);
+}
+
+.operational-drawer__close:hover,
+.operational-drawer__close:focus-visible {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.operational-drawer__close svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.operational-drawer__content {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.operational-drawer__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.3rem;
+  cursor: col-resize;
+}
+
+.operational-drawer--left .operational-drawer__resize {
+  right: -0.15rem;
+}
+
+.operational-drawer--right .operational-drawer__resize {
+  left: -0.15rem;
+}
+
+.operational-drawer__resize:hover,
+.operational-drawer__resize:focus-visible {
+  background: color-mix(in oklch, var(--drawer-accent) 35%, transparent);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .operational-drawer {
+    --drawer-rail-width: 2.75rem;
+  }
+
+  .operational-drawer:has(.operational-drawer__panel) {
+    z-index: calc(var(--z-shell) + 1);
+  }
+
+  .operational-drawer__panel {
+    width: min(
+      22rem,
+      calc(100vw - (2 * var(--drawer-rail-width)) - (2 * var(--shell-gutter)))
+    ) !important;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .operational-drawer__resize {
+    display: none;
+  }
+
+  .operational-drawer__rail-button {
+    min-height: var(--control-height-touch);
+  }
+}

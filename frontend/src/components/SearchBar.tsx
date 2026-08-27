@@ -1,28 +1,64 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import { Search, X } from 'lucide-react';
 import { useSatellites } from '../hooks/useSatellites';
 import { useAircraft } from '../hooks/useAircraft';
 import { useAppStore } from '../store/useAppStore';
-import { flyToPosition } from '../lib/viewerRegistry';
+import { flyToLandmark, flyToPosition } from '../lib/viewerRegistry';
+import landmarksData from '../data/landmarks.json';
+import './search-bar.css';
 
 interface SearchBarProps {
   workerRef: RefObject<Worker | null>;
+  compact?: boolean;
 }
 
-export function SearchBar({ workerRef }: SearchBarProps) {
+interface PlaceHit {
+  label: string;
+  lat: number;
+  lon: number;
+}
+
+export function SearchBar({ workerRef, compact = false }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const satellites = useSatellites();
   const aircraft = useAircraft();
 
   const selectContact = useAppStore(s => s.selectContact);
 
-  const handleSearch = useCallback((rawQuery: string) => {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
+  const handleSearch = useCallback(async (rawQuery: string) => {
     const q = rawQuery.trim().toLowerCase();
     if (!q) { setStatus(null); return; }
+
+    if (q === 'layers' || q === 'show layers') {
+      useAppStore.getState().setActiveLeftPanel('layers');
+      setStatus('Opened layer drawer');
+      return;
+    }
+    if (q === 'settings' || q === 'open settings') {
+      useAppStore.getState().setActiveRightPanel('settings');
+      setStatus('Opened settings');
+      return;
+    }
 
     // Try aircraft first (callsign or icao24)
     const acMatch = aircraft.data?.find(ac =>
@@ -61,14 +97,37 @@ export function SearchBar({ workerRef }: SearchBarProps) {
       return;
     }
 
-    setStatus('No match');
+    const landmark = landmarksData.landmarks.find(item =>
+      item.name.toLowerCase().includes(q) || item.id.toLowerCase() === q,
+    );
+    if (landmark) {
+      flyToLandmark(landmark);
+      setStatus(`Location: ${landmark.name}`);
+      return;
+    }
+
+    setStatus('Searching locations…');
+    try {
+      const response = await fetch(`/api/places/geocode?q=${encodeURIComponent(rawQuery.trim())}`);
+      if (!response.ok) throw new Error('geocode');
+      const data = await response.json() as { results?: PlaceHit[] };
+      const place = data.results?.[0];
+      if (!place) {
+        setStatus('No match');
+        return;
+      }
+      flyToLandmark({ lon: place.lon, lat: place.lat, altMeters: 80_000 });
+      setStatus(`Location: ${place.label}`);
+    } catch {
+      setStatus('Location search unavailable');
+    }
   }, [aircraft.data, satellites.data, selectContact, workerRef]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => handleSearch(val), 300);
+    debounceRef.current = setTimeout(() => void handleSearch(val), 300);
   };
 
   const onClear = () => {
@@ -78,32 +137,30 @@ export function SearchBar({ workerRef }: SearchBarProps) {
   };
 
   return (
-    <div style={{ padding: '12px 12px 10px' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '6px',
-        background: 'rgba(0,212,255,0.06)',
-        border: '1px solid rgba(0,212,255,0.25)',
-        borderRadius: '6px', padding: '6px 10px',
-      }}>
-        <Search size={14} color="rgba(0,212,255,0.6)" />
+    <div className={`universal-search${compact ? ' universal-search--compact' : ''}`}>
+      <div className="universal-search__field">
+        <Search aria-hidden="true" />
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={onChange}
-          placeholder="Search satellite or aircraft..."
-          style={{
-            flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            color: '#e0e0e0', fontSize: '12px',
-          }}
+          placeholder="Search locations, contacts, commands…"
+          aria-label="Universal command and location search"
         />
+        {compact && <kbd>⌘K</kbd>}
         {query && (
-          <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <X size={12} color="rgba(255,255,255,0.4)" />
+          <button type="button" onClick={onClear} aria-label="Clear search">
+            <X aria-hidden="true" />
           </button>
         )}
       </div>
       {status && (
-        <div style={{ fontSize: '11px', color: status === 'No match' ? '#ff6b6b' : '#00D4FF', marginTop: '6px', paddingLeft: '2px' }}>
+        <div
+          className="universal-search__status"
+          data-error={status === 'No match' || status.includes('unavailable')}
+          role="status"
+        >
           {status}
         </div>
       )}
