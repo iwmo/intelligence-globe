@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import { ContactCard } from './ContactCard';
+import { InspectorState } from './InspectorState';
 
 interface SatelliteDetail {
   norad_cat_id: number;
@@ -31,10 +32,9 @@ export function SatelliteDetailPanel() {
   if (!selectedId) return null;
 
   return (
-    <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-
-      {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
-      {isError && <div style={{ color: '#ff4444' }}>Failed to load satellite data</div>}
+    <>
+      {isLoading && <InspectorState state="loading">Loading orbital telemetry…</InspectorState>}
+      {isError && <InspectorState state="error">Failed to load satellite data</InspectorState>}
 
       {data && (
         <ContactCard
@@ -43,7 +43,20 @@ export function SatelliteDetailPanel() {
           title={data.object_name.toUpperCase()}
           altitude={`${data.altitude_km} km`}
           speed={`${data.velocity_km_s} km/s`}
+          heading="ORBIT"
           accent="#00D4FF"
+          source="CelesTrak"
+          freshness={data.tle_updated_at}
+          context={(
+            <div className="contact-card__context-copy">
+              {data.constellation ?? 'Unclassified constellation'} · {data.inclination.toFixed(2)}° inclination
+            </div>
+          )}
+          history={(
+            <div className="contact-card__history-copy">
+              Propagation is based on TLE epoch {data.epoch}.
+            </div>
+          )}
         >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
@@ -77,6 +90,6 @@ export function SatelliteDetailPanel() {
         </div>
         </ContactCard>
       )}
-    </div>
+    </>
   );
 }

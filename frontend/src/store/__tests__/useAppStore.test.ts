@@ -363,6 +363,7 @@ describe('useAppStore — GDELT slices', () => {
 describe('useAppStore — track and selection', () => {
   beforeEach(() => {
     useAppStore.getState().clearSelection();
+    useAppStore.setState({ activeRightPanel: null, pinnedContacts: [] });
   });
 
   it('selectContact tracks aircraft and clears other IDs', () => {
@@ -379,6 +380,26 @@ describe('useAppStore — track and selection', () => {
     const s = useAppStore.getState();
     expect(s.selectedShipId).toBeNull();
     expect(s.trackedEntity).toBeNull();
+  });
+
+  it('selecting a contact returns the inspector from a tool section to selection', () => {
+    useAppStore.getState().setActiveRightPanel('settings');
+    useAppStore.getState().selectContact('aircraft', 'abc123');
+    expect(useAppStore.getState().activeRightPanel).toBeNull();
+    expect(useAppStore.getState().selectedAircraftId).toBe('abc123');
+  });
+
+  it('direct entity selection returns the inspector to selection', () => {
+    useAppStore.getState().setActiveRightPanel('contacts');
+    useAppStore.getState().setSelectedShipId('123456789');
+    expect(useAppStore.getState().activeRightPanel).toBeNull();
+  });
+
+  it('pins and unpins contacts without duplicates', () => {
+    const contact = { kind: 'satellite' as const, id: 25544 };
+    useAppStore.getState().togglePinnedContact(contact);
+    useAppStore.getState().togglePinnedContact(contact);
+    expect(useAppStore.getState().pinnedContacts).toEqual([]);
   });
 });
 

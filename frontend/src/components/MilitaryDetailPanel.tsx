@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import type { MilitaryAircraftRecord } from '../hooks/useMilitaryAircraft';
 import { ContactCard } from './ContactCard';
+import { InspectorState } from './InspectorState';
 
 export function MilitaryDetailPanel() {
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
@@ -20,10 +21,9 @@ export function MilitaryDetailPanel() {
   if (!selectedMilitaryId) return null;
 
   return (
-    <div style={{ padding: '1rem', color: '#e0e0e0', fontFamily: 'monospace', fontSize: '13px' }}>
-
-      {isLoading && <div style={{ color: '#888' }}>Loading...</div>}
-      {isError && <div style={{ color: '#ff4444' }}>Failed to load military aircraft data</div>}
+    <>
+      {isLoading && <InspectorState state="loading">Loading military telemetry…</InspectorState>}
+      {isError && <InspectorState state="error">Failed to load military aircraft data</InspectorState>}
 
       {data && (
         <ContactCard
@@ -32,7 +32,22 @@ export function MilitaryDetailPanel() {
           title={(data.flight?.trim() || data.hex).toUpperCase()}
           altitude={data.alt_baro != null ? `${Math.round(data.alt_baro).toLocaleString()} ft` : 'Ground'}
           speed={data.gs != null ? `${Math.round(data.gs)} kts` : '--'}
+          heading={data.track != null ? `${data.track.toFixed(1)}°` : '--'}
           accent="#F59E0B"
+          source="ADS-B military classification"
+          freshness={data.updated_at}
+          position={{ lat: data.lat, lon: data.lon, altitudeMeters: data.alt_baro != null ? data.alt_baro * 0.3048 : 0 }}
+          context={(
+            <div className="contact-card__context-copy">
+              {data.aircraft_type ?? 'Unknown aircraft type'}
+              {data.squawk ? ` · Squawk ${data.squawk}` : ''}
+            </div>
+          )}
+          history={(
+            <div className="contact-card__history-copy">
+              {data.is_stale ? 'Latest observation is stale.' : 'Latest observation is within the live freshness window.'}
+            </div>
+          )}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div>
@@ -73,6 +88,6 @@ export function MilitaryDetailPanel() {
         </div>
         </ContactCard>
       )}
-    </div>
+    </>
   );
 }

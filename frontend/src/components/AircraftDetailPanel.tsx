@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import { ContactCard } from './ContactCard';
+import { InspectorState } from './InspectorState';
 import { metersToFeet, msToKnots } from '../lib/hudContact';
 
 interface AircraftDetail {
@@ -70,8 +71,8 @@ export function AircraftDetailPanel() {
 
   return (
     <>
-      {isLoading && <div style={{ padding: 12, color: '#888', fontFamily: 'monospace', fontSize: 12 }}>Loading...</div>}
-      {isError && <div style={{ padding: 12, color: '#ff4444', fontFamily: 'monospace', fontSize: 12 }}>Failed to load aircraft data</div>}
+      {isLoading && <InspectorState state="loading">Loading aircraft telemetry…</InspectorState>}
+      {isError && <InspectorState state="error">Failed to load aircraft data</InspectorState>}
       {data && (
         <ContactCard
           kind="aircraft"
@@ -79,9 +80,20 @@ export function AircraftDetailPanel() {
           title={title.toUpperCase()}
           altitude={altitude}
           speed={speed}
+          heading={data.true_track != null ? `${data.true_track.toFixed(1)}°` : '--'}
           accent="#FF8C00"
-        >
-          {data.emergency && data.emergency !== 'none' && (
+          source="ADS-B"
+          freshness={(() => {
+            const timestamp = data.trail.at(-1)?.ts;
+            if (timestamp == null) return null;
+            return new Date(timestamp > 1_000_000_000_000 ? timestamp : timestamp * 1000).toISOString();
+          })()}
+          position={{
+            lat: data.latitude,
+            lon: data.longitude,
+            altitudeMeters: data.baro_altitude,
+          }}
+          notice={data.emergency && data.emergency !== 'none' ? (
             <div
               data-testid="emergency-badge"
               style={{
@@ -94,14 +106,29 @@ export function AircraftDetailPanel() {
                 fontWeight: 'bold',
                 fontSize: 11,
                 letterSpacing: '0.08em',
-                marginBottom: 8,
+                marginTop: 8,
               }}
             >
               EMERGENCY: {data.emergency.toUpperCase()}
             </div>
+          ) : null}
+          context={(
+            <div className="contact-card__context-copy">
+              {routeLoading
+                ? 'Resolving route…'
+                : `${routeData?.origin?.iata ?? routeData?.origin?.icao ?? 'Unknown origin'} → ${routeData?.destination?.iata ?? routeData?.destination?.icao ?? 'Unknown destination'}`}
+              <br />
+              {data.origin_country ?? 'Country unavailable'}
+            </div>
           )}
-          <details open>
-            <summary style={{ cursor: 'pointer', color: '#888', marginBottom: 8 }}>Details</summary>
+          history={(
+            <div className="contact-card__history-copy">
+              {data.trail.length > 0
+                ? `${data.trail.length} recorded positions available for recent-path context.`
+                : 'No recent path is available for this contact.'}
+            </div>
+          )}
+        >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div>
                 <span style={{ color: '#888' }}>From: </span>
@@ -208,7 +235,6 @@ export function AircraftDetailPanel() {
                 </div>
               )}
             </div>
-          </details>
         </ContactCard>
       )}
     </>

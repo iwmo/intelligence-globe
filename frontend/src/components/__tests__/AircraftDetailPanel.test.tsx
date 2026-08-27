@@ -11,6 +11,10 @@ vi.mock('../../store/useAppStore', () => {
     setSelectedAircraftId: vi.fn(),
     trackedEntity: null,
     setTrackedEntity: vi.fn(),
+    cockpitMode: false,
+    setCockpitMode: vi.fn(),
+    pinnedContacts: [],
+    togglePinnedContact: vi.fn(),
   };
   const useAppStore = Object.assign(
     vi.fn((selector: (s: typeof storeState) => unknown) => selector(storeState)),
@@ -31,7 +35,6 @@ import { useQuery } from '@tanstack/react-query';
 import { AircraftDetailPanel } from '../AircraftDetailPanel';
 
 // Typed access to self-contained mock state
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const storeState = (useAppStore as any)._state as {
   selectedAircraftId: string | null;
   setSelectedAircraftId: ReturnType<typeof vi.fn>;

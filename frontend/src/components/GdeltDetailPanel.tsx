@@ -1,81 +1,113 @@
-import React from 'react';
+import type { CSSProperties } from 'react';
+import { MapPin, Pin, PinOff, ScrollText } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useGdeltEvents } from '../hooks/useGdeltEvents';
-
-const LABEL_STYLE: React.CSSProperties = {
-  color: 'rgba(0,212,255,0.6)', fontFamily: 'monospace',
-  fontSize: '9px', letterSpacing: '0.08em',
-  marginRight: '4px', flexShrink: 0,
-};
-const VALUE_STYLE: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace',
-  fontSize: '9px', wordBreak: 'break-all',
-};
-const ROW_STYLE: React.CSSProperties = {
-  display: 'flex', alignItems: 'flex-start', marginBottom: '4px',
-};
-
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={ROW_STYLE}>
-      <span style={LABEL_STYLE}>{label}:</span>
-      <span style={VALUE_STYLE}>{children}</span>
-    </div>
-  );
-}
+import { flyToPosition } from '../lib/viewerRegistry';
+import { InspectorState } from './InspectorState';
+import './contact-card.css';
 
 export function GdeltDetailPanel() {
   const selectedGdeltEventId = useAppStore(s => s.selectedGdeltEventId);
   const { data: events } = useGdeltEvents();
+  const pinnedContacts = useAppStore(s => s.pinnedContacts);
+  const togglePinnedContact = useAppStore(s => s.togglePinnedContact);
 
   if (selectedGdeltEventId === null) return null;
 
   const event = (events ?? []).find(e => e.global_event_id === selectedGdeltEventId);
-  if (!event) return null;
+  if (!event) {
+    return <InspectorState state="empty">This event is no longer available in the current feed.</InspectorState>;
+  }
+  const isPinned = pinnedContacts.some(contact =>
+    contact.kind === 'gdelt' && String(contact.id) === String(event.global_event_id)
+  );
 
   return (
-    <div style={{ padding: '8px 10px' }}>
-      <FieldRow label="SOURCE">
-        {event.source_url ? (
-          <a href={event.source_url} target="_blank" rel="noopener noreferrer"
-            style={{ color: 'rgba(0,212,255,0.8)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '9px', wordBreak: 'break-all' }}>
-            {event.source_url}
-          </a>
-        ) : 'N/A'}
-      </FieldRow>
-      <FieldRow label="ACTOR 1">{event.actor1_name ?? 'N/A'}</FieldRow>
-      <FieldRow label="ACTOR 2">{event.actor2_name ?? 'N/A'}</FieldRow>
-      <FieldRow label="GOLDSTEIN">{event.goldstein_scale != null ? event.goldstein_scale.toFixed(1) : 'N/A'}</FieldRow>
-      <FieldRow label="TONE">{event.avg_tone != null ? event.avg_tone.toFixed(1) : 'N/A'}</FieldRow>
-      <FieldRow label="EVENT CODE">{event.event_code}</FieldRow>
-      <FieldRow label="OCCURRED">{new Date(event.occurred_at).toUTCString()}</FieldRow>
+    <article
+      className="contact-card"
+      style={{ '--contact-accent': 'var(--status-connecting)' } as CSSProperties}
+    >
+      <header className="contact-card__selection">
+        <div className="contact-card__eyebrow">
+          <span>GDELT EVENT</span>
+          <time>{new Date(event.occurred_at).toLocaleString()}</time>
+        </div>
+        <h3>{event.actor1_name || event.actor2_name
+          ? `${event.actor1_name ?? 'Unknown'} ↔ ${event.actor2_name ?? 'Unknown'}`
+          : `EVENT ${event.global_event_id}`}</h3>
+        <dl className="contact-card__telemetry">
+          <div><dt>TONE</dt><dd>{event.avg_tone?.toFixed(1) ?? 'N/A'}</dd></div>
+          <div><dt>IMPACT</dt><dd>{event.goldstein_scale?.toFixed(1) ?? 'N/A'}</dd></div>
+          <div><dt>CODE</dt><dd>{event.event_code}</dd></div>
+        </dl>
+      </header>
 
-      <div style={{
-        marginTop: '8px', paddingTop: '6px',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        fontFamily: 'monospace', fontSize: '8px',
-        color: 'rgba(255,255,255,0.35)', fontStyle: 'italic', lineHeight: 1.4,
-      }}>
-        Data extracted automatically by the GDELT Project. Verify independently.
-      </div>
+      <section className="contact-card__section" aria-labelledby={`event-actions-${event.global_event_id}`}>
+        <h4 id={`event-actions-${event.global_event_id}`}>Actions</h4>
+        <div className="contact-card__actions">
+          <button
+            type="button"
+            onClick={() => flyToPosition(event.longitude, event.latitude, 80_000)}
+          >
+            <MapPin aria-hidden="true" />
+            Center
+          </button>
+          <button
+            type="button"
+            data-active={isPinned}
+            onClick={() => togglePinnedContact({ kind: 'gdelt', id: event.global_event_id })}
+          >
+            {isPinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+            {isPinned ? 'Unpin' : 'Pin'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              useAppStore.getState().setGdeltOsintPrefill({
+                lat: event.latitude,
+                lon: event.longitude,
+                ts: event.occurred_at,
+                sourceUrl: event.source_url,
+              });
+            }}
+          >
+            <ScrollText aria-hidden="true" />
+            LOG AS OSINT EVENT
+          </button>
+        </div>
+      </section>
 
-      <button
-        onClick={() => {
-          useAppStore.getState().setGdeltOsintPrefill({
-            lat: event.latitude, lon: event.longitude,
-            ts: event.occurred_at, sourceUrl: event.source_url,
-          });
-        }}
-        style={{
-          width: '100%', marginTop: '8px',
-          background: 'rgba(0,212,255,0.1)',
-          border: '1px solid rgba(0,212,255,0.4)',
-          color: '#00D4FF', fontFamily: 'monospace',
-          fontSize: '10px', padding: '5px', cursor: 'pointer',
-        }}
-      >
-        LOG AS OSINT EVENT
-      </button>
-    </div>
+      <section className="contact-card__section" aria-labelledby={`event-context-${event.global_event_id}`}>
+        <h4 id={`event-context-${event.global_event_id}`}>Context</h4>
+        <dl className="contact-card__facts">
+          <div><dt>Actor 1</dt><dd>{event.actor1_name ?? 'N/A'}</dd></div>
+          <div><dt>Actor 2</dt><dd>{event.actor2_name ?? 'N/A'}</dd></div>
+          <div><dt>Latitude</dt><dd>{event.latitude.toFixed(4)}</dd></div>
+          <div><dt>Longitude</dt><dd>{event.longitude.toFixed(4)}</dd></div>
+        </dl>
+        <div className="contact-card__context-copy">
+          {event.source_url ? (
+            <a href={event.source_url} target="_blank" rel="noopener noreferrer">
+              Open source report
+            </a>
+          ) : 'Source URL unavailable'}
+        </div>
+      </section>
+
+      <section className="contact-card__section" aria-labelledby={`event-history-${event.global_event_id}`}>
+        <h4 id={`event-history-${event.global_event_id}`}>History</h4>
+        <div className="contact-card__history-copy">
+          Occurred {new Date(event.occurred_at).toUTCString()}.
+        </div>
+      </section>
+
+      <details className="contact-card__details">
+        <summary>Details</summary>
+        <div>
+          Event ID {event.global_event_id}. Data extracted automatically by the GDELT Project.
+          Verify independently before operational use.
+        </div>
+      </details>
+    </article>
   );
 }
