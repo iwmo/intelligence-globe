@@ -22,6 +22,7 @@ interface CinematicHUDProps { viewer: Viewer | null; }
 export function CinematicHUD({ viewer }: CinematicHUDProps) {
   const hudVisible = useAppStore(s => s.hudVisible);
   const replayMode = useAppStore(s => s.replayMode);
+  const replayTimelineExpanded = useAppStore(s => s.replayTimelineExpanded);
   const trackedEntity = useAppStore(s => s.trackedEntity);
   const selectedAircraftId = useAppStore(s => s.selectedAircraftId);
   const selectedMilitaryId = useAppStore(s => s.selectedMilitaryId);
@@ -108,7 +109,7 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
     return () => { viewer.camera.moveEnd.removeEventListener(handler); };
   }, [viewer]);
 
-  const mgrsTop = (showBanner ? 26 : 0) + (replayMode === 'playback' ? 112 : 60);
+  const mgrsTop = (showBanner ? 26 : 0) + 60;
 
   if (!hudVisible) {
     return (
@@ -162,7 +163,9 @@ export function CinematicHUD({ viewer }: CinematicHUDProps) {
       </div>
 
       <div style={{
-        position: 'absolute', bottom: 68, right: 48,
+        position: 'absolute',
+        bottom: replayMode === 'playback' && replayTimelineExpanded ? 190 : 68,
+        right: 48,
         color: '#00ff00', fontSize: '11px', lineHeight: '1.8',
         textAlign: 'right', userSelect: 'none',
       }}>

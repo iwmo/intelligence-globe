@@ -21,6 +21,14 @@ const mockState = {
   tleLastUpdated: null as string | null,
   isPlaying: false as boolean,
   setIsPlaying: vi.fn(),
+  replayTimelineExpanded: true,
+  setReplayTimelineExpanded: vi.fn(),
+  pinnedContacts: [],
+  selectedAircraftId: null,
+  selectedMilitaryId: null,
+  selectedShipId: null,
+  selectedSatelliteId: null,
+  selectedGdeltEventId: null,
 };
 
 vi.mock('../../store/useAppStore', () => ({

@@ -2,19 +2,19 @@
   --drawer-rail-width: 2.75rem;
   position: fixed;
   top: var(--shell-top-height);
-  bottom: 0;
+  bottom: var(--shell-bottom-inset, 0);
   z-index: calc(var(--z-shell) - 2);
   display: flex;
   pointer-events: none;
 }
 
 .operational-drawer--left {
-  left: var(--shell-gutter);
+  left: 0;
   flex-direction: row;
 }
 
 .operational-drawer--right {
-  right: var(--shell-gutter);
+  right: 0;
   flex-direction: row-reverse;
 }
 

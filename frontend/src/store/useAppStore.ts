@@ -95,6 +95,8 @@ interface AppState {
   replayWindowStart: number | null;
   replayWindowEnd: number | null;
   setReplayWindow: (start: number, end: number) => void;
+  replayTimelineExpanded: boolean;
+  setReplayTimelineExpanded: (expanded: boolean) => void;
 
   // Phase 23: isPlaying promoted from PlaybackBar local state
   isPlaying: boolean;
@@ -215,7 +217,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Replay engine slice
   replayMode: 'live',
-  setReplayMode: (mode) => set({ replayMode: mode }),
+  setReplayMode: (mode) => set((state) => ({
+    replayMode: mode,
+    isPlaying: mode === 'live' ? false : state.isPlaying,
+    replayTimelineExpanded: mode === 'playback' ? true : state.replayTimelineExpanded,
+  })),
   replayTs: Date.now(),
   setReplayTs: (ts) => set({ replayTs: ts }),
   replaySpeedMultiplier: 60,
@@ -223,6 +229,8 @@ export const useAppStore = create<AppState>((set) => ({
   replayWindowStart: null,
   replayWindowEnd: null,
   setReplayWindow: (start, end) => set({ replayWindowStart: start, replayWindowEnd: end }),
+  replayTimelineExpanded: true,
+  setReplayTimelineExpanded: (expanded) => set({ replayTimelineExpanded: expanded }),
 
   // Phase 23
   isPlaying: false,

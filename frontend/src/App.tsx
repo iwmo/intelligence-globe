@@ -41,7 +41,9 @@ export default function App() {
   const [satWorker, setSatWorker] = useState<Worker | null>(null);
   const satWorkerRef = useRef<Worker | null>(null);
   const [osintPanelOpen, setOsintPanelOpen] = useState(false);
-  const { cleanUI } = useAppStore();
+  const cleanUI = useAppStore(s => s.cleanUI);
+  const replayMode = useAppStore(s => s.replayMode);
+  const replayTimelineExpanded = useAppStore(s => s.replayTimelineExpanded);
   const gdeltOsintPrefill = useAppStore(s => s.gdeltOsintPrefill);
 
   useKeyboardShortcuts();
@@ -77,7 +79,10 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}>
+    <div
+      className={`app-shell app-shell--${replayMode}${replayTimelineExpanded ? ' app-shell--timeline-expanded' : ''}`}
+      style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000' }}
+    >
       <GlobeView onViewerReady={(v) => {
         registerViewer(v);
         setCesiumViewer(v);
@@ -120,7 +125,7 @@ export default function App() {
       {!cleanUI && <PlaybackBar onOpenOsintPanel={() => setOsintPanelOpen(true)} />}
       <BootSplash />
       {!cleanUI && <FirstRunCard />}
-      {!cleanUI && <CommandDock />}
+      {!cleanUI && replayMode === 'live' && <CommandDock />}
 
       <OsintEventPanel open={osintPanelOpen} onClose={() => {
         setOsintPanelOpen(false);

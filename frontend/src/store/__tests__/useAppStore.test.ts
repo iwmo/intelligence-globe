@@ -105,7 +105,11 @@ describe('useAppStore — replay slice', () => {
       replaySpeedMultiplier: 60,
       replayWindowStart: null,
       replayWindowEnd: null,
+      replayTimelineExpanded: true,
+      isPlaying: false,
+      pinnedContacts: [],
     });
+    useAppStore.getState().clearSelection();
   });
 
   it('replayMode defaults to "live"', () => {
@@ -139,6 +143,29 @@ describe('useAppStore — replay slice', () => {
   it('setReplaySpeedMultiplier(3600) sets to 3600', () => {
     useAppStore.getState().setReplaySpeedMultiplier(3600);
     expect(useAppStore.getState().replaySpeedMultiplier).toBe(3600);
+  });
+
+  it('preserves selection, tracking, and pins across replay transitions', () => {
+    useAppStore.getState().selectContact('aircraft', 'abc123');
+    useAppStore.getState().togglePinnedContact({ kind: 'aircraft', id: 'abc123' });
+
+    useAppStore.getState().setReplayMode('playback');
+    useAppStore.getState().setReplayMode('live');
+
+    const state = useAppStore.getState();
+    expect(state.selectedAircraftId).toBe('abc123');
+    expect(state.trackedEntity).toEqual({ kind: 'aircraft', id: 'abc123' });
+    expect(state.pinnedContacts).toEqual([{ kind: 'aircraft', id: 'abc123' }]);
+  });
+
+  it('opens the timeline on replay entry and stops playback on live return', () => {
+    useAppStore.getState().setReplayTimelineExpanded(false);
+    useAppStore.getState().setReplayMode('playback');
+    expect(useAppStore.getState().replayTimelineExpanded).toBe(true);
+
+    useAppStore.getState().setIsPlaying(true);
+    useAppStore.getState().setReplayMode('live');
+    expect(useAppStore.getState().isPlaying).toBe(false);
   });
 
   it('replayWindowStart defaults to null', () => {
